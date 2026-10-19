@@ -8,8 +8,9 @@ v2 = v1 after verification against live data on 2026-10-16 (counts only). What c
 - Columns: `timestamp`, `methodName`, `serviceAttributionToken`, `assistToken`, `request`, `response`, `userIamPrincipal`, `userQuery`, `serviceLabel`, `serviceName`. No status/error column, no latency.
 - Inside the window, `userIamPrincipal` and `response` are 100% filled. At 4h `audit_logs_annonymizer` NULLs them. Rows land ~4 min after the call. Rows are deleted after 30 days.
 - No session key on `StreamAssist`: request carries only `name`, `query`, `agentsSpec`. `serviceAttributionToken` is unique per call. Conversations can only be rebuilt from the principal, inside the window.
-- `Search` is mostly search-as-you-type (~10,700 calls by ~100-160 people in under 4h, ~70 per person). Not an answer-quality signal.
-- Data has gaps: no rows at all 2026-09-30 .. 2026-10-04, 2026-10-05 partial (193 calls).
+- `Search` rows are internal retrieval calls the assistant fires per user turn (~6 per turn, per the `user_activity_materialize` DAG), not user searches. Not a per-user signal. (Corrected 2026-10-19: earlier guessed as search-as-you-type.)
+- Data has gaps: no `StreamAssist` rows 2026-09-30 .. 2026-10-04, 2026-10-05 partial (193 calls).
+- The web UI can be separated from Slack/MCP/evaluator structurally: web-UI `StreamAssist` requests carry `agentsSpec`, API clients send `query.text` (verified 2026-10-19).
 - Real traffic: 831-1,590 non-eval `StreamAssist` calls per weekday, 32-237 per weekend day.
 
 ## Population
@@ -38,7 +39,7 @@ v2 = v1 after verification against live data on 2026-10-16 (counts only). What c
 | Empty answer rate | 62% of answers have no `answer.replies`; most are agent calls (230 of 346). All states are `SUCCEEDED`. A missing field is a logging detail, not an empty answer. | Find where the real answer state is logged (raw GCS logs or `gen_ai.client.inference.operation.details`). |
 | Error rate | No status column, `response.error` never set; failed calls may not be in this table at all. | Use the raw Cloud Audit logs in GCS (they carry `status`) or Cloud Logging metrics. |
 | Distinct users per bucket | 15-min distinct counts do not add up to a daily distinct. | `ge_metrics` only, or mergeable HLL sketches (derived from identity, needs a decision). |
-| Zero-result `Search` | ~6%, polluted by partial type-ahead strings. | Dropped unless type-ahead calls can be told apart. |
+| Zero-result `Search` | ~6% of retrieval calls return no results; calls carry no turn ID. | Link to turns by principal and time inside the window (see `design.md` §8.4). |
 
 ## Detection
 Applied per metric, per engine, weekdays and weekends modeled separately.
