@@ -19,6 +19,15 @@
 - Kept: `userQuery`, tokens, full `request` JSON (incl. feedback).
 - So answers, sources and identity exist for ~4 hours only. By design.
 
+## Idea: the "analyzer" may be several systems
+Split by the question each answers and the data it needs:
+- **Monitoring** ("did something get worse?"): population-level, works on metadata only (re-ask rate, errors, latency, usage by department).
+- **Steering** ("where to put effort?"): metadata only (retrieval share by data store, hot-but-stale / never-retrieved docs, eval coverage vs real usage).
+- **Diagnosis** ("what went wrong in this answer?"): the only part that needs text, so the only part under the 4h / no-human / no-fragile-data constraints.
+- **Building evals**: needs question text (and golden answers), a separate data problem from diagnosis.
+
+If it holds, the hard requirements apply to a smaller part than the epic implies. Risk: at ~1,000-1,600 non-eval calls per weekday, metadata-only monitoring may be too noisy to catch small regressions.
+
 ## Open questions
 1. Does the GCS sink `audit-logs-rtbhouse-agentspace` (empty filter, not touched by the DAGs) still hold raw un-anonymized logs? Not checked.
 2. Where to hook the analyzer? Natural spot: before the 4h cutoff, write derived features to a new table. Not designed.
