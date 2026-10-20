@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
-| Status | Draft v1, 2026-10-19 |
+| Status | Draft v2, 2026-10-20 |
 | Owner | Paweł Borkowski |
 | Scope | Gemini Enterprise **web UI** traffic (Bolek). Slack and MCP later. |
 | Supersedes | "Design doc - Feedback Analysis Agent" (AIENGLAB-235/236, epic closed as Duplicate). Absorbs `monitoring.md` v2. |
@@ -71,11 +71,12 @@ Targets are set after a 4-week baseline. No baseline exists today.
 |---|---|---|
 | D1 | The system may persist **derived values only**: scores, closed-list labels, cited document IDs/URIs, counts, versions. Never question/answer text, summaries or identity. Nothing else is stored beyond what exists today. | User, 2026-10-19 |
 | D2 | **Synthetic evals only.** Real questions are never re-asked or copied. Evals are generated from documents that real traffic retrieves or cites. | User, 2026-10-19 |
-| D3 | Conversation data may be sent to **Gemini on Vertex AI, EU regional endpoint only**, after **PII scrubbing**. | User, 2026-10-19 |
+| D3 | Conversation data may be sent to **Gemini on Vertex AI, EU endpoints only** (a EU region or the `eu` multi-region, never `global`), after **PII scrubbing**. | User, 2026-10-19; `eu` multi-region accepted 2026-10-20 |
 | D4 | Findings go to **Slack only**. | User, 2026-10-19 |
 | D5 | Web UI first; Slack/MCP later. SECOPS approval is out of scope of this doc; the design assumes the current storage boundary (D1). | Earlier discussion (`notes.md`) |
 | D6 | Analysis is 100% automated. No person reads conversations. | Earlier requirements |
 | D7 | New jobs run as **Cloud Run jobs in `rtbhouse-agentspace`**, not Composer. Composer `rtbh-ai-main-airflow-v3` is being retired and its non-indexer DAGs are planned to move to Cloud Run jobs there (`jira-stage/5-port-remaining-composer-dags.md`). | Verified plan |
+| D8 | **Models**: stage 1 (every turn) uses `gemini-3.8-flash`. Stage 2 (flagged turns, only if necessary) uses `gemini-4-argon`. Both on the `eu` multi-region. Gemini 2.5 is not used. | User, 2026-10-20 |
 
 ### 3.2 Requirements traceability
 
@@ -152,7 +153,9 @@ sequenceDiagram
 - Change events in `audit_logs` (09-17 to 10-16): `UpdateEngine` 32, `UpdateAgent` 14, `CreateAgent` 13, `UpdateDataConnector` 2.
 
 ### 4.5 Platform facts
-- EU Vertex AI (`europe-west4`, `europe-west1`, `europe-central2`) lists Gemini `2.5-flash`, `2.5-flash-lite`, `2.5-pro` (publisher-model API, 2026-10-19). The evaluator's judge `gemini-3.8-flash` is served only from the global endpoint (evaluator `constants.py`), so it cannot be used on conversation data under D3.
+- EU regions (`europe-west4`, `europe-west1`, `europe-central2`) serve Gemini 2.5 only (`2.5-flash`, `2.5-flash-lite`, `2.5-pro`); `3.8-flash` and `3.7-flash` return 404 there (2026-10-20). The evaluator's judge uses `global` for that reason (evaluator `constants.py`).
+- The **`eu` multi-region** (`aiplatform.eu.rep.googleapis.com`, via `google-genai` with `location="eu"`) answered a synthetic call on `gemini-3.8-flash`, `gemini-3.7-flash` and `gemini-4-argon`; `gemini-2.5-flash` returns 404 there (2026-10-20). The indexers' `vision_llm` already runs `gemini-3.8-flash` on `eu` (`src/common/utils/vision_llm.py`, AIENGLAB-692). The `vertexai` SDK rejects `eu`, so the assessor must use `google-genai`.
+- Not verified for `gemini-4-argon`: launch stage, price, quota, data-use terms.
 - Improvement levers live in `aiel-infrastructure/modules/agentspace-engines`: the system instruction (base text plus rule files in `prompts/`), `data_store_ids` (with `ignore_changes` on at least one engine, so also edited in the console), search tier, feature flags (model selector on). Indexers own content and chunking.
 - `slack_failure_callback` builds its Slack message from the first line of the exception (up to 300 chars). An exception that quotes conversation text would leak it.
 - Related backlog: AIENGLAB-522 (auto-run evals on prompt change), AIENGLAB-524 (daily scheduled eval per model), AIENGLAB-523 (eval results dashboard).
@@ -242,7 +245,7 @@ flowchart TB
             EB["eval-builder<br/>weekly"]
             CR["change-register<br/>hourly"]
         end
-        VX["Vertex AI Gemini 2.5<br/>EU regional endpoint"]
+        VX["Vertex AI Gemini 3.8 flash, 4 argon<br/>EU multi-region endpoint"]
         BQQ[("bolek_quality dataset<br/>derived only")]
     end
     subgraph IDX["GCP rtb-ai-engineering-indexers"]
@@ -295,7 +298,7 @@ sequenceDiagram
     participant TA as turn-assessor
     participant BQ as audit_logs
     participant PII as PII scrubber (in process)
-    participant LLM as Gemini 2.5 (EU)
+    participant LLM as Gemini (EU multi-region)
     participant GCS as mcp-document-content
     participant Q as bolek_quality
     SCH->>TA: run (every 10 min)
@@ -304,12 +307,12 @@ sequenceDiagram
     TA->>TA: rebuild conversations, link retrieval, extract references
     TA->>PII: question, answer, snippets, prior turns
     PII-->>TA: scrubbed text with consistent placeholders
-    TA->>LLM: stage 1 rubric (flash), structured output
+    TA->>LLM: stage 1 rubric (3.8 flash), structured output
     LLM-->>TA: labels and scores
     alt flagged (low score, failure, late trigger)
         TA->>GCS: full text of cited documents
         TA->>PII: scrub document text
-        TA->>LLM: stage 2 deep diagnosis (pro)
+        TA->>LLM: stage 2 deep diagnosis (4 argon)
         LLM-->>TA: root cause, segment support
     end
     TA->>TA: leak guard: schema, enums, URI allowlist
@@ -421,7 +424,7 @@ This is used only for retrieval-family diagnosis and doc stats. It is never used
 
 ### 8.6 Two-stage assessment (the funnel)
 
-**Stage 1 (every turn), Gemini 2.5 Flash, EU, temperature 0, structured output (JSON schema).** Input: scrubbed question, answer, grounding segments with reference snippets (when present), up to 2 prior turns. Output, all closed or numeric:
+**Stage 1 (every turn), `gemini-3.8-flash`, `eu` multi-region, temperature 0, structured output (JSON schema).** Input: scrubbed question, answer, grounding segments with reference snippets (when present), up to 2 prior turns. Output, all closed or numeric:
 
 ```text
 intent, topic, answer_language_matches (bool),
@@ -436,7 +439,7 @@ severity (LOW|MEDIUM|HIGH), confidence 0-1
 
 Groundedness is checked **per segment**: each `segments[].text` against the snippets it references (`referenceIndices`). That is deterministic input, not a guess. `UNGROUNDED_INTERNAL_ANSWER` is set when `needs_internal_knowledge` is true and there are no references.
 
-**Stage 2 (flagged turns only), Gemini 2.5 Pro, EU.** Triggered by: `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, any retrieval/corpus failure, a dislike, or a late trigger. It adds the old design's two-level gap analysis:
+**Stage 2 (flagged turns only, if necessary), `gemini-4-argon`, `eu` multi-region.** Triggered by: `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, any retrieval/corpus failure, a dislike, or a late trigger. It adds the old design's two-level gap analysis:
 
 1. **Snippet vs answer**: did the model use what it was given? → `UNSUPPORTED_CLAIM`, `REASONING_ERROR`.
 2. **Full document vs snippet**: fetch the cited documents from `mcp-document-content`, scrub them, and check whether a better passage exists → `CHUNKING_ISSUE`, `RETRIEVAL_MISS`. If no source supports an answer → `KNOWLEDGE_GAP`. If the document is stale or two documents contradict → `OUTDATED_SOURCE`, `CONFLICTING_SOURCES`.
@@ -517,7 +520,7 @@ Nobody may read real conversations, so the judge is validated on material that i
 
 1. **Canary stream.** Evaluator turns pass through the same `audit_logs` window (`query.text` plus the evaluator prefix; responses present before 4h). The assessor grades a sample each run. Because these are synthetic, engineers may inspect inputs and outputs, and the evaluator already holds golden answers. **Agreement** between the reference-free online rubric and the evaluator's reference-based judge is tracked (Cohen's kappa per label, correlation per score).
 2. **Mutation tests.** On evaluator answers, inject known faults: swapped numbers, a dropped procedure step, a citation pointing to the wrong snippet, wrong language. Measure **detection recall** per failure type.
-3. **Cross-model check.** Re-grade 5% of real turns with Gemini 2.5 Pro in the same run. Disagreement rate is tracked as a stability metric. Only the agreement value is stored.
+3. **Cross-model check.** Re-grade 5% of real turns with `gemini-4-argon` in the same run. Disagreement rate is tracked as a stability metric. Only the agreement value is stored.
 4. **Thumbs sanity.** Disliked turns should have a much lower AQR than the rest. Too few for statistics (~33 per month), so a direction check only.
 5. **Bridge on change.** A new `rubric_version` or `judge_model` runs in parallel with the old one for 5 weekdays. The offset is stored, and series are compared only through the bridge.
 
@@ -592,7 +595,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 - **Least privilege**: a dedicated assessor service account reads `audit_logs`, reads `mcp-document-content` and its key, calls Vertex AI in one EU region, and writes `bolek_quality`. People get read access to aggregates. Per-turn rows are restricted to the AIEL team.
 - **No text at rest or in transit to people**: §8.7 leak guard. No debug logging of payloads. Typed errors only. Slack messages are rendered from templates over derived fields.
 - **No interactive debugging on real data**: debugging uses the canary stream (§8.13), which is synthetic.
-- **EU only** (D3): Vertex AI regional endpoint. Models are limited to what that region serves (Gemini 2.5 family as of 2026-10-19).
+- **EU only** (D3): Vertex AI `eu` multi-region endpoint (`google-genai` client). Never `global`. Models are limited to what `eu` serves (`gemini-3.8-flash`, `gemini-4-argon` as of 2026-10-20).
 - **Re-identification**: per-turn rows carry only `day`, never time of day. Department never appears per turn and has k ≥ 5 suppression. People-directory documents are excluded.
   - Residual risk: `hourly_user_activity` holds raw emails per hour. That is why per-turn rows must not get an hour field, and why access is restricted.
 
@@ -610,22 +613,22 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 - **Dependencies to watch**:
   - The anonymizer's delay and cadence (§8.2).
   - The web-UI signature (`agentsSpec` vs `query.text`). This is not a Google contract; reuse the residuum check from `user_activity_materialize`.
-  - The Gemini 2.5 model lifecycle in EU regions.
+  - The lifecycle of `gemini-3.8-flash` and `gemini-4-argon` on the `eu` multi-region.
   - The Composer-to-Cloud-Run migration.
 - **Alerts**: job failures to Sentry and `#ai-engineering-lab-alerts-prod`, as planned for the ported DAGs.
 
 ## 12. Cost and capacity (estimates, prices not checked)
-- **Stage 1**: about 900-1,450 turns per weekday × at most ~10k input tokens (rubric ~2k, answer ~0.6k, snippets capped at 6k, 2 prior turns ~1.5k) ≈ **up to ~15M input tokens per weekday** on Gemini 2.5 Flash.
-- **Stage 2**: at most 20% of turns × at most ~30k tokens (capped full documents) ≈ **up to ~9M tokens per weekday** on Gemini 2.5 Pro.
+- **Stage 1**: about 900-1,450 turns per weekday × at most ~10k input tokens (rubric ~2k, answer ~0.6k, snippets capped at 6k, 2 prior turns ~1.5k) ≈ **up to ~15M input tokens per weekday** on `gemini-3.8-flash`.
+- **Stage 2**: at most 20% of turns × at most ~30k tokens (capped full documents) ≈ **up to ~9M tokens per weekday** on `gemini-4-argon` (price and tokenizer not checked).
 - **Calibration**: canary plus 5% cross-model, small.
-- **Throughput**: ~110 web turns per hour observed in one 3h40m Monday window (402 turns), ≈ 20 per 10-min run; the true peak is not measured. Well within one job instance. EU regional quota for Gemini 2.5 to be confirmed (Q3).
+- **Throughput**: ~110 web turns per hour observed in one 3h40m Monday window (402 turns), ≈ 20 per 10-min run; the true peak is not measured. Well within one job instance. `eu` multi-region quota for `gemini-3.8-flash` and `gemini-4-argon` to be confirmed (Q3).
 - **BigQuery**: negligible, a few thousand derived rows per day.
 
 ## 13. Rollout
 
 | Phase | Content | Exit criterion |
 |---|---|---|
-| 0. Spikes | Resolve Q1 (missing grounding metadata), Q2 (URI/ID → document mapping), Presidio PL recall on canary text, Gemini 2.5 judge vs evaluator judge on canary | Each open question answered or design adjusted |
+| 0. Spikes | Resolve Q1 (missing grounding metadata), Q2 (URI/ID → document mapping), Presidio PL recall on canary text, `gemini-3.8-flash` judge vs evaluator reference judge on canary; `gemini-4-argon` stage 2 vs stage 1 on flagged canary turns | Each open question answered or design adjusted |
 | 1. Shadow | `turn-assessor` + `quality-aggregator`, canary calibration, no Slack except health | 4-week baseline; coverage ≥ 98%; kappa and recall thresholds met |
 | 2. Visibility | Slack digest, anomalies, severe-cluster alerts, prioritization | Team uses the digest for 4 weeks; first clusters resolved |
 | 3. Closed loop | eval-builder (anchor + focus), release gate (AIENGLAB-522/524), release impact | Every prod change has a gate result and an impact report |
@@ -640,7 +643,8 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Metadata-only monitoring (`monitoring.md` v2) | Verified as insufficient: no error field, missing grounding is a logging property, and re-ask by time gap is mostly normal follow-ups. Kept as the health layer. |
 | Store summaries of questions and answers | Excluded by D1; summaries can quote content. |
 | Re-ask real questions in evals | Excluded by D2. Traffic-weighted synthetic sets approximate the real distribution through documents instead. |
-| Global endpoint and newest judge model | Excluded by D3. |
+| Global endpoint | Excluded by D3. Not needed: `gemini-3.8-flash` (the evaluator's judge) is available on the `eu` multi-region. |
+| Gemini 2.5 (Flash for stage 1, Pro for stage 2) | Superseded by D8. Only needed if `eu` multi-region were not accepted. |
 | Per-turn timestamps | Re-identification via `hourly_user_activity`. `day` is enough for every metric here. |
 
 ## 15. Risks
@@ -648,7 +652,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Risk | Effect | Mitigation |
 |---|---|---|
 | Grounding metadata missing on ~72% of answers (Q1) | Groundedness and retrieval diagnosis cover only ~28% of turns | Phase-0 spike; until resolved, report grounded and ungrounded strata separately and use `UNGROUNDED_INTERNAL_ANSWER` |
-| Judge quality on Gemini 2.5 (EU) is lower than on the evaluator's model | Noisy labels, wrong priorities | Canary kappa, mutation recall, trust thresholds, cross-model check |
+| Judge quality on real traffic differs from its quality on evaluator turns (same `gemini-3.8-flash` as the evaluator judge, but a different input distribution) | Noisy labels, wrong priorities | Canary kappa, mutation recall, trust thresholds, cross-model check |
 | Presidio misses names or IDs in Polish text | PII reaches the LLM (still EU, nothing stored) | Recall test on canary text with seeded PII; conservative custom recognizers |
 | Window shrinks (anonymizer change) or the job is down | Turns lost forever | Margin check at start, coverage alerts, oldest-first, 20 attempts per turn |
 | Online pre/post can't see small effects (MDE ~2.4-3 pp) | "No detectable change" for real small gains | Offline paired gate for small changes; report MDE with every verdict |
@@ -663,8 +667,8 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 |---|---|---|
 | Q1 | Why do ~72% of web-UI answers have no `answer.replies` grounding metadata: logging artifact, streaming, or genuinely ungrounded answers? | Spike: compare with evaluator responses for the same engine; Google docs |
 | Q2 | How do cited URIs and `Search` result IDs map to `mcp-document-content` paths? The old design says "same logic as the MCP server". | Read MCP server code |
-| Q3 | EU regional quota and availability of Gemini 2.5 Flash/Pro for this project | Vertex quota page |
-| Q4 | Vertex AI data-use terms for conversation content | SECOPS |
+| Q3 | `eu` multi-region quota for `gemini-3.8-flash` and `gemini-4-argon` in `rtbhouse-agentspace`, at ~15M input tokens per weekday | Vertex quota page |
+| Q4 | Vertex AI data-use terms for conversation content; whether the `eu` multi-region counts as an EU endpoint for SECOPS; launch stage and terms of `gemini-4-argon` | SECOPS |
 | Q5 | Will the anonymizer keep its 4h delay and 15-min cadence after the Cloud Run port? | Owner of the port ticket |
 | Q6 | Is Presidio's Polish NER recall acceptable? | Phase-0 test |
 | Q7 | Retention and access for per-turn derived rows (90 days proposed) | SECOPS |
@@ -687,7 +691,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | No session on `StreamAssist` | Request key listing (10-16) |
 | `daily_user_activity` raw emails | Pattern counts on `user_email` (10-19) |
 | `people.hr_dump` fields | Schema (10-19) |
-| EU Gemini models | Vertex publisher-model API, 3 EU regions (10-19) |
+| Gemini models in EU | 2.5 listed in 3 EU regions via publisher-model API (10-19). `gemini-3.8-flash`, `3.7-flash`, `gemini-4-argon` answered a synthetic call on the `eu` multi-region via `google-genai`; 2.5-flash returns 404 there; 3.x return 404 in the 3 regions (10-20). Indexers `vision_llm.py` and commit `6352175` (10-12) |
 | Evaluator DB, metrics, judge model, test sets | Repo files and `gcloud sql instances list` (10-19) |
 | Composer retirement plan | `aiel-content-indexers/jira-stage/5-port-remaining-composer-dags.md` (10-19) |
 | Prior design and its status | Confluence copy in `aiel-content-indexers`; AIENGLAB-235 resolution Duplicate (10-19) |
