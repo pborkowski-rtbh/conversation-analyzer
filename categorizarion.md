@@ -34,6 +34,10 @@ Source: `design.md` §5.2, §5.3, §8.6. Each web turn gets one filled-in form f
 
 `gemini-4-argon` (`eu` multi-region), only if necessary, with the cited full documents (scrubbed). Triggered by `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a retrieval/corpus failure, a dislike, or a late trigger. Checks snippet vs answer, then full document vs snippet, and refines the failure types.
 
+## TODO
+
+- Determine how we detect a finished conversation, and whether we want to handle long (over 4h) sessions.
+
 ## Not defined yet
 
 - The rubric prompt and the meaning of each 1-5 level.
