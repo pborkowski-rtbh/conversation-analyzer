@@ -785,6 +785,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Q21 | Stage-1 context: up to 2 prior turns (§8.3) or the whole session capped at 60k characters (~$2 more per weekday, better `relation_to_previous` and contradiction checks on long sessions)? | Team |
 | Q22 | A `doc_catalog` table written by the indexers' sink (`data_store_id, doc_id, uri_sha256, host, has_content, is_people_directory`; no titles or URIs) to map retrieved-only IDs to data stores and content | Indexers owner |
 | Q23 | Canary for multi-turn behavior: 20-50 synthetic conversations of 3-5 turns sent in one session; store `answer.name` and `assistToken` per evaluator result | Evaluator owner |
+| Q24 | How stage 1 can set `HIGH` severity without knowing the truth: it only sees the answer and its references. Options: contradiction by a cited reference only (leaning), stage 2 confirms, or any unsupported span. Part of Q12 | Team, with the rubric |
 
 ## Appendix A. Evidence
 

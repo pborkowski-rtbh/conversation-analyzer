@@ -139,9 +139,9 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | Question text | Kept for 30 days. |
 | Volume | About 900 to 1,450 web UI turns per weekday, 20 to 140 on a weekend day, and about 115 other API turns per day (810 in one 7-day window), which are Slack Bolek and MCP; the split between the two is not known yet. |
 | Feedback | About 0.1 to 0.15% of web UI answers. |
-| References | Only about 28-36% of web UI answers carry reference information in the log. This mostly reflects the answers themselves: an answer without references usually came without citations and often without any document search. Follow-up questions are the main case: 62% of first questions in a chat have references, but only 11% from the fifth question on. |
-| Session ID | Present in the answer, so it is lost with the answer. Each turn has its own token, so tokens cannot group turns into a session. Slack Bolek and MCP turns have a session ID too, but almost every one of them is its own session, so a Slack thread is not one session. |
-| Evaluator traffic | Passes through the same log and is told apart by its prompt prefix, which follows a leading line break. It is about 40% of all answer calls in the log, so it must be filtered out reliably. It is used as the canary, never as real traffic. It is started by hand on about half of the weekdays and sends single questions only. |
+| References | Only about 28% of web UI answers carry reference information in the log (two samples of about 400 turns each). The cause is not yet known. |
+| Session ID | Present in the answer, so it is lost with the answer. Each turn has its own token, so tokens cannot group turns into a session. |
+| Evaluator traffic | Passes through the same log and is told apart by its prompt prefix. It is used as the canary, never as real traffic. |
 
 ### 3.3 What follows from this
 
@@ -150,7 +150,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | The evidence disappears after 4 hours | Assess inside the window, with a target of 3 hours and a hard limit of 3h30. |
 | Text may not be stored | Keep derived values, and check every write with the leak guard. |
 | Feedback is too rare to measure quality | Assess every turn with a judge instead of waiting for feedback. |
-| Most web UI answers have no references | Treat knowledge turns without references as not verifiable: only deterministic failures are recorded for them, and they are reported separately. Whether a follow-up can be checked against the references of earlier turns in the same chat is still open. |
+| Most web UI answers have no references | Treat knowledge turns without references as not verifiable: only deterministic failures are recorded for them, and they are reported separately. |
 | Nobody may read real questions or answers | Calibrate the judge on the canary, on injected faults and by comparing it with a second model. |
 | Session IDs vanish with the answer | Group turns by a keyed hash of the session ID while it exists, and keep no map. |
 
@@ -361,3 +361,29 @@ Nothing leaves the assessment without passing these checks:
 ### 5.9 Versions stored with every assessment
 
 Each assessment records the rubric version, the failure-list version, the judge model, the prompt version and the assessment code version. **Rubric or judge model change.** Turns already assessed keep their assessment; they are never re-assessed under the new version. For the first 5 weekdays after the change, every new turn is assessed under both the old and the new version, and both assessments are stored. The difference between them links the metrics across the change, so results from different versions are only ever compared through this parallel run. After it, only the new version is used.
+
+### 5.10 Problems to solve
+
+**How can a turn get `HIGH` severity when the judge does not know what is true?**
+
+§5.3 defines `HIGH` as a concrete factual error on an internal knowledge question. But the judge has no knowledge of the company beyond what is in the turn. It sees the question, the answer and the references, nothing else. It can only compare the answer with its references.
+
+| What the judge can see | What that allows |
+|---|---|
+| An answer span that a reference contradicts | A confirmed error |
+| An answer span that no reference supports | Only "unsupported". The claim may be wrong, or true but not sourced. |
+| An answer with no references | Nothing. The turn is not verifiable (§5.4). |
+
+**Why it matters.** `HIGH` flags the turn for stage 2 (§5.7), keeps it from counting as a good answer, and drives the alerts for severe problem clusters. If `HIGH` is set too easily, stage 2 is flooded and alerts turn noisy. If it is set too rarely, the confident wrong answers that hurt most go unseen.
+
+**Options**
+
+| Option | `HIGH` is set when | Gain | Cost |
+|---|---|---|---|
+| A. Contradiction only | Stage 1 finds an answer span contradicted by a reference it cites | Checkable by comparing two texts. Matches "only identified problems" (§5.6). | Misses confident invented facts that no reference touches. Turns without references can never be `HIGH`. |
+| B. Stage 2 decides | Stage 1 may only suggest it. It counts after stage 2 confirms it against the full documents. | The stronger judge and the full documents make the call. | Turns that stage 1 does not flag are never confirmed. Metrics wait for stage 2. |
+| C. Unsupported is enough | Any unsupported answer span on a knowledge intent | Catches invented facts | `HIGH` becomes frequent. It mixes true but unsourced claims with real errors. |
+
+**Leaning toward A, with B as a check.** Start strict, so that every `HIGH` is a real contradiction, and measure how often stage 2 changes stage 1's `HIGH` (§5.7, both results are kept). Loosen only if the baseline shows real errors being missed.
+
+**Open.** The choice of option, and the exact wording of `HIGH` in the form (§5.3) and the rubric. Until it is decided, the failure rates for `UNSUPPORTED_CLAIM` are lower bounds.

@@ -73,7 +73,7 @@ Initial table, finalized with the rubric.
 
 - The rubric text: level definitions and few-shot examples (approach decided, D12).
 - Size cap for `SKIPPED_TOO_LARGE` (Q11).
-- Exact bar for "identified" on non-deterministic stage-1 codes (Q12).
+- Exact bar for "identified" on non-deterministic stage-1 codes (Q12), including how `HIGH` severity is set when the judge only sees the answer and its references (Q24).
 - Topic rule when an answer cites several data stores (Q13).
 - A formal JSON schema.
 - The stage 2 output fields.

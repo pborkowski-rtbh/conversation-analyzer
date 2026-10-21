@@ -123,7 +123,7 @@ Nobody may read real conversations, so we check the grader on material that is a
 - The text of the grading guide and its examples (the approach is decided).
 - Whether a chat reopened from history keeps its old ID, and whether 30 minutes is the right "chat is idle" time.
 - The size above which a turn counts as "too large".
-- Exactly how sure a grade must be to count as an "identified" problem.
+- Exactly how sure a grade must be to count as an "identified" problem, and how the grader can call an answer "very wrong" when it only sees the answer and its sources.
 - Which topic to use when an answer cites several data stores.
 - Why about 7 in 10 answers show no sources in the log (a spike is planned first, because it decides how useful the grader can be).
 - For Slack and MCP: how to tell the two apart in the log, where Slack emoji reactions are stored, and whether their chats have the same hidden chat ID as the web page.
