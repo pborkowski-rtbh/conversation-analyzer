@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-21. Sections 1-2 written; further sections to follow. |
+| Status | Draft, 2026-10-21. Sections 1-3 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -110,3 +110,78 @@ Terms used in this document. Each term has exactly one meaning.
 | **Focus set** | 10 to 20 synthetic questions per active problem cluster, generated from its document. Must improve at the gate. |
 | **Release impact** | After a release, the live numbers of the 5 weekdays before compared with the 5 weekdays after. It detects only changes of about 2 to 3 percentage points; smaller effects are judged by the gate. |
 | **Change event** | A recorded change that can affect quality: a prompt, data store, model, engine or indexer change. Used to annotate alerts and to measure release impact. |
+
+## 3. High-level flow
+
+The system is one loop: assess every turn, turn the results into numbers, tell the team, fix, test, release, and check that the numbers moved.
+
+### 3.1 The loop
+
+```mermaid
+flowchart TB
+    A["1. Users ask Bolek"] --> B["2. Assess every turn<br/>inside the window"]
+    B --> C["3. Keep derived values only"]
+    C --> D["4. Compute metrics and<br/>rank problem clusters"]
+    D --> E["5. Tell the team on Slack"]
+    E --> F["6. Team fixes"]
+    F --> G["7. Test on synthetic questions,<br/>release, check live numbers"]
+    G --> A
+```
+
+| # | Step | In one sentence |
+|---|---|---|
+| 1 | Users ask Bolek | Turns arrive on the web UI, Slack Bolek and MCP; Google logs them, and the window starts. |
+| 2 | Assess every turn | Every 10 minutes, new turns are scrubbed of PII and assessed by the judge, before the anonymizer erases the answers. |
+| 3 | Keep derived values only | Scores, labels and document IDs are stored; all text is dropped. |
+| 4 | Compute metrics and rank problem clusters | Daily metrics (AQR, failure rates, coverage, anomalies) and a weekly ranked list of problem clusters. |
+| 5 | Tell the team on Slack | Alerts and a weekly digest, built only from derived values. |
+| 6 | Team fixes | The team changes a prompt, a data store, the indexer, a document or the model. |
+| 7 | Test, release, check | The release gate tests the change on synthetic questions; after release, release impact compares the live numbers before and after. |
+
+### 3.2 Step 2 in detail: assessment
+
+```mermaid
+flowchart LR
+    A["Eligible turn<br/>+ earlier turns<br/>of its session"] --> B["PII scrubbing"]
+    B --> C["Stage 1<br/>assessment"]
+    C --> D{"Flagged?"}
+    D -->|"no"| F["Leak guard"]
+    D -->|"yes"| E["Stage 2<br/>+ session grade"]
+    E --> F
+    F --> G[("Derived values")]
+```
+
+Feedback joins the same turn. A dislike that arrives while the turn is still in the window is a late trigger and flags it.
+
+### 3.3 Step 7 in detail: verification
+
+```mermaid
+flowchart LR
+    A["Candidate change"] --> B{"Release gate<br/>anchor set: not worse<br/>focus set: better"}
+    B -->|"fail"| C["Back to the team"]
+    B -->|"pass"| D["Release"]
+    D --> E["Release impact<br/>5 weekdays before vs after"]
+```
+
+### 3.4 The life of one turn
+
+Everything about a turn must be read before the anonymizer erases its answer.
+
+| Time after the turn | What happens |
+|---|---|
+| 5 minutes | The turn becomes eligible for assessment. |
+| 5 to 15 minutes | Stage 1 assessment, normally. |
+| up to 3 hours | Assessment target. |
+| up to 3h30 | Hard limit. Late triggers can still start stage 2 and a session grade. A turn not assessed by then is recorded as missed and cannot be recovered. |
+| 4 hours (up to 4h22m) | The anonymizer erases the answer, the session ID and the user's identity. |
+| 30 days | The question text is deleted. |
+
+### 3.5 Where each guarantee is enforced
+
+| Guarantee | Where |
+|---|---|
+| No text is stored | Leak guard before every write; the output has no free-text fields. |
+| Text goes only to EU endpoints | PII scrubbing, then the judge on the `eu` multi-region. |
+| No person reads questions or answers | Every step is automatic; the judge is tested on the canary, not on real turns. |
+| Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
+| Findings leave the system only through Slack | Step 5; messages are built from derived values. |
