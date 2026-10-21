@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-21. Sections 1-4 written; further sections to follow. |
+| Status | Draft, 2026-10-21. Sections 1-5 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -71,7 +71,7 @@ Terms used in this document. Each term has exactly one meaning.
 
 | Term | Definition |
 |---|---|
-| **Assessment** | The form the judge fills in for one turn: closed-list labels and scores only, no free text. |
+| **Assessment** | The form the judge fills in for one turn: closed-list labels and scores only, no free text. Each turn has one stored assessment per rubric version; when the turn is assessed again, the new result replaces it. |
 | **Judge** | The language model filling in a form, always on an EU endpoint: `gemini-3.8-flash` for stage 1, `gemini-4-argon` for stage 2 and session grades. |
 | **Stage 1** | The assessment every eligible turn gets, within about 5 to 15 minutes. |
 | **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full source documents and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
@@ -228,3 +228,136 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | No person reads questions or answers | Every step is automatic; the judge is tested on the canary, not on real turns. |
 | Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
 | Notifications go only to Slack | Step 5; messages are built from derived values. |
+
+## 5. Assessment
+
+Every eligible turn has one stored assessment: a fixed form that the judge fills in. It may be updated while the turn is in the window (§5.1), and the latest result replaces the earlier one. The only exception is a rubric change (§5.9). The form has no free text, only labels from closed lists, scores and counts. Stage 1 runs on every turn; stage 2 runs only on flagged turns.
+
+### 5.1 One turn, step by step
+
+```mermaid
+flowchart TB
+    A["Eligible turn"] --> B{"Too large?"}
+    B -->|"yes"| S["Recorded as too large,<br/>not assessed"]
+    B -->|"no"| C["Collect inputs"]
+    C --> D["PII scrubbing"]
+    D --> E["Stage 1"]
+    E --> F{"Flagged?"}
+    F -->|"no"| L["Leak guard"]
+    F -->|"yes"| G["Stage 2<br/>+ session grade"]
+    G --> L
+    L --> R[("Assessment stored")]
+```
+
+**Updates.** A turn is assessed again only when something it depends on changes while it is still in the window (before 3h30):
+
+- a late trigger (a dislike, or a next turn marked `REPHRASE` or `CORRECTION`), which flags the turn and starts stage 2;
+- an earlier turn of its session that arrived late, so the context is now different.
+
+Each update overwrites the stored assessment, so a turn never counts twice. The fingerprint records what the current assessment was based on, so the same input is never assessed twice.
+
+### 5.2 What the judge sees
+
+| Input | Stage 1 | Stage 2 |
+|---|---|---|
+| The question | yes | yes |
+| The answer, split into answer spans | yes | yes |
+| The references (snippets) | yes | yes |
+| Up to 2 earlier turns of the same session | yes | yes |
+| The full text of the cited documents | no | yes |
+
+- All text is **PII scrubbed** first. The same person, email or phone number gets the same placeholder across all inputs of a turn, so the judge can still compare them. The mapping exists only in memory during the run.
+- A turn above the size limit is **too large**: it is not sent to the judge at all, never cut and partly assessed. The limit is not set yet.
+- The judge is `gemini-3.8-flash` in stage 1 and `gemini-4-argon` in stage 2, both on the `eu` multi-region, at temperature 0, answering in a fixed structured format.
+
+### 5.3 The stage 1 form
+
+| Group | Field | Values |
+|---|---|---|
+| **What was asked** | Intent | `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER` |
+| | Topic | One per data store, plus `OTHER`. Taken from the references; set by the judge only when there are none. The form records which. |
+| | Relation to the previous turn | `FIRST`, `FOLLOW_UP`, `REPHRASE`, `CORRECTION`, `FRUSTRATION`, `NEW_TOPIC`. This becomes the previous turn's reaction. |
+| **How good the answer is** | Relevance | 1 to 5: does it answer this question? |
+| | Completeness | 1 to 5: does it cover every part of the question? |
+| | Clarity | 1 to 5: is it easy to read and use? |
+| | Groundedness | 1 to 5: is it supported by its references? Checked answer span by answer span, each against the references it points to. |
+| **Counts** | Unsupported answer spans, total answer spans | Numbers |
+| **Yes / no checks** | Answer language matches the question; refusal or empty answer; contradicts an earlier answer in the session; needs internal knowledge | true or false |
+| **What went wrong** | Failure types, primary failure | Codes from §5.5 |
+| | Severity | `LOW`, `MEDIUM`, `HIGH`. `HIGH` means a concrete factual error on an internal knowledge question. |
+| **Hint** | Confidence | 0 to 1. Informational only. |
+
+What each score level means is set by the rubric: a written meaning of at least levels 1, 3 and 5, in Polish and English, plus synthetic example turns. The rubric text is not written yet.
+
+### 5.4 Which fields apply to which intent
+
+Fields that do not apply to an intent are left empty and are not asked of the judge.
+
+| Intent | Scores | Groundedness | Failure types |
+|---|---|---|---|
+| Knowledge intents | Relevance, completeness, clarity | Yes, when the answer has references. Without references the turn is not verifiable. | All. Not verifiable: deterministic ones only. |
+| `PEOPLE_LOOKUP` | Relevance only | No | `AGENT_OR_TOOL_ERROR` only |
+| `GENERAL_TASK`, `CHITCHAT` | Relevance, completeness, clarity | No | Generation, except the three that need sources (`UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`); question; system |
+| `OTHER` | Relevance, completeness, clarity | No | Question and system |
+
+"Needs internal knowledge" is asked for knowledge intents only. For `PEOPLE_LOOKUP`, no people-directory document is ever stored. This table is the starting point and will be finalized together with the rubric.
+
+### 5.5 Failure types
+
+| Code | Meaning | Assigned in | Usually fixed by |
+|---|---|---|---|
+| **Retrieval** | | | |
+| `RETRIEVAL_MISS` | The right document is indexed but was not found or cited. | Stage 2 | Team: search configuration, indexer |
+| `CHUNKING_ISSUE` | The right document was used, but its snippet lost needed context. | Stage 2 | Team: indexer chunking |
+| **Corpus** | | | |
+| `KNOWLEDGE_GAP` | The information is in no source. | Stage 2 | Corpus owner: add a source |
+| `OUTDATED_SOURCE` | The source is stale. | Stage 2 | Document owner |
+| `CONFLICTING_SOURCES` | The cited sources contradict each other. | Stage 2 | Document owners |
+| **Generation** | | | |
+| `UNSUPPORTED_CLAIM` | A claim is not supported by its references. | Stage 1 (turns with references), stage 2 | Team: prompt, model |
+| `REASONING_ERROR` | The sources are fine, but were combined or interpreted wrongly. | Stage 2 | Team: prompt, model |
+| `INCOMPLETE_ANSWER` | Parts of the question are not answered. | Stage 1 | Team: prompt |
+| `MISUNDERSTOOD_QUERY` | A different question was answered. | Stage 1 | Team: prompt |
+| `PRESENTATION_ISSUE` | Wrong language or broken formatting. | Stage 1 | Team: prompt |
+| `UNGROUNDED_INTERNAL_ANSWER` | A question that needs internal knowledge was answered with no references at all. | Stage 1, deterministic | Team: prompt, grounding configuration |
+| **Question** | | | |
+| `AMBIGUOUS_QUESTION` | Too vague to answer well; Bolek should have asked back. | Stage 1 | Team: prompt |
+| `OUT_OF_SCOPE` | Not something Bolek should or can answer. | Stage 1 | Communication to users |
+| **System** | | | |
+| `AGENT_OR_TOOL_ERROR` | A tool or agent failed, or the answer is empty. | Stage 1, deterministic | Team |
+| `NONE` | No identified problem. | Both | |
+
+### 5.6 Rules for recording a failure
+
+- **Only identified problems.** A code is recorded only when it is deterministic (follows from the data, like the two marked above) or confirmed against the sources. If the judge is unsure, the turn gets `NONE`. Failure rates are therefore lower bounds. How strong the confirmation must be for the non-deterministic stage 1 codes is not decided yet.
+- **Stage 1 never guesses causes.** Retrieval and corpus codes need the full documents, so only stage 2 assigns them.
+- **Not verifiable turns** (knowledge intents without references) get no groundedness score and only deterministic codes.
+- **Confidence changes nothing.** No rule, threshold or weight uses it.
+
+### 5.7 Stage 2
+
+**When.** A turn is flagged when stage 1 gives relevance or groundedness 2 or lower, or `HIGH` severity, or when a late trigger arrives before the turn is 3h30 old: a dislike, or a next turn marked `REPHRASE` or `CORRECTION`. Expected share: under 20% of turns, to be measured in the first weeks.
+
+**What it checks**, in order:
+
+| Check | Question | Codes it can assign |
+|---|---|---|
+| 1. Answer vs references | Did Bolek use what it was given? | `UNSUPPORTED_CLAIM`, `REASONING_ERROR` |
+| 2. Full document vs reference | Was there a better passage, or no source at all? Is the source stale or contradicted? | `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, `OUTDATED_SOURCE`, `CONFLICTING_SOURCES` |
+| 3. Session grade | How did the whole session segment go? | None. The session grade is informational (§6). |
+
+**Both results are kept.** The stage 1 result is not overwritten by stage 2; a turn that was never flagged simply has no stage 2 result. Metrics use the stage 2 result where it exists. Keeping both shows how often stage 2 changes what stage 1 found.
+
+### 5.8 Leak guard
+
+Nothing leaves the assessment without passing these checks:
+
+- The output format has **no free-text field**. Every value is a number, a closed-list value, or a document ID or link that matches an allowlist of data stores.
+- People-directory documents are dropped.
+- An output that fails the check is retried once, then recorded as failed with an error class. The judge's raw output is never logged.
+- Errors reach logs and Slack without any text from the turn.
+- An automated test feeds in text with planted personal data and fails if any piece of the input longer than 20 characters appears in the stored result, other than an allowed document link.
+
+### 5.9 Versions stored with every assessment
+
+Each assessment records the rubric version, the failure-list version, the judge model, the prompt version and the assessment code version. **Rubric or judge model change.** Turns already assessed keep their assessment; they are never re-assessed under the new version. For the first 5 weekdays after the change, every new turn is assessed under both the old and the new version, and both assessments are stored. The difference between them links the metrics across the change, so results from different versions are only ever compared through this parallel run. After it, only the new version is used.

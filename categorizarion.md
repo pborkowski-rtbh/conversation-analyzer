@@ -57,12 +57,12 @@ Initial table, finalized with the rubric.
 
 ## Stage 2 (flagged turns only)
 
-`gemini-4-argon` (`eu` multi-region), only if necessary, with the cited full documents (scrubbed). Triggered by `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (next turn `REPHRASE`/`CORRECTION`). Checks snippet vs answer, then full document vs snippet, and assigns the stage-2 codes with evidence.
+`gemini-4-argon` (`eu` multi-region), only if necessary, with the cited full documents (scrubbed). Triggered by `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (next turn `REPHRASE`/`CORRECTION`). Checks snippet vs answer, then full document vs snippet, and assigns the stage-2 codes with evidence. Both results are stored: stage 2 does not overwrite stage 1, and an unflagged turn has no stage-2 result. Metrics use stage 2 where it exists.
 
 ## Sessions (D17-D22)
 
 - **Only the 4h window exists.** Turns are grouped by `session_key` = HMAC(engine, `session_id` from `response.answer.name`).
-- **Stage 1 stays per turn**, with up to 2 prior turns of the same session as context. A turn is assessed again only when its `input_fingerprint` (IDs and versions, no text) is new: a late context row, a late trigger, or a new rubric.
+- **Stage 1 stays per turn**, with up to 2 prior turns of the same session as context. A turn is assessed again only when its `input_fingerprint` (IDs and versions, no text) is new: a late context row or a late trigger. A new rubric applies to new turns only; during its bridge each turn is assessed under both versions.
 - **Segments**: closed after 30 min idle (provisional) or forced at 3h30. A turn in a closed session starts segment n+1 (`resumed`), with the previous segment's derived labels as context.
 - **Session facts.** `session_facts` per segment holds facts only: turn count, reaction counts, duration bucket.
 - **Session grade (D19), informational only.** When a turn is flagged for stage 2, `gemini-4-argon` grades its whole segment so far: `outcome` (`RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`), `first_bad_turn_index`, `rephrase_bucket`, `recovered_after_correction`, `confidence`. `grade_state`: `PROVISIONAL` while open, `FINAL` after a re-grade at close, `NOT_GRADABLE` if part of the text is gone. No metric uses it; it is attached to Slack alerts, each grade reachable by `alert_id`.

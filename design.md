@@ -85,7 +85,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 | D15 | **`confidence` is informational only**: a hint for the team. No logic, threshold or weight uses it. | User, 2026-10-21 |
 | D16 | **Topic comes from citations first.** With citations, `topic` is derived from the cited data stores; the judge picks it only when there are none. `topic_source` records which. | User, 2026-10-21 |
 | D17 | **Sessions, inside the 4h window only.** Turns are grouped by `session_key` = HMAC(engine, `session_id`), with `session_id` from `response.answer.name`. Only the 4h window of data exists; nothing longer is expected. A segment closes after 30 min idle (provisional) or is forced when its oldest turn reaches 3h30. A turn in a closed session starts segment n+1 (`resumed`), with the previous segment's derived labels as context (§8.3). | User, 2026-10-21 (from `session-analysis.md`) |
-| D18 | **Stage 1 stays per turn.** A turn may be assessed again when its input changes (new context, late trigger, new rubric); an `input_fingerprint` built from IDs and versions prevents assessing the same state twice (§8.3). | User, 2026-10-21 |
+| D18 | **Stage 1 stays per turn.** A turn may be assessed again when its input changes (new context, late trigger); an `input_fingerprint` built from IDs and versions prevents assessing the same state twice (§8.3). A new rubric or judge model does **not** re-assess turns already assessed: it applies to new turns, and during its 5-weekday bridge each turn is assessed under both versions. One stored assessment per turn per (`rubric_version`, `judge_model`); within a version the latest replaces the earlier (revised 2026-10-21). | User, 2026-10-21 |
 | D19 | **Session grade, informational only.** Besides the facts in `session_facts`, a session segment gets a judge grade (`session_assessments`, §8.3) wherever its whole text is still in the window; otherwise `NOT_GRADABLE`. It is graded by `gemini-4-argon` when one of its turns is flagged for stage 2 (`provisional` while the segment is open) and again at segment close if still in the window. No metric, AQR or ranking uses it; it is attached to Slack alerts as extra context (§7.4), and every session grade in an alert can be looked up by `alert_id`. | User, 2026-10-21 (replaces "no session verdict") |
 | D20 | **Assessor and anonymizer stay separate jobs.** | User, 2026-10-21 |
 | D21 | **No persisted session map.** Sessions can't be rebuilt from `audit_logs` after 4h. | User, 2026-10-21 |
@@ -429,7 +429,7 @@ WHERE _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
   AND serviceTextReply IS NOT NULL
 ```
 
-`api` rows are split into `slack` and `mcp` by a rule still to be found (Q15); until then they are reported as `api`. Rows already in `turn_assessments` (by `assessment_id = hash(serviceAttributionToken, assistToken)`) are skipped unless they have a pending late trigger. The canary stream uses the same query with `STARTS_WITH(LTRIM(query.text), 'Provide concise, focused answers')` and is written to a separate table. Rows with neither `agentsSpec` nor `query.text` (12 in 30 days, `query.parts` only) are counted as `unknown` and not assessed.
+`api` rows are split into `slack` and `mcp` by a rule still to be found (Q15); until then they are reported as `api`. Rows already in `turn_assessments` (by `assessment_id = hash(serviceAttributionToken, assistToken, rubric_version, judge_model)`) are skipped unless they have a pending late trigger. The canary stream uses the same query with `STARTS_WITH(LTRIM(query.text), 'Provide concise, focused answers')` and is written to a separate table. Rows with neither `agentsSpec` nor `query.text` (12 in 30 days, `query.parts` only) are counted as `unknown` and not assessed.
 
 ### 8.2 Window budget and scheduling
 - Anonymizer cutoff: 4h, effectively up to ~4h22m with its 15-min schedule (measured gap between runs: median 15 min, p95 19.5 min, max 22 min; `session-analysis.md` §5.1). The design treats **3h30 as the hard limit** and **3h as the SLA**.
@@ -446,7 +446,7 @@ Only the 4h window exists. Within one run, turns are grouped by session (within 
 - **Key**: `session_key` = HMAC(engine, `session_id`), secret in Secret Manager. `session_id` comes from `response.answer.name` (verified for the web UI; Slack and MCP turns have one too, but almost always one turn per session, Q17). The principal is used only for `Search` linkage (§8.4). Feedback joins by applying the same HMAC to `conversationInfo.session`.
 - **Segments**: a segment closes after **30 min idle** (provisional; the daytime p98 of within-session gaps is ~100 min, so recalibrate on the share of resumed segments whose earlier text is already gone, Q20) or is **forced** when its oldest turn reaches 3h30. A turn arriving in a closed session starts segment n+1 with `resumed = true`. Its context is the previous segment's **derived** labels, since the earlier text may be past 4h. In daytime samples most resumes come 30-120 min later, while the earlier text still exists; whether to use it then is open (Q20). Closing a segment finalizes its `session_facts` and re-grades the segment if it has a session grade and its text is still in the window (D19).
 - **Context for stage 1**: up to 2 prior turns of the same session (scrubbed). If the previous turn is already past 4h, `context_truncated = true`.
-- **Re-assessment and fingerprint (D18)**: `input_fingerprint` = hash(`turn_token`, ordered tokens of the context turns, trigger set, `rubric_version`, `judge_model`, stage). It is built from IDs and versions only, never from text. A run assesses a turn only if no row with the same fingerprint exists. A turn is assessed again only when its input changed: a late context row, a late trigger (dislike, next turn `REPHRASE`/`CORRECTION`) or a new rubric while still in the window.
+- **Re-assessment and fingerprint (D18)**: `input_fingerprint` = hash(`turn_token`, ordered tokens of the context turns, trigger set, `rubric_version`, `judge_model`, stage). It is built from IDs and versions only, never from text. A run assesses a turn only if no row with the same fingerprint exists. A turn is assessed again only when its input changed while still in the window: a late context row or a late trigger (dislike, next turn `REPHRASE`/`CORRECTION`). A new `rubric_version` or `judge_model` is not a re-assessment trigger: it applies to new turns, and during the bridge (§8.13) each turn gets one assessment per version.
 - **Session facts (D19)**: per segment, `session_facts` holds facts only: turn count, counts of `REPHRASE`/`CORRECTION`/`FRUSTRATION` turns, duration bucket, `resumed`, `forced_close`. `session_version` = number of turns seen, so a changed session is recomputed and an unchanged one is not.
 - **Session grade (D19)**: when a turn is flagged for stage 2, `gemini-4-argon` also grades its segment so far (scrubbed text of all its turns), in the same run. Closed-list form: `outcome` (`RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`), `first_bad_turn_index`, `rephrase_bucket` (user effort), `recovered_after_correction`, `confidence` (informational, D15). `grade_state`: `PROVISIONAL` while the segment is open, `FINAL` after a re-grade at close, `NOT_GRADABLE` when part of the segment's text is gone (forced, resumed, or `context_truncated`). Graded again only when `session_version` changes (same fingerprint rule as D18). Informational only: no metric, AQR, cluster ranking or trigger uses it.
 - **No session map (D21)**: nothing links `assistToken` to a session after 4h. Sessions can't be rebuilt from `audit_logs` once the window closes.
@@ -508,6 +508,8 @@ Fields are gated by intent (§5.3, D11). Groundedness is checked **per segment**
 3. **Session grade**: the flagged turn's session segment is graded as a whole (§8.3, D19). Informational, attached to alerts.
 
 Expected stage-2 share: under 20% of turns. To be measured in the shadow phase.
+
+**Both stages are stored** (2026-10-21). Stage 2 does not overwrite the stage-1 result; a turn never flagged has no stage-2 result. Metrics use the stage-2 result where it exists. This measures how often stage 2 changes stage 1. Storage details to be defined with the stage-2 output fields.
 
 Every row stores `rubric_version`, `judge_model`, `prompt_sha`, `taxonomy_version`, `assessor_version`. Results from different rubric versions are never compared directly (§8.13 bridge).
 
@@ -586,7 +588,7 @@ Nobody may read real conversations, so the judge is validated on material that i
 2. **Mutation tests.** On evaluator answers, inject known faults: swapped numbers, a dropped procedure step, a citation pointing to the wrong snippet, wrong language. Measure **detection recall** per failure type.
 3. **Cross-model check.** Re-grade 5% of real turns with `gemini-4-argon` in the same run. Disagreement rate is tracked as a stability metric. Only the agreement value is stored.
 4. **Thumbs sanity.** Disliked turns should have a much lower AQR than the rest. Too few for statistics (~33 per month), so a direction check only.
-5. **Bridge on change.** A new `rubric_version` or `judge_model` runs in parallel with the old one for 5 weekdays. The offset is stored, and series are compared only through the bridge.
+5. **Bridge on change.** A new `rubric_version` or `judge_model` runs in parallel with the old one for 5 weekdays: every new turn is assessed under both, stored as two rows. The offset is stored, and series are compared only through the bridge. Turns assessed before the change are not re-assessed.
 
 Trust thresholds (proposal): a label is used in Slack prioritization only with kappa ≥ 0.6 on the canary and recall ≥ 0.7 on mutations. Below that it is shown as "experimental".
 
@@ -608,11 +610,11 @@ erDiagram
     alert_sessions }o--|| session_assessments : "alert_id"
 ```
 
-**`turn_assessments`** (one row per turn of any channel; partitioned by `day`; retention 90 days proposed, Q7)
+**`turn_assessments`** (one row per turn of any channel and per `rubric_version` + `judge_model`, so two rows during a bridge; partitioned by `day`; retention 90 days proposed, Q7)
 
 | Field | Type | Note |
 |---|---|---|
-| `assessment_id` | STRING | hash of token pair, idempotency key |
+| `assessment_id` | STRING | hash of token pair + `rubric_version` + `judge_model`, idempotency key |
 | `turn_token` | STRING | `serviceAttributionToken`, NULLed after 30 days |
 | `day` | DATE | no finer timestamp is stored |
 | `engine`, `client` | STRING | `prod`; `web_ui`, `slack`, `mcp` (`api` until Q15) |
@@ -683,7 +685,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 
 ## 11. Reliability and operations
 - **SLA**: 98% of eligible turns assessed within 3h. A missed turn is lost; coverage is reported daily and alerts immediately below the threshold.
-- **Idempotency**: MERGE on `assessment_id`. A turn is sent to the LLM again only when its `input_fingerprint` is new (D18). Re-runs overwrite with the same or a newer `assessor_version`. `session_facts` is recomputed when `session_version` changes. Aggregations are recomputed from `turn_assessments`, never accumulated.
+- **Idempotency**: MERGE on `assessment_id`. A turn is sent to the LLM again only when its `input_fingerprint` is new (D18). Re-runs overwrite the row of the same rubric and judge version, with the same or a newer `assessor_version`. `session_facts` is recomputed when `session_version` changes. Aggregations are recomputed from `turn_assessments`, never accumulated.
 - **Backlog handling**: oldest-first ordering. When a run exceeds its time budget, stage 2 is deferred before stage 1 (stage 1 coverage first).
 - **Canary as health check**: if canary turns stop flowing (no evaluator run that day), health falls back to stage-1 success rate and coverage.
 - **Data completeness**: hour-level row count checks per method and per client (§7.3), including the method-silence alert. Incomplete days are excluded from baselines and alerted.
