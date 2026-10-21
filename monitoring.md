@@ -9,7 +9,7 @@ Status: absorbed into `design.md` as the health layer (§14). Where the two diff
 ## Inputs and their limits (verified)
 - Columns: `timestamp`, `methodName`, `serviceAttributionToken`, `assistToken`, `request`, `response`, `userIamPrincipal`, `userQuery`, `serviceLabel`, `serviceName`. No status/error column, no latency.
 - Inside the window, `userIamPrincipal` and `response` are 100% filled. At 4h `audit_logs_annonymizer` NULLs them. Rows land ~4 min after the call. Rows are deleted after 30 days.
-- No session key on `StreamAssist`: request carries only `name`, `query`, `agentsSpec`. `serviceAttributionToken` is unique per call. Conversations can only be rebuilt from the principal, inside the window.
+- (Corrected 2026-10-20: the session ID is in `response.answer.name` inside the window, see `session-analysis.md` and `design.md` §8.3. The note below checked `request` only.) No session key in the `StreamAssist` request: it carries only `name`, `query`, `agentsSpec`. `serviceAttributionToken` is unique per call. Conversations can only be rebuilt from the principal, inside the window.
 - `Search` rows are internal retrieval calls the assistant fires per user turn (~6 per turn, per the `user_activity_materialize` DAG), not user searches. Not a per-user signal. (Corrected 2026-10-19: earlier guessed as search-as-you-type.)
 - Data has gaps: no `StreamAssist` rows 2026-09-30 .. 2026-10-04, 2026-10-05 partial (193 calls).
 - The web UI can be separated from Slack/MCP/evaluator structurally: web-UI `StreamAssist` requests carry `agentsSpec`, API clients send `query.text` (verified 2026-10-19).

@@ -3,8 +3,22 @@
 | | |
 |---|---|
 | Context | `design.md` v2 (per-turn assessment). This note moves the unit of analysis to the **session**. Answers the TODO in `categorizarion.md`. |
-| Status | Proposal, 2026-10-20 |
+| Status | Proposal, 2026-10-20. Reviewed 2026-10-21: partly adopted into `design.md` (D17-D22). Where they differ, `design.md` is current. |
 | Data checked | `rtbhouse-agentspace.analytics.audit_logs`, read-only, counts and key paths only. No question or answer text was read. |
+
+## Review outcome (2026-10-21)
+
+| Proposal here | Decision | `design.md` |
+|---|---|---|
+| Session ID from `response.answer.name`; group by `session_key` (HMAC); idle close 30 min, forced at 3h30, segments for resumed sessions | Adopted. Only the 4h window of data exists; nothing longer is expected. | D17, §8.3 |
+| Session-level assessment at segment close | Rejected. Stage 1 stays per turn; a turn is reassessed only when its input fingerprint changes. | D18 |
+| `session_outcome` and other session verdicts (§4.3) | Adopted in an informational form (revised 2026-10-21): a session grade by `gemini-4-argon` on flagged turns, attached to Slack alerts, used by no metric. Outcome list changed to `RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`. | D19 |
+| One job: map, analyze, anonymize (§5.3 A) | Rejected. Assessor and anonymizer stay separate. | D20 |
+| Persisted `session_turn_map` (§5.3 A step 1, §6.1) | Rejected. | D21 |
+| Session-aware delay (§5.3 B), longer fixed delay (§5.3 C) | Rejected. The anonymizer's 4h rule is unchanged. | D22 |
+| Anonymizer `IS NOT NULL` filter, `sessionId` view alias, clustering on `methodName` | Recorded as findings for other owners. | §11 |
+
+Open questions from §8: S1 (meaning of `questionIndex`) stays open; S2 and S4 move to `design.md` Q14; S3 is moot (no map); S5 is in `design.md` §11; S6 moves to `design.md` Q17 (all channels in scope from the start, D5).
 
 ## 1. Summary
 
@@ -209,7 +223,7 @@ This lowers average exposure and removes most forced closes. Decide based on the
 | S3 | Is storing the session map (links 30-day questions into sessions) acceptable? Is option B acceptable? | SECOPS |
 | S4 | Does a resumed chat from history keep the same `session_id`? | Check in the session map: sessions with turns on different days |
 | S5 | Does the Gemini Enterprise export accept table clustering? | Try on dev |
-| S6 | Do API sessions (Slack, MCP) map 1:1 to Slack threads? | Phase 4 |
+| S6 | Do API sessions (Slack, MCP) map 1:1 to Slack threads? | Moved to `design.md` Q17 (phase 0) |
 
 ## Appendix: how it was checked (2026-10-20)
 

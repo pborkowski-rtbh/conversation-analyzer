@@ -1,6 +1,6 @@
 # Turn categorization (stage 1 form)
 
-Source: `design.md` §3.1 (D8-D16), §5.2, §5.3, §8.6. Each web turn gets one filled-in form from the judge (`gemini-3.8-flash`, `eu` multi-region, temperature 0, structured output). All values are closed lists or numbers, no free text.
+Source: `design.md` §3.1 (D8-D22), §5.2, §5.3, §8.3, §8.6. Each turn (web UI, Slack Bolek, MCP; D5) gets one filled-in form from the judge (`gemini-3.8-flash`, `eu` multi-region, temperature 0, structured output). All values are closed lists or numbers, no free text.
 
 ## Rules
 
@@ -19,7 +19,7 @@ Source: `design.md` §3.1 (D8-D16), §5.2, §5.3, §8.6. Each web turn gets one 
 |---|---|
 | `intent` | `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. Knowledge intents: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `DATA_QUESTION`. |
 | `topic`, `topic_source` | One per data-store knowledge area (about Bolek, API docs, app hints, biztech, BQ docs, Confluence, helpdesk Q&A, HR House, InHouse, know-how, traffic wiki, Google Drive, people directory) plus `OTHER`; versioned (`taxonomy_version`). `topic_source`: `CITATION` or `JUDGE`. |
-| `relation_to_previous` | `FIRST`, `FOLLOW_UP`, `REPHRASE`, `CORRECTION`, `FRUSTRATION`, `NEW_TOPIC` |
+| `relation_to_previous` | `FIRST`, `FOLLOW_UP`, `REPHRASE`, `CORRECTION`, `FRUSTRATION`, `NEW_TOPIC`, against the previous turn of the same session |
 | `relevance`, `completeness`, `clarity` | 1-5, per intent table |
 | `groundedness` | 1-5, knowledge intents with references only; judged per segment against the snippets it cites |
 | `unsupported_segment_count`, `total_segment_count` | Counts from `segments[]` |
@@ -59,9 +59,15 @@ Initial table, finalized with the rubric.
 
 `gemini-4-argon` (`eu` multi-region), only if necessary, with the cited full documents (scrubbed). Triggered by `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (next turn `REPHRASE`/`CORRECTION`). Checks snippet vs answer, then full document vs snippet, and assigns the stage-2 codes with evidence.
 
-## TODO
+## Sessions (D17-D22)
 
-- Determine how we detect a finished conversation, and whether we want to handle long (over 4h) sessions (`design.md` Q14). No longer blocks the quality verdict (D14).
+- **Only the 4h window exists.** Turns are grouped by `session_key` = HMAC(engine, `session_id` from `response.answer.name`).
+- **Stage 1 stays per turn**, with up to 2 prior turns of the same session as context. A turn is assessed again only when its `input_fingerprint` (IDs and versions, no text) is new: a late context row, a late trigger, or a new rubric.
+- **Segments**: closed after 30 min idle (provisional) or forced at 3h30. A turn in a closed session starts segment n+1 (`resumed`), with the previous segment's derived labels as context.
+- **Session facts.** `session_facts` per segment holds facts only: turn count, reaction counts, duration bucket.
+- **Session grade (D19), informational only.** When a turn is flagged for stage 2, `gemini-4-argon` grades its whole segment so far: `outcome` (`RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`), `first_bad_turn_index`, `rephrase_bucket`, `recovered_after_correction`, `confidence`. `grade_state`: `PROVISIONAL` while open, `FINAL` after a re-grade at close, `NOT_GRADABLE` if part of the text is gone. No metric uses it; it is attached to Slack alerts, each grade reachable by `alert_id`.
+- No session map is stored; the anonymizer stays separate and unchanged.
+- Open (`design.md` Q14): does a chat reopened from history keep its `session_id`; the right idle threshold.
 
 ## Not defined yet
 
@@ -71,3 +77,4 @@ Initial table, finalized with the rubric.
 - Topic rule when an answer cites several data stores (Q13).
 - A formal JSON schema.
 - The stage 2 output fields.
+- The session-grade rubric (level meanings of `outcome`, `rephrase_bucket` boundaries).

@@ -1,0 +1,112 @@
+# Bolek Quality Loop: Design Document
+
+| | |
+|---|---|
+| Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
+| Owner | Paweł Borkowski |
+| Status | Draft, 2026-10-21. Sections 1-2 written; further sections to follow. |
+
+## 1. Goal
+
+**Raise Bolek's Answer Quality Rate (AQR) on real traffic, and prove every improvement with numbers.**
+
+AQR is the share of verifiable turns whose answer was judged good, standardized to a fixed mix of question types so that a change in what people ask does not look like a change in quality. To raise it, we close Bolek's learning loop: assess every turn, find what to fix, and verify that the fix worked.
+
+### 1.1 Why now
+
+- Bolek answers about 900 to 1,450 questions per weekday on the web UI, and about 115 per day through Slack Bolek and MCP. Nobody knows which answers were good.
+- Users give feedback on about 1 answer in 1,000, which is too little to steer by.
+- Google erases the answer text, the session ID and the user's identity from the log after about 4 hours. The evidence is gone before anyone could review it.
+
+### 1.2 What we build
+
+An automated assessment of every turn on every channel, done inside the window, that stores **derived values only**: scores, labels from closed lists, and the document IDs of references. From these we compute AQR and the other quality metrics, ranked problem clusters, alerts, and a way to verify releases. Feedback is attached to the assessed turns. When a turn is flagged, its session segment also gets a session grade, shown in alerts as extra context for the team; no metric uses it.
+
+### 1.3 Success criteria
+
+Numeric targets, including the AQR increase, are set after a 4-week baseline period that starts when assessment goes live. No baseline exists today.
+
+| # | Criterion | How we know | Target |
+|---|---|---|---|
+| 1 | AQR goes up | AQR per day, per channel and for all channels together | Set after the baseline |
+| 2 | Every eligible turn is assessed before its answer is erased | Assessed within 3 hours; coverage, the too-large share and the not-verifiable share reported daily | Set after the baseline |
+| 3 | No question or answer text is ever stored | Only derived values pass the leak guard; no person reads questions or answers | Always |
+| 4 | The team knows what to fix | The weekly digest ranks problem clusters | Weekly |
+| 5 | Regressions are noticed quickly | Daily anomaly alerts on the quality metrics | Set after the baseline |
+| 6 | A fix can be proven | The release gate before release, then the release impact on the live numbers | Every production change |
+
+### 1.4 Out of scope
+
+- Reading, copying or re-asking real user questions.
+- Keeping data longer than the existing 4-hour rule.
+- Fixing the problems found. The loop shows the team where to look, and the team owns the fixes.
+
+## 2. Dictionary
+
+Terms used in this document. Each term has exactly one meaning.
+
+- A **turn** is the unit we assess; the **answer** is the text Bolek produced in it.
+- An **assessment** grades one turn; a **session grade** grades one session segment.
+- A **segment** is always a part of a session; a part of an answer's text is an **answer span**.
+
+### 2.1 Traffic and data
+
+| Term | Definition |
+|---|---|
+| **Channel** | Where a question comes from: the Gemini Enterprise **web UI**, **Slack Bolek**, or **MCP** (other tools calling Bolek). Evaluator traffic is not a channel. All metrics exist per channel and for all channels together. |
+| **Turn** | One user question and Bolek's answer to it: one answer call on the production engine, as recorded in Google's activity log. |
+| **Answer** | The text Bolek produced in a turn, with its references. |
+| **Session** | A sequence of turns that share the same session ID. The session ID exists only inside the window; we keep only a keyed hash of it, the **session key**, which cannot be turned back into the ID. |
+| **Session segment** | A part of a session. A segment closes after **30 minutes without a new turn** (provisional) or is **forced closed** when its oldest turn is 3h30 old. A turn arriving after its session's segment closed starts the next segment, marked **resumed**. For most sessions, one segment is the whole session. |
+| **Window** | The roughly **4 hours** after a turn during which its answer text, session ID and the user's identity exist in the log. The question text stays for 30 days. Everything we assess must be read inside the window. |
+| **Anonymizer** | The existing job, running every 15 minutes, that erases answer text, session ID and identity from turns older than 4 hours. Because of its schedule, data can last up to about 4h22m. It is not changed by this project. |
+| **Feedback** | A user's explicit reaction to an answer. In the web UI: a thumbs up or down, optionally with reason codes from Google's closed list and a free-text comment. In Slack: an emoji reaction. The comment is text, so it is never stored by this system; only the thumbs and the reason codes are. |
+| **Reference** | A source snippet Bolek attached to an answer, with the ID and link of its document. |
+| **Answer span** | A part of an answer's text that the log links to the references supporting it. Used to count unsupported claims. |
+| **Data store** | A collection of documents Bolek searches, such as HR House or the API docs. Each reference belongs to one data store. |
+| **Canary** | Synthetic questions from the evaluator that pass through the same log as real traffic. Unlike real turns, engineers may read them, so they are used to test and calibrate the judge. |
+| **Derived value** | Anything this system stores: a number, a label from a closed list, a document ID or link, a version. Never question or answer text, summaries, or identity. |
+
+### 2.2 Assessment
+
+| Term | Definition |
+|---|---|
+| **Assessment** | The form the judge fills in for one turn: closed-list labels and scores only, no free text. |
+| **Judge** | The language model filling in a form, always on an EU endpoint: `gemini-3.8-flash` for stage 1, `gemini-4-argon` for stage 2 and session grades. |
+| **Stage 1** | The assessment every eligible turn gets, within about 5 to 15 minutes. |
+| **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full source documents and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
+| **Flagged turn** | A turn that goes to stage 2: relevance or groundedness 2 or lower, `HIGH` severity, a dislike, or a late trigger. |
+| **Late trigger** | A signal that arrives after the turn was first assessed but while it is still in the window: a dislike, or a next turn that rephrases the question or says the answer was wrong. |
+| **Rubric** | The written meaning of each score level plus synthetic example turns, given to the judge. Versioned; results from different versions are only compared through a parallel run. |
+| **Intent** | The type of question: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION` are **knowledge intents**: questions that need internal knowledge. Which fields are assessed depends on the intent. |
+| **Topic** | The knowledge area of a turn (one per data store, plus `OTHER`). Taken from the data stores of its references; the judge decides it only when there are no references. |
+| **Failure type** | A code from a closed list, in five families: retrieval, corpus, generation, question, system. A turn can have several; one is its **primary failure**. Retrieval and corpus codes are assigned only in stage 2. |
+| **Identified problem** | A failure that is either deterministic (follows from the data, e.g. no references on a knowledge question) or confirmed against the sources. Only identified problems are recorded, so failure rates are lower bounds. |
+| **Verifiable turn** | A turn whose answer can be checked against sources: any non-knowledge turn, or a knowledge turn with at least one reference. Knowledge turns without references are **not verifiable**: they are reported separately and never counted as good. |
+| **Severity** | `LOW`, `MEDIUM` or `HIGH`. `HIGH` means a concrete factual error on an internal knowledge question. |
+| **Reaction** | How the user's next turn in the same session relates to this one: a follow-up, a rephrase, a correction ("that's wrong"), frustration, or a new topic. A separate metric, never part of the turn's assessment. The last turn of a session has none. |
+| **Fingerprint** | A hash of the IDs and versions an assessment depended on (the turn, its context turns, triggers, rubric, model). Never built from text. A turn is assessed again only when its fingerprint changes, so the same input is never assessed twice. |
+| **Session facts** | Counts per session segment: number of turns, of rephrases, corrections and frustrations, the duration bucket, whether it was resumed or forced closed. Facts only. |
+| **Session grade** | The judge's grade of a whole session segment, made when one of its turns is flagged: outcome (`RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`), the turn where it first went wrong, how often the user had to rephrase, whether the answers recovered after a correction. **Provisional** while the segment is open, **final** after a re-grade at close, **not gradable** when part of the segment's text is already erased. Informational only: no metric or ranking uses it; it is shown in alerts. |
+| **PII scrubbing** | Replacing names, emails, phone numbers and similar details with placeholders such as `<PERSON_1>` before any text reaches the judge. The same value gets the same placeholder within a turn and its context. |
+| **Leak guard** | The final check before anything is stored or sent: only numbers, closed-list values and allowlisted document links pass. Any free text is rejected. |
+
+### 2.3 Measurement and action
+
+| Term | Definition |
+|---|---|
+| **Eligible turn** | A turn on any channel, with an answer, between 5 minutes and 3h30 old. |
+| **Coverage** | The share of eligible turns that were assessed or skipped as too large. A pipeline health measure, not quality. |
+| **Too large** | A turn above the size limit (to be set). It is skipped, not partly assessed, and counted in coverage. |
+| **Good answer** | A verifiable turn with relevance 4 or higher, groundedness 4 or higher (knowledge intents only), and no identified `HIGH` severity failure. The user's reaction is not used. |
+| **AQR (Answer Quality Rate)** | Good answers divided by assessed verifiable turns, **standardized**: computed per stratum (intent family × data-store family) and weighted by each stratum's share in the baseline, so a change in what people ask does not look like a change in quality. Also reported raw. |
+| **Failure rate** | For one failure type: turns with it as the identified primary failure, divided by assessed turns. A lower bound. |
+| **Baseline** | The first 4 weeks after assessment goes live. All numeric targets and the AQR weights are set from it. |
+| **Problem cluster** | Identified failures grouped by primary failure, data store and document (or by failure and topic when there is no document), ranked weekly by volume and severity. |
+| **Alert** | A Slack message sent when something needs attention now: a severe problem cluster after an assessment run, a daily anomaly, or a pipeline health issue. A cluster alert carries the session grades of its turns, and each one can be looked up by the alert's ID. |
+| **Digest** | The weekly Slack summary: AQR trend, top problem clusters with owners, best documents and topics, unusual items, release results. |
+| **Release gate** | The check every change must pass before release: a paired offline evaluation of the candidate against the current version on synthetic questions. |
+| **Anchor set** | About 300 to 500 synthetic questions, fixed per quarter, generated from documents in proportion to how much real traffic uses each data store. Must not get worse at the gate. |
+| **Focus set** | 10 to 20 synthetic questions per active problem cluster, generated from its document. Must improve at the gate. |
+| **Release impact** | After a release, the live numbers of the 5 weekdays before compared with the 5 weekdays after. It detects only changes of about 2 to 3 percentage points; smaller effects are judged by the gate. |
+| **Change event** | A recorded change that can affect quality: a prompt, data store, model, engine or indexer change. Used to annotate alerts and to measure release impact. |
