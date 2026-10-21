@@ -46,7 +46,7 @@ All rows land in the partition of their own day (ingestion lag under 1 day), so 
 
 ## 4. Proposed completeness check
 
-Run hourly. It can be part of the window job from `session-analysis.md` §5.3, or the daily aggregation in `design.md` §7.3.
+Run hourly, as a separate small job or inside the daily aggregation (`design.md` §7.3). Not inside the anonymizer (D20).
 
 | Check | Rule | Action |
 |---|---|---|

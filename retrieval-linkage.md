@@ -63,7 +63,7 @@ derived per turn:
 
 ## 5. Limits
 
-- Evaluator traffic runs under the developer who starts it, with 10 concurrent questions, so the per-user time rule can't separate its calls. Bolek Slack and MCP also run under user principals (`population-filter.md`). For them the rule may work, but that was not measured; it is phase 4.
+- Evaluator traffic runs under the developer who starts it, with 10 concurrent questions, so the per-user time rule can't separate its calls. Bolek Slack and MCP also run under user principals (`population-filter.md`). For them the rule may work, but that was not measured. They are in scope from phase 1 (D5), so measure it in phase 0.
 - Two turns of the same user very close together can still split calls imperfectly. In the AIENGLAB-787 sample, 62 of 342 same-session gaps were under 1 min; the share under 30 s was not measured. `linkage_ambiguous` marks such turns.
 - Only one 4h weekday sample. Re-check the citation recall weekly as part of pipeline health.
 

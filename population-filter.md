@@ -63,7 +63,8 @@ Per-user outlier rules use the principal only in memory inside the window, like 
 - §4.3: four populations with counts. The evaluator share is ~41% of `StreamAssist` rows over 30 days, not "12,151 in 7 days" via `STARTS_WITH`.
 - §8.1: use the `client` rule from §3; fix the evaluator filter (`LTRIM`).
 - §11 / §15 "Web-UI signature changes": add the checks from §3. The `user_activity_materialize` residuum check stays as the API-side guard.
-- Phase 4 (Slack, MCP): `api` rows run under user principals, so per-user linkage would work for them too. `Search` linkage does not (`retrieval-linkage.md` §5).
+- Slack and MCP are in scope from phase 1 (D5). `api` rows run under user principals. Whether the `Search` linkage works for them is not measured yet (`retrieval-linkage.md` §5).
+- `design.md` Q17: in today's window all 168 non-evaluator API turns on prod had a session ID in `response.answer.name`, but 165 of their 168 sessions had one turn (max 2). A Slack thread is not one Gemini Enterprise session, so session context for Slack has to come from elsewhere (e.g. the Slack bot's own `session_id`).
 
 ## 5. Open points
 

@@ -26,7 +26,7 @@ The project's privacy model (`design.md` D1, §10): answers and identities exist
 
 - **Re-identification of "anonymized" questions.** `audit_logs.userQuery` and `timestamp` stay for 30 days. `hourly_user_activity` (F4) has `user_email` per hour per channel. For a user with one web question in an hour, the two tables together give the author. So `audit_logs` past 4h is pseudonymous at best. That's why `design.md` §10.2 forbids an hour field on derived rows. This note confirms that rule is needed.
 - **The anonymizer is bypassed** by F2 (the full raw copy) and by F1 for Slack (where nothing is ever anonymized).
-- **New derived tables proposed in this epic** must not add another join path. Examples are the session map in `session-analysis.md` §5.3 and `doc_catalog` in `document-mapping.md` §5. Both store no identity and no time finer than a day. Keep it that way.
+- **New derived tables proposed in this epic** must not add another join path. `design.md` already rejects a persisted session map (D21). `doc_catalog` (`document-mapping.md` §5) stores no identity and no time. Keep it that way.
 
 ## 4. Proposed fixes (for owners to decide)
 
@@ -52,4 +52,4 @@ The project's privacy model (`design.md` D1, §10): answers and identities exist
 
 - §10.3: replace the list with F1-F7, and add F1 (Slack logs with answers, no expiry), which `design.md` doesn't mention.
 - §16 Q8: answered by F3 (who writes it: `user_activity_materialize`, line 117, raw lowercased principal).
-- Phase 4 (Slack channel) must not build on F1 as it is: it would extend the analyzer onto data that violates the 4h rule.
+- Slack is in scope from phase 1 (D5). The assessor reads Slack turns from `audit_logs`, which is fine. But if Slack emoji reactions (Q16) or the Slack/MCP split (Q15) are taken from `agent_usage_analytics_*`, the analyzer would build on F1. Fix F1 first, or read only the non-identifying fields.

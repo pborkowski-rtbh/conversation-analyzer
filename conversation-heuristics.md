@@ -4,7 +4,7 @@
 |---|---|
 | Ticket | AIENGLAB-787 (epic AIENGLAB-543) |
 | Builds on | `session-analysis.md` (session ID, close rules), `design.md` v3 (D14: verdict and reaction are separate) |
-| Status | Findings, 2026-10-21 |
+| Status | Findings, 2026-10-21. Checked against `design.md` v4 the same day: the proposal in §4 conflicts with D17/D18 (resumed sessions start a new segment) and `left_censored` needs a session map, which D21 rejects. Where they differ, `design.md` is current; see `consistency-review.md`. |
 | Data | `audit_logs` 4h window, Wed 2026-10-21 ~08:15-12:15 UTC: web UI, prod engine, 180 sessions, 525 turns. Read-only. Only aggregate counts were output; no question or answer text was read. |
 
 ## 1. Summary
@@ -86,7 +86,7 @@ All are deterministic, computed in the window from structure only, and stored as
 | `max_gap_bucket`, `gap_to_previous_bucket` (per turn) | `<1m`, `1-5m`, `5-15m`, `15-30m`, `30-60m`, `>60m` | consecutive turns |
 | `end_reason` | `NEW_SESSION`, `IDLE`, `WINDOW_LIMIT`, `OPEN` | §2 |
 | `n_segments`, `resumed` | segments created by resume after 4h | §4 |
-| `left_censored` | first turn in the first 30 min of the window and no session map entry for earlier turns | §3 |
+| `left_censored` | first turn in the first 30 min of the window. Without a session map (rejected, D21), earlier turns can't be confirmed, so this is a "possibly truncated" flag only. | §3 |
 | `grounded_turn_share` | turns with grounding metadata / turns | `answer.replies` |
 | `uses_custom_agent` | any turn with `agentsSpec.agentSpecs` | request |
 | `feedback_count`, `feedback_types` | joined by session | `conversationInfo.session` |
@@ -137,4 +137,4 @@ The LLM labels (`relation_to_previous`, `is_refusal_or_empty`) remain the only w
 
 - Weekday afternoon sample to confirm the distributions (part of AIENGLAB-798).
 - `session_outcome` definitions in the rubric.
-- Whether a chat resumed from history days later keeps the same `session_id`; this needs the session map (`session-analysis.md` S4).
+- Whether a chat resumed from history days later keeps the same `session_id` (`design.md` Q14). Without a session map (D21) this can only be observed when both turns fall in one 4h window.
