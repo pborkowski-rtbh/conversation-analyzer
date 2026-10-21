@@ -139,9 +139,9 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | Question text | Kept for 30 days. |
 | Volume | About 900 to 1,450 web UI turns per weekday, 20 to 140 on a weekend day, and about 115 other API turns per day (810 in one 7-day window), which are Slack Bolek and MCP; the split between the two is not known yet. |
 | Feedback | About 0.1 to 0.15% of web UI answers. |
-| References | Only about 28% of web UI answers carry reference information in the log (two samples of about 400 turns each). The cause is not yet known. |
-| Session ID | Present in the answer, so it is lost with the answer. Each turn has its own token, so tokens cannot group turns into a session. |
-| Evaluator traffic | Passes through the same log and is told apart by its prompt prefix. It is used as the canary, never as real traffic. |
+| References | Only about 28-36% of web UI answers carry reference information in the log. This mostly reflects the answers themselves: an answer without references usually came without citations and often without any document search. Follow-up questions are the main case: 62% of first questions in a chat have references, but only 11% from the fifth question on. |
+| Session ID | Present in the answer, so it is lost with the answer. Each turn has its own token, so tokens cannot group turns into a session. Slack Bolek and MCP turns have a session ID too, but almost every one of them is its own session, so a Slack thread is not one session. |
+| Evaluator traffic | Passes through the same log and is told apart by its prompt prefix, which follows a leading line break. It is about 40% of all answer calls in the log, so it must be filtered out reliably. It is used as the canary, never as real traffic. It is started by hand on about half of the weekdays and sends single questions only. |
 
 ### 3.3 What follows from this
 
@@ -150,7 +150,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | The evidence disappears after 4 hours | Assess inside the window, with a target of 3 hours and a hard limit of 3h30. |
 | Text may not be stored | Keep derived values, and check every write with the leak guard. |
 | Feedback is too rare to measure quality | Assess every turn with a judge instead of waiting for feedback. |
-| Most web UI answers have no references | Treat knowledge turns without references as not verifiable: only deterministic failures are recorded for them, and they are reported separately. |
+| Most web UI answers have no references | Treat knowledge turns without references as not verifiable: only deterministic failures are recorded for them, and they are reported separately. Whether a follow-up can be checked against the references of earlier turns in the same chat is still open. |
 | Nobody may read real questions or answers | Calibrate the judge on the canary, on injected faults and by comparing it with a second model. |
 | Session IDs vanish with the answer | Group turns by a keyed hash of the session ID while it exists, and keep no map. |
 

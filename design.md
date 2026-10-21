@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
-| Status | Draft v4, 2026-10-21 |
+| Status | Draft v5, 2026-10-21 |
 | Owner | Paweł Borkowski |
 | Scope | All Bolek channels from the start: Gemini Enterprise **web UI**, **Slack Bolek** and **MCP** (D5). |
-| Supersedes | "Design doc - Feedback Analysis Agent" (AIENGLAB-235/236, epic closed as Duplicate). Absorbs `monitoring.md` v2 and the adopted parts of `session-analysis.md` (D17-D22). |
+| Supersedes | "Design doc - Feedback Analysis Agent" (AIENGLAB-235/236, epic closed as Duplicate). Absorbs `monitoring.md` v2, the adopted parts of `session-analysis.md` (D17-D22) and the findings of AIENGLAB-787, 795-803 (`consistency-review.md`, v5). |
 
 ## 1. Summary
 
@@ -112,7 +112,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 
 ## 4. Verified facts this design relies on
 
-All facts were checked between 2026-10-16 and 2026-10-19, read-only and counts only. Appendix A lists how.
+All facts were checked between 2026-10-16 and 2026-10-21, read-only and counts only. Appendix A lists how.
 
 ### 4.1 Data sources
 
@@ -124,7 +124,7 @@ All facts were checked between 2026-10-16 and 2026-10-19, read-only and counts o
 | `analytics.ge_metrics` | Google export: DAU/WAU/MAU, retention, churn, like/dislike counts. `original_search_query` and `document_name` are always NULL. | 2026-02-25 onward, ~3-day lag |
 | `analytics.daily_user_activity`, `hourly_user_activity` | Per-user query counts per channel. `user_email` holds **raw emails** (21,500 of 21,554 web rows), although the dashboard design doc says SHA256. | daily: no expiry, since 2026-03-27. hourly: 35-day partition expiry. |
 | `rtb-ai-engineering-indexers.people.hr_dump` | `email`, `position`, `base_function`, `main_function`, `profit_center` (1,413 rows) | Department source for phase 2 |
-| GCS `mcp-document-content` (indexers project) | Encrypted full document content written by the indexers | Bucket exists. Path and decryption scheme only described in the old design doc, not verified. |
+| GCS `mcp-document-content` (indexers project) | Full document content written by the indexers' Vertex AI sink: `<data_store_id>/<sha256(uri)>.enc`, Fernet over JSON `{title, url, content, chunk_count}`, key from PBKDF2 over two Secret Manager secrets (no KMS). Read today by the MCP server (`aiel-interfaces/mcp_server/document_content.py`). | Present for 100% of distinct cited documents of the indexer data stores (2026-10-21). None for Google Drive (native connector, ~6% of citations), `rtb-bq-documentation-v2` and the people directory. Objects of removed documents are deleted on the next indexer run. |
 | Evaluator: Cloud SQL `agentspace-evaluator-db` (Postgres 15, indexers project, private IP) | Datasets, versioned questions, runs, per-question results. Metrics: LLM judge, BERTScore, grounding F1. Targets `ge_dev`, `ge_stage`, `ge_prod`. | Existing |
 
 ### 4.2 Lifecycle of one web answer
@@ -151,25 +151,29 @@ sequenceDiagram
 
 ### 4.3 What a web-UI turn contains (inside the window)
 
-- **Web UI is structurally distinguishable**: its `StreamAssist` request carries `agentsSpec`. API clients (Bolek Slack, MCP, the evaluator) send `query.text`. Over 7 days: 5,822 web-UI rows on the prod engine; 12,151 evaluator rows (all `query.text` with the evaluator prefix "Provide concise, focused answers that:"); 810 other API rows; 4 with neither. The `user_activity_materialize` DAG relies on the same split and checks it on every run.
+- **Web UI is structurally distinguishable**: its `StreamAssist` request carries `agentsSpec`. API clients (Bolek Slack, MCP, the evaluator) send `query.text`. Over 7 days: 5,822 web-UI rows on the prod engine; 12,151 evaluator rows (all `query.text` with the evaluator prefix "Provide concise, focused answers that:"); 810 other API rows; 4 with neither. Over 30 days (to 2026-10-21): 20,706 web UI, 8,813 evaluator, 2,852 other API and 12 "neither" rows on prod; evaluator traffic is ~41% of all `StreamAssist` rows (both engines). **The evaluator prompt starts with a newline**, so the prefix must be matched after `LTRIM` (`STARTS_WITH("\nProvide ...", "Provide ...")` is false). The `user_activity_materialize` DAG relies on the same split, uses `LTRIM`, and checks the API side on every run.
 - `userIamPrincipal` and `response` are 100% filled before 4h. `serviceTextReply` is filled on 100% of web-UI rows (median ~2,100 chars). Question length: median ~45 chars, with outliers up to ~1.3M chars (pasted content).
-- **Grounding metadata exists on only ~28% of web-UI answers** (111/402 and 108/390 in two samples). Where present: `answer.replies[].groundedContent.textGroundingMetadata` with `references[]` (snippet `content`, `documentMetadata.uri/title/document/domain/mimeType/pageIdentifier`) and `segments[]` (`text`, `startIndex`, `endIndex`, `referenceIndices`). The other ~72% rarely contain URLs in the text (36 of 268). Cause unknown, open question Q1.
+- **Grounding metadata exists on only ~28% of web-UI answers** (111/402 and 108/390 in two samples). Where present: `answer.replies[].groundedContent.textGroundingMetadata` with `references[]` (snippet `content`, `documentMetadata.uri/title/document/domain/mimeType/pageIdentifier`) and `segments[]` (`text`, `startIndex`, `endIndex`, `referenceIndices`). The other ~72% rarely contain URLs in the text (36 of 268). **Cause (Q1, 2026-10-21): mostly real answer behavior, not a logging artifact.** `answer.replies` only ever holds this grounding metadata, never the reply text, and its absence means the answer came without citations; `answer.state` is `SUCCEEDED` on all turns. Of isolated web turns without metadata, 29% had no `Search` call and 39% exactly one, while 99% of grounded turns had calls (89% five or more). The share falls with the turn's position in the session: 62% on first turns, 38% on second, 11% from the 5th turn on; follow-ups are mostly answered from context. A synthetic UI check (citations shown vs logged) is still to be done.
 - Cited hosts (one sample): biztech.rtbhouse.com, knowhow.rtbhouse.com, traffic-wiki.rtbhouse.biz, rtbhouseproduct.atlassian.net, inhouse.rtbhouse.net, sites.google.com, API docs.
-- `Search` result IDs carry data-store prefixes: `know_how_<n>`, `docs_<n>`, `posts_<n>`, `pages_<n>`, `confluence_SSP_<hex>_v3`, `associate-<hex>` (people directory), and others.
+- `Search` result IDs carry data-store prefixes: `know_how_<n>`, `docs_<n>`, `posts_<n>`, `pages_<n>`, `confluence_SSP_<hex>_v3`, `associate-<hex>` (people directory), and others. A `Search` result has only `id`. It is the same ID as `references[].documentMetadata.document` ends with (100% of cited IDs appear in the same user's preceding `Search` results). Prefixes are **ambiguous** across data stores: `pages_*` and `posts_*` (traffic wiki, InHouse), `sites_google_*` (helpdesk QA, HR House).
 - **Session ID is in the response**: `response.answer.name` = `.../engines/<engine>/sessions/<session_id>/assistAnswers/<answer_id>`, filled on 100% of `StreamAssist` rows in the window and erased at 4h with `response` (`session-analysis.md`, 2026-10-20). `request` has no session ID. `assistToken` is per turn, not per session. Feedback carries `conversationInfo.session` (kept 30 days) and joins to the answer by `serviceAttributionToken` (26 of 33 events) or `assistToken` (12 of 12 since 2026-10-06).
 - In one evening sample (29 web-UI sessions), the old principal + 30-min idle rule split 1 real session and merged 2 different ones, out of 56 transitions. 51 of 52 same-session gaps were under 30 min. Parallel sessions per user were rare (1 pair).
+- Weekday daytime samples (2026-10-21, ~180 web-UI sessions each) differ: the old rule was wrong on 46 of 392 transitions (12%); 57% of sessions have more than one turn and hold 85% of turns; 6-9% of same-session gaps are 30 min or longer, and 19-29% of multi-turn sessions contain such a gap. Within-session gap p50 2.5 min, p90 28 min, p95 66 min, p98 100 min. Most gaps over 30 min are 30-120 min long, so the earlier turns are usually still inside the window when the user comes back.
+- **Slack and MCP (Q17)**: all 168 non-evaluator API turns in one window had a `session_id`, but 165 of their 168 sessions had a single turn. A Slack thread is not one Gemini Enterprise session.
+- The evaluator sends one question per session, in English (`languageCode=en`), with web grounding off and the concise-answer prompt (answers ~1,100 characters vs ~2,200 on the web UI). It is run by hand: traffic on 11 of 19 weekdays with data (2026-09-22 to 10-21), at varying hours.
 - Custom agents (`agentsSpec.agentSpecs`) are ~1-4% of web-UI turns.
 
 ### 4.4 Volumes
 - Web-UI turns (prod): 914-1,454 per weekday, 22-143 per weekend day (2026-10-06 to 2026-10-19).
 - Feedback: 33 events in the retained 30 days (24 dislike, 9 like). 26 of 33 have reason `REASON_UNSPECIFIED`, 2 have a comment.
-- Data gap: no `StreamAssist` rows 2026-09-30 to 2026-10-04 (other methods not checked).
+- Data gap: no `StreamAssist` rows from 2026-09-29 22:01 to 2026-10-05 15:10 UTC; `Search` and `WriteUserEvent` were unaffected. Most likely cause: the export started sending the new top-level `assistToken` before the column existed (the first row after the gap already has it; AIENGLAB-668). `audit_logs` is written by the Gemini Enterprise export itself, so any new field can silently drop a method again. No other weekday working hour in 30 days has fewer than 5 rows of any method (Q10).
 - Change events in `audit_logs` (09-17 to 10-16): `UpdateEngine` 32, `UpdateAgent` 14, `CreateAgent` 13, `UpdateDataConnector` 2.
 
 ### 4.5 Platform facts
 - EU regions (`europe-west4`, `europe-west1`, `europe-central2`) serve Gemini 2.5 only (`2.5-flash`, `2.5-flash-lite`, `2.5-pro`); `3.8-flash` and `3.7-flash` return 404 there (2026-10-20). The evaluator's judge uses `global` for that reason (evaluator `constants.py`).
 - The **`eu` multi-region** (`aiplatform.eu.rep.googleapis.com`, via `google-genai` with `location="eu"`) answered a synthetic call on `gemini-3.8-flash`, `gemini-3.7-flash` and `gemini-4-argon`; `gemini-2.5-flash` returns 404 there (2026-10-20). The indexers' `vision_llm` already runs `gemini-3.8-flash` on `eu` (`src/common/utils/vision_llm.py`, AIENGLAB-692). The `vertexai` SDK rejects `eu`, so the assessor must use `google-genai`.
-- Not verified for `gemini-4-argon`: launch stage, price, quota, data-use terms.
+- The project has no per-project `eu` quota entries for `gemini-3.8-flash` or `gemini-4-argon` (Service Usage, 2026-10-21): they run on shared capacity, so the risk is occasional `429`s, not a cap (Q3). `gemini-3.8-flash` costs $0.75 / $3.75 per 1M input / output tokens until 2026-12-31, then $1.50 / $7.50 (Vertex AI pricing page, 2026-10-21).
+- Not verified for `gemini-4-argon`: launch stage, price, data-use terms (no public listing found under that name).
 - Improvement levers live in `aiel-infrastructure/modules/agentspace-engines`: the system instruction (base text plus rule files in `prompts/`), `data_store_ids` (with `ignore_changes` on at least one engine, so also edited in the console), search tier, feature flags (model selector on). Indexers own content and chunking.
 - `slack_failure_callback` builds its Slack message from the first line of the exception (up to 300 chars). An exception that quotes conversation text would leak it.
 - Related backlog: AIENGLAB-522 (auto-run evals on prompt change), AIENGLAB-524 (daily scheduled eval per model), AIENGLAB-523 (eval results dashboard).
@@ -333,7 +337,7 @@ sequenceDiagram
     SCH->>TA: run (every 10 min)
     TA->>BQ: eligible turns (web, Slack, MCP): age 5 min - 3h30, not yet assessed
     TA->>Q: turns over the size cap: SKIPPED_TOO_LARGE, no LLM call
-    TA->>BQ: same sessions: prior turns (window); same principals: Search rows -30 s..+180 s
+    TA->>BQ: same sessions: prior turns (window); same principals: Search rows after the previous turn, -120 s..+30 s
     TA->>TA: group by session_key, skip inputs whose fingerprint is already assessed
     TA->>TA: link retrieval, extract references
     TA->>PII: question, answer, snippets, prior turns
@@ -356,7 +360,7 @@ sequenceDiagram
 Feedback is joined in derived space, so it does not race the window. The aggregator matches `add-feedback` events to `turn_assessments.turn_token` on `serviceAttributionToken` and writes `feedback_type` and the reason code onto the turn. Slack emoji reactions are mapped to the same `feedback_type` (like/dislike) once their source and join key are known (Q16). A dislike that arrives while the turn is still under ~3h30 is also a late trigger for a stage-2 pass (§8.6). Tokens are NULLed on derived rows after 30 days, when `audit_logs` drops the row anyway.
 
 ### 7.3 Daily aggregation and detection
-1. Completeness check: hourly row counts vs same hour/weekday baseline. Incomplete days are flagged and excluded from baselines (the 09-30 to 10-04 gap is the known positive test).
+1. Completeness check: hourly row counts per method and per client vs the same hour and weekday baseline. A method with 0 rows for 2 consecutive weekday hours (07-17 UTC) while others have rows alerts immediately (an export schema change, §4.4). Incomplete days are flagged and excluded from baselines (the 09-29 22:01 to 10-05 15:10 gap is the known positive test).
 2. Feedback join (§7.2), reaction join (turn N gets turn N+1's `relation_to_previous` as its reaction; separate metric, D14).
 3. Metrics per stratum (§8.8), mix-standardized AQR.
 4. Anomaly detection (§8.9), change annotation from `change_events`.
@@ -417,15 +421,15 @@ WHERE _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
   AND methodName = 'StreamAssist'
   AND (JSON_QUERY(request, '$.agentsSpec') IS NOT NULL         -- web UI
        OR (JSON_VALUE(request, '$.query.text') IS NOT NULL     -- Slack Bolek, MCP
-           AND NOT STARTS_WITH(JSON_VALUE(request, '$.query.text'),
-                               'Provide concise, focused answers that:')))  -- not evaluator
+           AND NOT STARTS_WITH(LTRIM(JSON_VALUE(request, '$.query.text')),
+                               'Provide concise, focused answers')))  -- not evaluator (prompt starts with a newline)
   AND JSON_VALUE(request, '$.name') LIKE '%/engines/gemini-enterprise-rtbh-pro%'
   AND timestamp BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 210 MINUTE)
                     AND TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
   AND serviceTextReply IS NOT NULL
 ```
 
-`api` rows are split into `slack` and `mcp` by a rule still to be found (Q15); until then they are reported as `api`. Rows already in `turn_assessments` (by `assessment_id = hash(serviceAttributionToken, assistToken)`) are skipped unless they have a pending late trigger. The canary stream uses the same query with `query.text` plus the evaluator prefix and is written to a separate table.
+`api` rows are split into `slack` and `mcp` by a rule still to be found (Q15); until then they are reported as `api`. Rows already in `turn_assessments` (by `assessment_id = hash(serviceAttributionToken, assistToken)`) are skipped unless they have a pending late trigger. The canary stream uses the same query with `STARTS_WITH(LTRIM(query.text), 'Provide concise, focused answers')` and is written to a separate table. Rows with neither `agentsSpec` nor `query.text` (12 in 30 days, `query.parts` only) are counted as `unknown` and not assessed.
 
 ### 8.2 Window budget and scheduling
 - Anonymizer cutoff: 4h, effectively up to ~4h22m with its 15-min schedule (measured gap between runs: median 15 min, p95 19.5 min, max 22 min; `session-analysis.md` §5.1). The design treats **3h30 as the hard limit** and **3h as the SLA**.
@@ -439,8 +443,8 @@ WHERE _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
 ### 8.3 Session reconstruction and session grade (D17-D21)
 Only the 4h window exists. Within one run, turns are grouped by session (within their channel) and ordered by `timestamp`. Turns already assessed in earlier runs are re-read as context while still in the window.
 
-- **Key**: `session_key` = HMAC(engine, `session_id`), secret in Secret Manager. `session_id` comes from `response.answer.name` (verified for the web UI; for Slack and MCP to be verified, Q17). The principal is used only for `Search` linkage (§8.4). Feedback joins by applying the same HMAC to `conversationInfo.session`.
-- **Segments**: a segment closes after **30 min idle** (provisional; recalibrate to the p98 of within-session gaps) or is **forced** when its oldest turn reaches 3h30. A turn arriving in a closed session starts segment n+1 with `resumed = true`. Its context is the previous segment's **derived** labels, since the earlier text may be past 4h. Closing a segment finalizes its `session_facts` and re-grades the segment if it has a session grade and its text is still in the window (D19).
+- **Key**: `session_key` = HMAC(engine, `session_id`), secret in Secret Manager. `session_id` comes from `response.answer.name` (verified for the web UI; Slack and MCP turns have one too, but almost always one turn per session, Q17). The principal is used only for `Search` linkage (§8.4). Feedback joins by applying the same HMAC to `conversationInfo.session`.
+- **Segments**: a segment closes after **30 min idle** (provisional; the daytime p98 of within-session gaps is ~100 min, so recalibrate on the share of resumed segments whose earlier text is already gone, Q20) or is **forced** when its oldest turn reaches 3h30. A turn arriving in a closed session starts segment n+1 with `resumed = true`. Its context is the previous segment's **derived** labels, since the earlier text may be past 4h. In daytime samples most resumes come 30-120 min later, while the earlier text still exists; whether to use it then is open (Q20). Closing a segment finalizes its `session_facts` and re-grades the segment if it has a session grade and its text is still in the window (D19).
 - **Context for stage 1**: up to 2 prior turns of the same session (scrubbed). If the previous turn is already past 4h, `context_truncated = true`.
 - **Re-assessment and fingerprint (D18)**: `input_fingerprint` = hash(`turn_token`, ordered tokens of the context turns, trigger set, `rubric_version`, `judge_model`, stage). It is built from IDs and versions only, never from text. A run assesses a turn only if no row with the same fingerprint exists. A turn is assessed again only when its input changed: a late context row, a late trigger (dislike, next turn `REPHRASE`/`CORRECTION`) or a new rubric while still in the window.
 - **Session facts (D19)**: per segment, `session_facts` holds facts only: turn count, counts of `REPHRASE`/`CORRECTION`/`FRUSTRATION` turns, duration bucket, `resumed`, `forced_close`. `session_version` = number of turns seen, so a changed session is recomputed and an unchanged one is not.
@@ -450,10 +454,21 @@ Only the 4h window exists. Within one run, turns are grouped by session (within 
 - Open: whether a chat reopened from history keeps the same `session_id` (Q14).
 
 ### 8.4 Retrieval linkage (heuristic)
-`Search` rows carry no engine or turn ID. For each turn, take `Search` rows of the same principal between −30 s and +180 s (≥ 1 found for ~75% of turns in one sample), and derive:
+`Search` rows carry no engine, session or turn ID (`Search.attributionToken` never equals `serviceAttributionToken`). Retrieval happens before the `StreamAssist` row, whose timestamp is the end of the answer: for isolated turns, `Search` rows fall 0-60 s before it. For each turn T of a principal, with previous turn T' of the same principal:
 
-- `n_retrieval_calls`, `n_retrieved_results`, `retrieved_store_mix` (shares by ID prefix → data store).
-- If a cited document maps to a retrieved ID (mapping open, Q2): `cited_in_retrieved`.
+```text
+window(T) = ( max(T - 120 s, T' + 30 s) , T + 30 s ]
+```
+
+On a weekday sample this assigns every call to at most one turn (the earlier −30 s..+180 s window assigned 643 calls to two turns) and finds 99.8% of cited documents in the turn's own calls (94.0% before); 73% of web turns get at least one call, the rest mostly did no retrieval. Derive:
+
+- `n_retrieval_calls` (0 is a real signal: no retrieval), `n_retrieved_results`.
+- `retrieved_store_mix`: shares by data store. ID prefixes are ambiguous for some stores (§4.3), so exact shares need a document catalog from the indexers (Q22).
+- `cited_in_retrieved`: exact match of cited document IDs with retrieved IDs; expected ~1.0, tracked as a linkage health metric.
+- `retrieved_not_cited`: retrieved IDs not cited, input for stage-2 retrieval diagnosis.
+- `linkage_ambiguous`: the previous turn of the same principal is less than 150 s earlier.
+
+The rule is measured for the web UI only. Evaluator traffic (10 concurrent questions under one developer principal) can't be linked this way; Slack and MCP run under user principals and are to be measured in phase 0.
 
 This is used only for retrieval-family diagnosis and doc stats. It is never used to attribute anything to a person.
 
@@ -567,7 +582,7 @@ owner_k  = from the taxonomy table (§5.2)
 ### 8.13 Judge calibration without humans
 Nobody may read real conversations, so the judge is validated on material that is not fragile:
 
-1. **Canary stream.** Evaluator turns pass through the same `audit_logs` window (`query.text` plus the evaluator prefix; responses present before 4h). The assessor grades a sample each run. Because these are synthetic, engineers may inspect inputs and outputs, and the evaluator already holds golden answers. **Agreement** between the reference-free online rubric and the evaluator's reference-based judge is tracked (Cohen's kappa per label, correlation per score).
+1. **Canary stream.** Evaluator turns pass through the same `audit_logs` window (`query.text` with the evaluator prefix after `LTRIM`; responses, session ID and grounding present before 4h, grounded on ~67%). The assessor grades a sample whenever evaluator traffic is in the window. Today the evaluator is run by hand (11 of 19 weekdays), so a daily canary needs the scheduled run of AIENGLAB-524. The evaluator stores no session, answer or `assistToken` per result, so until it does, audit rows are joined to results by question text (after the prefix and `\n\nQuestion: `), engine and the run's time range; retries can produce several audit rows. The canary is single-turn only: `relation_to_previous`, contradictions and session grades can't be calibrated on it without a multi-turn synthetic set (Q23). Because these are synthetic, engineers may inspect inputs and outputs, and the evaluator already holds golden answers. **Agreement** between the reference-free online rubric and the evaluator's reference-based judge is tracked (Cohen's kappa per label, correlation per score).
 2. **Mutation tests.** On evaluator answers, inject known faults: swapped numbers, a dropped procedure step, a citation pointing to the wrong snippet, wrong language. Measure **detection recall** per failure type.
 3. **Cross-model check.** Re-grade 5% of real turns with `gemini-4-argon` in the same run. Disagreement rate is tracked as a stability metric. Only the agreement value is stored.
 4. **Thumbs sanity.** Disliked turns should have a much lower AQR than the rest. Too few for statistics (~33 per month), so a direction check only.
@@ -652,16 +667,18 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Synthetic questions and answers | Not fragile | Evaluator DB | Indefinite |
 
 ### 10.2 Controls
-- **Least privilege**: a dedicated assessor service account reads `audit_logs`, reads `mcp-document-content` and its key, calls Vertex AI in one EU region, and writes `bolek_quality`. People get read access to aggregates. Per-turn rows are restricted to the AIEL team.
+- **Least privilege**: a dedicated assessor service account reads `audit_logs`, reads `mcp-document-content` and the two Secret Manager secrets its Fernet key is derived from, calls Vertex AI in one EU region, and writes `bolek_quality`. People get read access to aggregates. Per-turn rows are restricted to the AIEL team.
 - **No text at rest or in transit to people**: §8.7 leak guard. No debug logging of payloads. Typed errors only. Slack messages are rendered from templates over derived fields.
 - **No interactive debugging on real data**: debugging uses the canary stream (§8.13), which is synthetic.
 - **EU only** (D3): Vertex AI `eu` multi-region endpoint (`google-genai` client). Never `global`. Models are limited to what `eu` serves (`gemini-3.8-flash`, `gemini-4-argon` as of 2026-10-20).
-- **Re-identification**: per-turn rows carry only `day`, never time of day. Department never appears per turn and has k ≥ 5 suppression. People-directory documents are excluded. `session_key` is an HMAC, not the Google session ID, and no session map is stored (D21), so derived rows can't be linked back to `audit_logs` sessions after 4h.
+- **Re-identification**: per-turn rows carry only `day`, never time of day. Department never appears per turn and has k ≥ 5 suppression. People-directory documents are excluded: data store `rtb-associates` or `people-connections_*`, document ID prefix `associate-`, or a `mailto:` URI. `session_key` is an HMAC, not the Google session ID, and no session map is stored (D21), so derived rows can't be linked back to `audit_logs` sessions after 4h.
   - Residual risk: `hourly_user_activity` holds raw emails per hour. That is why per-turn rows must not get an hour field, and why access is restricted.
 
 ### 10.3 Findings outside this design, to raise with SECOPS
-- `daily_user_activity` stores raw emails with no expiry, although the dashboard design doc promises SHA256.
-- GCS `audit-logs-rtbhouse-agentspace` keeps principal emails with a 7-year, unlocked retention policy, while BigQuery drops them after 4h.
+- `agent_usage_analytics_*` (Bolek Slack logs, sink `agent-usage-sink`) keeps `user_email`, `user_query` and on some rows `agent_response` since 2026-03-25 with **no expiry**. If Slack emoji reactions (Q16) or the Slack/MCP split (Q15) are read from there, the analyzer builds on data outside the 4h rule.
+- GCS `audit-logs-rtbhouse-agentspace` (sink `audit-logs-sink`, empty filter) keeps all project logs, including daily Cloud Audit `data_access` objects, with a 7-year (220,903,200 s), unlocked retention policy, while BigQuery drops identity after 4h.
+- `daily_user_activity` stores raw emails with no expiry, although the dashboard design doc promises SHA256. Written by `user_activity_materialize` (`REGEXP_REPLACE(LOWER(userIamPrincipal), r'^user:', '')`, line 117) (Q8).
+- `hourly_user_activity` (raw emails per hour, 35 days), `mcp_usage_analytics_*` (emails, no expiry) and `web_channel_backfill_audit` (emails, no expiry).
 - Vertex AI data-use terms for conversation content need confirmation by SECOPS (not verified here).
 
 ## 11. Reliability and operations
@@ -669,10 +686,14 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 - **Idempotency**: MERGE on `assessment_id`. A turn is sent to the LLM again only when its `input_fingerprint` is new (D18). Re-runs overwrite with the same or a newer `assessor_version`. `session_facts` is recomputed when `session_version` changes. Aggregations are recomputed from `turn_assessments`, never accumulated.
 - **Backlog handling**: oldest-first ordering. When a run exceeds its time budget, stage 2 is deferred before stage 1 (stage 1 coverage first).
 - **Canary as health check**: if canary turns stop flowing (no evaluator run that day), health falls back to stage-1 success rate and coverage.
-- **Data completeness**: hour-level row count checks. Incomplete days are excluded from baselines and alerted.
+- **Data completeness**: hour-level row count checks per method and per client (§7.3), including the method-silence alert. Incomplete days are excluded from baselines and alerted.
+- **Population checks** (daily): `unknown` request shape above 20 rows per day; a web UI principal with more than 10 turns in 10 minutes (excluded for the day, counted only); any row with both `agentsSpec` and `query.text`. Measured web UI pace so far is human: at most 2 turns per user per minute, no gaps under 10 s.
+- **Linkage health**: share of grounded turns with `cited_in_retrieved < 1` (§8.4).
+- **Throttling**: `429` rate per run in `pipeline_runs`; retry with exponential backoff (shared capacity, §4.5).
 - **Dependencies to watch**:
   - The anonymizer's delay and cadence (§8.2).
-  - The channel signature (`agentsSpec` vs `query.text`, the evaluator prefix). This is not a Google contract; reuse the residuum check from `user_activity_materialize`.
+  - The channel signature (`agentsSpec` vs `query.text`, the evaluator prefix after `LTRIM`). This is not a Google contract; the residuum check in `user_activity_materialize` guards the API side, the population checks above guard the web UI side.
+  - The export schema: a new field from Google can silently drop a method (§4.4).
   - The lifecycle of `gemini-3.8-flash` and `gemini-4-argon` on the `eu` multi-region.
   - The Composer-to-Cloud-Run migration.
 - **Alerts**: job failures to Sentry and `#ai-engineering-lab-alerts-prod`, as planned for the ported DAGs.
@@ -681,11 +702,13 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
   - Views `user_prompts_analytics`, `user_feedback_analytics`, `user_prompts_with_feedback` call `serviceAttributionToken` `sessionId`; it is per call, not per session.
   - Clustering `audit_logs` on `methodName` would cut window-read cost; needs a check that the Gemini Enterprise export accepts it.
 
-## 12. Cost and capacity (estimates, prices not checked)
-- **Stage 1**: about 900-1,450 web turns plus ~115 Slack/MCP turns per day (810 API rows in 7 days, not split yet, Q15) × at most ~10k input tokens (rubric ~2k, answer ~0.6k, snippets capped at 6k, 2 prior turns ~1.5k) ≈ **up to ~15M input tokens per weekday** on `gemini-3.8-flash`.
+## 12. Cost and capacity (estimates)
+- **Measured input size** (web UI, 526 turns, 2026-10-21): question + answer + snippets p50 2.9k, p90 5.4k, p99 21k, max 51k characters; snippets are short (p50 0, p90 1.2k). Per session: p50 5.3k, p90 21k, max 209k characters.
+- **Stage 1**: about 900-1,450 web turns plus ~115 Slack/MCP turns per day. With up to 2 prior turns as context (§8.3) ~4.3k input tokens per turn including a ~2k rubric (at ~3.5 characters per token, not measured), ≈ **~6.7M input tokens per weekday**; with the whole session as context (capped at 60k characters, Q21) ≈ ~9.5M. At current `gemini-3.8-flash` prices (§4.5) that is **~$7-10 per weekday** (about double from 2027-01-01), ~$150-200 per month. Context caching of the shared rubric could save up to ~30%.
 - **Stage 2**: at most 20% of turns × at most ~30k tokens (capped full documents) ≈ **up to ~9M tokens per weekday** on `gemini-4-argon` (price and tokenizer not checked). The session grade (D19) adds one more `gemini-4-argon` call per flagged turn, over the segment's turns; not yet estimated.
 - **Calibration**: canary plus 5% cross-model, small.
-- **Throughput**: ~110 web turns per hour observed in one 3h40m Monday window (402 turns), ≈ 20 per 10-min run; the true peak is not measured. Well within one job instance. `eu` multi-region quota for `gemini-3.8-flash` and `gemini-4-argon` to be confirmed (Q3).
+- **Throughput**: ~110-130 web turns per hour in weekday windows, ≈ 20 per 10-min run; the true peak is not measured. Well within one job instance. No fixed `eu` quota applies (§4.5); throttling is handled by backoff (§11).
+- **Budget alert**: a Cloud Billing budget on the assessor's label, e.g. $50 per week.
 - **BigQuery**: negligible, a few thousand derived rows per day.
 
 ## 13. Rollout
@@ -720,7 +743,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| Grounding metadata missing on ~72% of answers (Q1) | Groundedness and retrieval diagnosis cover only ~28% of turns | Phase-0 spike; until resolved, knowledge turns without citations are "not verifiable" (D10), reported separately and excluded from AQR; `UNGROUNDED_INTERNAL_ANSWER` still applies |
+| Grounding metadata missing on ~64-72% of web answers (Q1: mostly answers without citations, especially follow-ups) | Groundedness and retrieval diagnosis cover only about a third of turns | Knowledge turns without citations are "not verifiable" (D10), reported separately and excluded from AQR; `UNGROUNDED_INTERNAL_ANSWER` still applies; judging follow-ups against the session's earlier references is open (Q19) |
 | Only identified problems are recorded (D9) | Failure rates and cluster volumes under-count real problems | Report them as lower bounds; report the not-verifiable share next to AQR |
 | Judge quality on real traffic differs from its quality on evaluator turns (same `gemini-3.8-flash` as the evaluator judge, but a different input distribution) | Noisy labels, wrong priorities | Canary kappa, mutation recall, trust thresholds, cross-model check |
 | Presidio misses names or IDs in Polish text | PII reaches the LLM (still EU, nothing stored) | Recall test on canary text with seeded PII; conservative custom recognizers |
@@ -728,31 +751,38 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Online pre/post can't see small effects (MDE ~2.4-3 pp) | "No detectable change" for real small gains | Offline paired gate for small changes; report MDE with every verdict |
 | Mix shifts mistaken for quality changes | Wrong conclusions | Direct standardization, strata reported |
 | Synthetic evals drift from real usage | Gate passes but users see no gain | Traffic-weighted quotas, quarterly refresh with bridge, online impact as the final check |
-| Web-UI signature changes (Google) | Wrong population | Residuum check on every run, as in `user_activity_materialize` |
+| Web-UI signature changes (Google) | Wrong population | Residuum check on every run, as in `user_activity_materialize`, plus the population checks (§11) |
+| Export schema change (Google adds a field) | A method's rows silently stop arriving (happened 09-29 to 10-05) | Method-silence alert (§7.3); fix by adding the nullable column |
+| Evaluator filter without `LTRIM` | Evaluator traffic (~41% of `StreamAssist`) assessed as Slack/MCP | `LTRIM` in every filter (§8.1); population checks |
 | Leak via errors or Slack | Fragile data exposed | Typed errors, template-only Slack, leak-guard test |
 
 ## 16. Open questions
 
 | # | Question | Who / how |
 |---|---|---|
-| Q1 | Why do ~72% of web-UI answers have no `answer.replies` grounding metadata: logging artifact, streaming, or genuinely ungrounded answers? | Spike: compare with evaluator responses for the same engine; Google docs |
-| Q2 | How do cited URIs and `Search` result IDs map to `mcp-document-content` paths? The old design says "same logic as the MCP server". | Read MCP server code |
-| Q3 | `eu` multi-region quota for `gemini-3.8-flash` and `gemini-4-argon` in `rtbhouse-agentspace`, at ~15M input tokens per weekday | Vertex quota page |
+| Q1 | Why do ~72% of web-UI answers have no `answer.replies` grounding metadata? **Answered 2026-10-21** (§4.3): mostly answers without citations, often with no retrieval, increasingly on follow-ups. Remaining: synthetic UI check of citations shown vs logged | Engineer, 15 min, synthetic conversations |
+| Q2 | How do cited URIs and `Search` result IDs map to `mcp-document-content` paths? **Answered 2026-10-21** (§4.1): `<data_store_id>/<sha256(uri)>.enc` for cited documents. Retrieved-only IDs have no URI or data store, see Q22 | done |
+| Q3 | `eu` multi-region quota for `gemini-3.8-flash` and `gemini-4-argon` in `rtbhouse-agentspace`. **Answered 2026-10-21** (§4.5): no fixed per-project quota, shared capacity; backoff and 429 tracking (§11) | done |
 | Q4 | Vertex AI data-use terms for conversation content; whether the `eu` multi-region counts as an EU endpoint for SECOPS; launch stage and terms of `gemini-4-argon` | SECOPS |
 | Q5 | Will the anonymizer keep its 4h delay and 15-min cadence after the Cloud Run port? Cadence measured: every 15 min, max gap 22 min. Also raise the missing `IS NOT NULL` filter (§11). | Owner of the port ticket |
 | Q6 | Is Presidio's Polish NER recall acceptable? | Phase-0 test |
 | Q7 | Retention and access for per-turn derived rows (90 days proposed) | SECOPS |
 | Q8 | `daily_user_activity` raw emails vs the SHA256 promise | Dashboard owners, SECOPS |
 | Q9 | Slack channel and owner for quality messages | Team |
-| Q10 | Cause of the 2026-09-30 to 10-04 data gap; can it recur? | Logging export owner |
-| Q11 | Size cap above which a turn is `SKIPPED_TOO_LARGE` (D13) | Phase 0: size distribution of question + answer + snippets |
+| Q10 | Cause of the data gap; can it recur? **Answered 2026-10-21** (§4.4): `StreamAssist` only, most likely the `assistToken` schema change; can recur on any export schema change, now detected by the method-silence alert | Ask Google whether the export can tolerate or announce new fields |
+| Q11 | Size cap above which a turn is `SKIPPED_TOO_LARGE` (D13). Measured: no turn over 100k characters in 526 web turns, max session 209k (§12). Proposal: 30k input tokens per turn bundle, 120k per session grade | Team |
 | Q12 | Exact bar for "identified" on non-deterministic stage-1 codes (D9): judge evidence check, stage-2 confirmation, or a calibrated threshold | Team; phase-0 canary results |
 | Q13 | Topic rule when an answer cites several data stores (D16) | Team |
 | Q14 | Session end and sessions longer than 4h: answered by D17 (segments). Still open: does a chat reopened from history keep the same `session_id`, and what is the right idle threshold (30 min is provisional)? | Observe live in the window; recalibrate after 2 weeks of `session_facts` |
-| Q15 | How to tell Slack Bolek from MCP among `query.text` rows (both are API clients) | Phase 0: inspect request fields of the 810 API rows |
+| Q15 | How to tell Slack Bolek from MCP among `query.text` rows (both are API clients; both run under user principals) | Phase 0: inspect request fields of the API rows; avoid relying on `agent_usage_analytics_*` (§10.3) |
 | Q16 | Where Slack emoji reactions are stored and how they join to a turn. `bolek_slack` (in `agent_usage_analytics_*`) has query, email and session, no answer text; reactions not verified | Phase 0: Slack Bolek owner |
-| Q17 | Do Slack and MCP turns carry a usable `session_id` in `response.answer.name`, and does one Slack thread map to one session? | Phase 0: inspect API rows in the window |
+| Q17 | Do Slack and MCP turns carry a usable `session_id`? **Answered 2026-10-21** (§4.3): yes, but nearly every API turn is its own session, so a Slack thread is not one session. Open: which key groups Slack turns (the bot's own session ID?) | Slack Bolek owner |
 | Q18 | Quality dashboard (likely Grafana) next to Slack notifications (D4): scope, audience, which derived tables it reads | Team, later |
+| Q19 | Add a "context-grounded" class to D10: a knowledge turn without references whose earlier turn in the same session has references, judged against those references (24% of web turns in one sample; not verifiable would drop from ~64% to ~39%)? | Team |
+| Q20 | Resumed segments: use the earlier segment's text while it is still in the window (the usual case), and derived labels only when it is gone? Then `NOT_GRADABLE` (D19) applies only when text is really gone. Recalibrate the idle threshold on that share | Team |
+| Q21 | Stage-1 context: up to 2 prior turns (§8.3) or the whole session capped at 60k characters (~$2 more per weekday, better `relation_to_previous` and contradiction checks on long sessions)? | Team |
+| Q22 | A `doc_catalog` table written by the indexers' sink (`data_store_id, doc_id, uri_sha256, host, has_content, is_people_directory`; no titles or URIs) to map retrieved-only IDs to data stores and content | Indexers owner |
+| Q23 | Canary for multi-turn behavior: 20-50 synthetic conversations of 3-5 turns sent in one session; store `answer.name` and `assistToken` per evaluator result | Evaluator owner |
 
 ## Appendix A. Evidence
 
@@ -768,6 +798,15 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Feedback 33 events, reasons, latency | Counts and quantiles (10-19) |
 | Session ID in `response.answer.name` (not in `request`), fill by age, `assistToken` per turn, session gaps | `session-analysis.md` appendix (10-20); the 10-16 request-only key listing missed it |
 | Anonymizer cadence | `INFORMATION_SCHEMA.JOBS_BY_PROJECT` in the indexers project, 7 days (`session-analysis.md`, 10-20) |
+| Grounding cause, position effect, retrieval per turn | Key paths, counts and `Search` timing around isolated turns in the window (`grounding-metadata.md`, 10-21) |
+| Content path in `mcp-document-content` | Indexer sink and MCP reader code; `sha256(uri)` of cited URIs vs bucket object names (`document-mapping.md`, 10-21) |
+| `Search` linkage rule and citation recall | Window joins, two rules compared (`retrieval-linkage.md`, 10-21) |
+| Data gap boundaries and cause | Daily and hourly counts per method, terraform history, log sinks, GCS object counts (`data-completeness.md`, 10-21) |
+| Quota, price, input size | Service Usage consumer quotas, Vertex AI pricing page, character counts in the window (`cost-quota.md`, 10-21) |
+| Evaluator prefix, schedule, storage | 30-day counts; evaluator code (`canary-feasibility.md`, 10-21) |
+| Population classes, per-user pace, Slack/MCP sessions | 30-day classification; window counts (`population-filter.md`, 10-21) |
+| Identity data outside 4h | Table schemas, expiry and fill counts; bucket metadata (`secops-identity-data.md`, 10-21) |
+| Daytime session distributions | Window counts (`conversation-heuristics.md`, 10-21) |
 | `daily_user_activity` raw emails | Pattern counts on `user_email` (10-19) |
 | `people.hr_dump` fields | Schema (10-19) |
 | Gemini models in EU | 2.5 listed in 3 EU regions via publisher-model API (10-19). `gemini-3.8-flash`, `3.7-flash`, `gemini-4-argon` answered a synthetic call on the `eu` multi-region via `google-genai`; 2.5-flash returns 404 there; 3.x return 404 in the 3 regions (10-20). Indexers `vision_llm.py` and commit `6352175` (10-12) |
