@@ -4,7 +4,7 @@
 |---|---|
 | Ticket | AIENGLAB-795 (epic AIENGLAB-543), `design.md` Q1 |
 | Status | Findings, 2026-10-21 |
-| Data | `audit_logs` 4h window, Wed 2026-10-21 ~08:30-12:30 UTC, prod engine: 533 web UI turns, 143 API turns. No evaluator traffic in the window. Read-only. Only key paths and aggregate counts were output; no question, answer or snippet text was read. |
+| Data | `audit_logs` 4h window, Wed 2026-10-21 ~08:30-12:30 UTC, prod engine: 533 web UI turns, 143 API turns (mostly evaluator). Read-only. Only key paths and aggregate counts were output; no question, answer or snippet text was read. |
 
 ## 1. Summary
 
@@ -31,7 +31,7 @@ Key paths of `response` on `StreamAssist`, prod engine, in the window:
 
 - `replies` never has more than 1 element. It never contains `content.text`, so the reply text is not in `response`.
 - `answer.state` = `SUCCEEDED` on 100% of turns, with or without `replies`.
-- API answers are grounded far more often (86%) than web UI answers (36%). API sessions are almost all single-turn, so most API turns are first turns. API callers also send longer questions (median 212 vs 82 characters).
+- API answers are grounded far more often (86%) than web UI answers (36%). Most API turns in this window are evaluator questions: single-turn sessions with long prompts (median 212 vs 82 characters). The evaluator prefix sits inside `query.text`, not at its start, so a `STARTS_WITH` filter misses it (see `canary-feasibility.md`). Slack and MCP traffic was not separated here.
 
 ## 3. Retrieval behind answers with and without metadata
 
@@ -91,6 +91,6 @@ The same check tells whether the single `Search` call (§3.2) produces any visib
 
 ## 6. Open points
 
-- Evaluator traffic was absent from the window, so the planned comparison with evaluator responses was not possible. It is covered by AIENGLAB-801 (canary feasibility).
+- The comparison with evaluator responses is covered by AIENGLAB-801 (`canary-feasibility.md`). The evaluator was mislabeled as absent in the first version of this note; its prefix is not at the start of `query.text`.
 - Custom agent turns: 11 in the sample, none grounded. Too few to conclude.
 - The API principal is a service account with hundreds of `Search` calls per turn window, so principal-based retrieval linkage does not work for API clients (relevant for phase 4).
