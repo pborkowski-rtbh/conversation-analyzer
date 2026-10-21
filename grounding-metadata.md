@@ -93,4 +93,4 @@ The same check tells whether the single `Search` call (§3.2) produces any visib
 
 - The comparison with evaluator responses is covered by AIENGLAB-801 (`canary-feasibility.md`). The evaluator was mislabeled as absent in the first version of this note; its prefix is not at the start of `query.text`.
 - Custom agent turns: 11 in the sample, none grounded. Too few to conclude.
-- The API principal is a service account with hundreds of `Search` calls per turn window, so principal-based retrieval linkage does not work for API clients (relevant for phase 4).
+- The high `Search` counts around API turns in §3 come mostly from evaluator runs: one developer principal, 10 concurrent questions. Principal-based retrieval linkage does not work for the evaluator. For Bolek Slack and MCP, which run under user principals, it is unmeasured (phase 4).
