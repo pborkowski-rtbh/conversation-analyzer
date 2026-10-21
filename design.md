@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
-| Status | Draft v2, 2026-10-20 |
+| Status | Draft v3, 2026-10-21 |
 | Owner | Paweł Borkowski |
 | Scope | Gemini Enterprise **web UI** traffic (Bolek). Slack and MCP later. |
 | Supersedes | "Design doc - Feedback Analysis Agent" (AIENGLAB-235/236, epic closed as Duplicate). Absorbs `monitoring.md` v2. |
@@ -30,11 +30,11 @@ Based on historical conversations and user feedback, improve Bolek's responses c
 
 ```mermaid
 flowchart TD
-    G["Bolek gets better over time"] --> N["North star: Answer Quality Rate (AQR)<br/>share of real web answers judged good,<br/>standardized to a fixed topic mix"]
+    G["Bolek gets better over time"] --> N["North star: Answer Quality Rate (AQR)<br/>share of verifiable real web answers judged good,<br/>standardized to a fixed question mix"]
     G --> O["Offline: anchor-set eval score<br/>traffic-weighted synthetic questions"]
     G --> B["Burn-down: weekly turns in the top<br/>problem clusters"]
     N --> D1["Failure-type rates<br/>hallucination, retrieval miss, knowledge gap, ..."]
-    N --> D2["User-reaction rates<br/>rephrase, correction, frustration"]
+    G --> D2["User-reaction rates (separate from AQR)<br/>rephrase, correction, frustration"]
     N --> D3["Grounding rates<br/>answers with citations, unsupported claims"]
     G --> GR["Guardrails: dislike rate, active users,<br/>7d retention (ge_metrics), pipeline coverage"]
 ```
@@ -77,6 +77,14 @@ Targets are set after a 4-week baseline. No baseline exists today.
 | D6 | Analysis is 100% automated. No person reads conversations. | Earlier requirements |
 | D7 | New jobs run as **Cloud Run jobs in `rtbhouse-agentspace`**, not Composer. Composer `rtbh-ai-main-airflow-v3` is being retired and its non-indexer DAGs are planned to move to Cloud Run jobs there (`jira-stage/5-port-remaining-composer-dags.md`). | Verified plan |
 | D8 | **Models**: stage 1 (every turn) uses `gemini-3.8-flash`. Stage 2 (flagged turns, only if necessary) uses `gemini-4-argon`. Both on the `eu` multi-region. Gemini 2.5 is not used. | User, 2026-10-20 |
+| D9 | **Only identified problems are reported.** A failure code is recorded only when it is deterministic or confirmed against the sources; otherwise the turn gets `NONE`. Stage 1 never guesses retrieval or corpus codes; stage 2 assigns them with evidence (§5.2). Failure rates are therefore lower bounds. | User, 2026-10-21 |
+| D10 | **Knowledge answers without citation metadata are "not verifiable".** `groundedness` is NULL, only deterministic failure codes apply, they are reported separately and never counted as good (§5.4). | User, 2026-10-21 |
+| D11 | **Fields are gated by intent** (table in §5.3). Non-applicable fields are NULL and are not asked of the judge. | User, 2026-10-21 |
+| D12 | **Rubric** = written meaning of each score level plus synthetic few-shot examples from canary and evaluator turns, versioned and tuned on the canary (§8.6). | User, 2026-10-21 |
+| D13 | **Oversized turns are skipped**, recorded as `SKIPPED_TOO_LARGE`, never truncated and graded. They count in coverage (§5.4). | User, 2026-10-21 |
+| D14 | **Quality verdict and user reaction are separate metrics.** The verdict uses only the judge's findings. The reaction (next turn's `relation_to_previous`) is its own metric, filled in when the next turn arrives; the last turn of a conversation has none. A negative reaction may still trigger a stage-2 pass (§8.2). | User, 2026-10-21 |
+| D15 | **`confidence` is informational only**: a hint for the team. No logic, threshold or weight uses it. | User, 2026-10-21 |
+| D16 | **Topic comes from citations first.** With citations, `topic` is derived from the cited data stores; the judge picks it only when there are none. `topic_source` records which. | User, 2026-10-21 |
 
 ### 3.2 Requirements traceability
 
@@ -185,42 +193,57 @@ flowchart LR
 
 Each assessed turn gets zero or more failure types, with one primary. The four families come from `funnel.md`. The codes reuse the old Feedback Analysis design where possible.
 
-| Family | Code | Meaning | Typical fix owner |
-|---|---|---|---|
-| Retrieval | `RETRIEVAL_MISS` | The relevant document exists in the index but was not retrieved or cited | AIEL: search config, indexer |
-| Retrieval | `CHUNKING_ISSUE` | The right document was used but the snippet lost needed context | AIEL: indexer chunking |
-| Corpus | `KNOWLEDGE_GAP` | The information is not in any source | Corpus owner: add source |
-| Corpus | `OUTDATED_SOURCE` | Source content is stale | Document owner |
-| Corpus | `CONFLICTING_SOURCES` | Cited sources contradict each other | Document owners |
-| Generation | `UNSUPPORTED_CLAIM` | A claim is not supported by the cited snippets (hallucination) | AIEL: prompt, model |
-| Generation | `REASONING_ERROR` | Sources fine, combined or interpreted wrongly | AIEL: prompt, model |
-| Generation | `INCOMPLETE_ANSWER` | Misses parts of the question | AIEL: prompt |
-| Generation | `MISUNDERSTOOD_QUERY` | Answered a different question | AIEL: prompt |
-| Generation | `PRESENTATION_ISSUE` | Wrong language, broken formatting | AIEL: prompt |
-| Generation | `UNGROUNDED_INTERNAL_ANSWER` | Internal-knowledge question answered with no citation at all | AIEL: prompt, grounding config |
-| Question | `AMBIGUOUS_QUESTION` | Too vague to answer well; a clarifying question was needed | AIEL: prompt (ask back) |
-| Question | `OUT_OF_SCOPE` | Not something Bolek should or can answer | Communication |
-| System | `AGENT_OR_TOOL_ERROR` | Tool or agent failure, empty answer | AIEL |
-| | `NONE` | No failure found | |
+Only identified problems are recorded (D9). "Assigned by" says which stage may emit a code; stage 1 never emits stage-2-only codes. A turn with no identified problem gets `NONE`, so failure rates are lower bounds. For not-verifiable turns (D10) only the deterministic codes apply.
+
+| Family | Code | Meaning | Assigned by | Typical fix owner |
+|---|---|---|---|---|
+| Retrieval | `RETRIEVAL_MISS` | The relevant document exists in the index but was not retrieved or cited | Stage 2 only | AIEL: search config, indexer |
+| Retrieval | `CHUNKING_ISSUE` | The right document was used but the snippet lost needed context | Stage 2 only | AIEL: indexer chunking |
+| Corpus | `KNOWLEDGE_GAP` | The information is not in any source | Stage 2 only | Corpus owner: add source |
+| Corpus | `OUTDATED_SOURCE` | Source content is stale | Stage 2 only | Document owner |
+| Corpus | `CONFLICTING_SOURCES` | Cited sources contradict each other | Stage 2 only | Document owners |
+| Generation | `UNSUPPORTED_CLAIM` | A claim is not supported by the cited snippets (hallucination) | Stage 1 (per segment vs its snippets, grounded turns only), stage 2 | AIEL: prompt, model |
+| Generation | `REASONING_ERROR` | Sources fine, combined or interpreted wrongly | Stage 2 only | AIEL: prompt, model |
+| Generation | `INCOMPLETE_ANSWER` | Misses parts of the question | Stage 1 | AIEL: prompt |
+| Generation | `MISUNDERSTOOD_QUERY` | Answered a different question | Stage 1 | AIEL: prompt |
+| Generation | `PRESENTATION_ISSUE` | Wrong language, broken formatting | Stage 1 | AIEL: prompt |
+| Generation | `UNGROUNDED_INTERNAL_ANSWER` | Internal-knowledge question answered with no citation at all | Stage 1, deterministic | AIEL: prompt, grounding config |
+| Question | `AMBIGUOUS_QUESTION` | Too vague to answer well; a clarifying question was needed | Stage 1 | AIEL: prompt (ask back) |
+| Question | `OUT_OF_SCOPE` | Not something Bolek should or can answer | Stage 1 | Communication |
+| System | `AGENT_OR_TOOL_ERROR` | Tool or agent failure, empty answer | Stage 1, deterministic | AIEL |
+| | `NONE` | No identified failure | | |
+
+Deterministic codes: `UNGROUNDED_INTERNAL_ANSWER`, `AGENT_OR_TOOL_ERROR`. The exact bar for "identified" on the non-deterministic stage-1 codes is open (Q12).
 
 ### 5.3 Other closed lists
 
-- **Intent**: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK` (writing, translation, summarizing pasted text; not a knowledge question), `CHITCHAT`, `OTHER`. Groundedness is judged only for knowledge intents.
-- **Topic**: initially one per knowledge area of the 13 data stores attached to the engines (about Bolek, API docs, app hints, biztech, BQ documentation, Confluence, helpdesk Q&A, HR House, InHouse, know-how, traffic wiki, Google Drive, people directory), plus `OTHER`. Changes to the list are versioned (`taxonomy_version`).
-- **Relation of this question to the previous turn**: `FIRST`, `FOLLOW_UP`, `REPHRASE` (same need, asked again), `CORRECTION` ("that is wrong"), `FRUSTRATION`, `NEW_TOPIC`. Turn N's user reaction is turn N+1's relation label. This replaces the time-gap "re-ask" proxy from `monitoring.md`, which the gap distribution showed to be mostly normal follow-ups.
+- **Intent**: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK` (writing, translation, summarizing pasted text; not a knowledge question), `CHITCHAT`, `OTHER`. Knowledge intents: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `DATA_QUESTION`.
+- **Topic**: initially one per knowledge area of the 13 data stores attached to the engines (about Bolek, API docs, app hints, biztech, BQ documentation, Confluence, helpdesk Q&A, HR House, InHouse, know-how, traffic wiki, Google Drive, people directory), plus `OTHER`. Changes to the list are versioned (`taxonomy_version`). Assigned from the cited data stores when the answer has citations, by the judge otherwise (D16); `topic_source` = `CITATION` or `JUDGE`. The rule for answers citing several stores is open (Q13).
+- **Relation of this question to the previous turn**: `FIRST`, `FOLLOW_UP`, `REPHRASE` (same need, asked again), `CORRECTION` ("that is wrong"), `FRUSTRATION`, `NEW_TOPIC`. Turn N's user reaction is turn N+1's relation label. It is a separate metric, never part of turn N's quality verdict (D14). This replaces the time-gap "re-ask" proxy from `monitoring.md`, which the gap distribution showed to be mostly normal follow-ups.
+
+**Field applicability by intent (D11).** Fields marked "no" are NULL and not asked of the judge. Initial table, finalized with the rubric.
+
+| Intent | `relevance` | `completeness`, `clarity` | `groundedness`, segment counts | `needs_internal_knowledge` | Failure codes |
+|---|---|---|---|---|---|
+| Knowledge (`FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `DATA_QUESTION`) | yes | yes | yes, if citations exist; otherwise NULL and the turn is not verifiable (D10) | yes | all; not verifiable → deterministic only |
+| `PEOPLE_LOOKUP` | yes | no | no | no | `AGENT_OR_TOOL_ERROR` only (relevance-only assessment, §8.5) |
+| `GENERAL_TASK`, `CHITCHAT` | yes | yes | no | no | generation codes except `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`; question and system codes |
+| `OTHER` | yes | yes | no | no | question and system codes |
 - **Severity**: `LOW`, `MEDIUM`, `HIGH`. `HIGH` means a concrete factual error on an internal knowledge question.
 
 ### 5.4 Metric definitions
 
 | Metric | Definition (per day, web UI, prod engine) |
 |---|---|
-| Assessed coverage | assessed turns / eligible turns. Target ≥ 98%. A pipeline health metric, not quality. |
-| Good answer | `relevance ≥ 4` AND (`groundedness ≥ 4` OR intent not knowledge) AND no `HIGH` severity failure AND next turn not `REPHRASE`/`CORRECTION`/`FRUSTRATION` |
-| **AQR** | good answers / assessed turns, mix-standardized (§8.8) |
-| Failure rate (per code) | turns with that primary failure / assessed turns |
-| Grounded share | knowledge-intent turns with ≥ 1 reference / knowledge-intent turns |
+| Assessed coverage | (`ASSESSED` + `SKIPPED_TOO_LARGE` turns) / eligible turns. Target ≥ 98%. A pipeline health metric, not quality. |
+| Too-large share | `SKIPPED_TOO_LARGE` turns / eligible turns (D13) |
+| Verifiable turn | Non-knowledge intent, or knowledge intent with ≥ 1 reference. Knowledge turns without references are not verifiable (D10). |
+| Good answer | verifiable AND `relevance ≥ 4` AND (`groundedness ≥ 4` OR intent not knowledge) AND no identified `HIGH` severity failure. Does not use the next turn (D14). |
+| **AQR** | good answers / assessed verifiable turns, mix-standardized (§8.8) |
+| Failure rate (per code) | turns with that identified primary failure / assessed turns. A lower bound (D9). |
+| Grounded share | knowledge-intent turns with ≥ 1 reference / knowledge-intent turns. The rest are the not-verifiable share. |
 | Unsupported-claim rate | grounded turns with ≥ 1 unsupported segment / grounded turns |
-| Negative reaction rate | turns whose next turn is `REPHRASE`, `CORRECTION` or `FRUSTRATION` / turns with a next turn |
+| Negative reaction rate | turns whose next turn is `REPHRASE`, `CORRECTION` or `FRUSTRATION` / turns with a next turn. Separate from AQR (D14). |
 | Dislike rate | dislikes / turns (informational, ~0.1%) |
 | Anchor eval score | evaluator LLM-judge mean and grounding F1 on the anchor set (§8.12) |
 | Cluster burn-down | weekly turns in the top-N clusters from the baseline period |
@@ -303,13 +326,14 @@ sequenceDiagram
     participant Q as bolek_quality
     SCH->>TA: run (every 10 min)
     TA->>BQ: eligible web turns: age 5 min - 3h30, not yet assessed
+    TA->>Q: turns over the size cap: SKIPPED_TOO_LARGE, no LLM call
     TA->>BQ: same principals: prior turns (window), Search rows -30 s..+180 s
     TA->>TA: rebuild conversations, link retrieval, extract references
     TA->>PII: question, answer, snippets, prior turns
     PII-->>TA: scrubbed text with consistent placeholders
     TA->>LLM: stage 1 rubric (3.8 flash), structured output
     LLM-->>TA: labels and scores
-    alt flagged (low score, failure, late trigger)
+    alt flagged (low score, HIGH severity, dislike, late trigger)
         TA->>GCS: full text of cited documents
         TA->>PII: scrub document text
         TA->>LLM: stage 2 deep diagnosis (4 argon)
@@ -326,7 +350,7 @@ Feedback is joined in derived space, so it does not race the window. The aggrega
 
 ### 7.3 Daily aggregation and detection
 1. Completeness check: hourly row counts vs same hour/weekday baseline. Incomplete days are flagged and excluded from baselines (the 09-30 to 10-04 gap is the known positive test).
-2. Feedback join (§7.2), reaction join (turn N gets turn N+1's `relation_to_previous`).
+2. Feedback join (§7.2), reaction join (turn N gets turn N+1's `relation_to_previous` as its reaction; separate metric, D14).
 3. Metrics per stratum (§8.8), mix-standardized AQR.
 4. Anomaly detection (§8.9), change annotation from `change_events`.
 5. Release impact for changes whose post-window just completed (§8.10).
@@ -401,7 +425,7 @@ Rows already in `turn_assessments` (by `assessment_id = hash(serviceAttributionT
 - Dependency: if the anonymizer's delay or cadence changes (it is being ported to Cloud Run), the window shrinks. The assessor reads the anonymizer's configured delay at start and refuses to run with a margin under 30 min, raising a health alert.
 
 ### 8.3 Conversation reconstruction
-Within one run, web-UI turns are grouped by principal and ordered by time. A new conversation starts after an idle gap of more than 30 min. Turns already assessed in earlier runs are re-read as context while still in the window.
+Within one run, web-UI turns are grouped by principal and ordered by time. A new conversation starts after an idle gap of more than 30 min. Turns already assessed in earlier runs are re-read as context while still in the window. How to detect a finished conversation, and whether to handle sessions longer than 4h, is open (Q14).
 
 - `conversation_id` is a random UUID created at the first turn and carried forward through `turn_assessments`, not derived from identity.
 - Up to 2 prior turns (scrubbed) go to the judge as context. If the previous turn is already past 4h, `context_truncated = true`.
@@ -418,7 +442,7 @@ This is used only for retrieval-family diagnosis and doc stats. It is never used
 ### 8.5 PII scrubbing (D3)
 - Presidio with English and Polish models (`pl_core_news_lg`, as proposed in the old design), plus custom recognizers for `@rtbhouse.com`/`@rtbhouse.net` emails, employee IDs, phone numbers and names.
 - **Consistent placeholders within a turn bundle**: the same entity becomes the same token (`<PERSON_1>`) across question, answer, snippets and documents, so the judge can still compare them. The mapping lives in memory for one turn and is never stored.
-- Inputs above a size cap (pasted content; question outliers up to ~1.3M chars) are truncated to the first and last part, and the turn is marked `input_truncated`.
+- Turns above a size cap (pasted content; question outliers up to ~1.3M chars) are not sent to the LLM. They are recorded with `assessment_status = SKIPPED_TOO_LARGE` and count in coverage (D13). The cap value is open (Q11).
 - Stored: only `pii_entity_count_bucket` (for monitoring the scrubber).
 - `PEOPLE_LOOKUP` intent: assessed for relevance only. No document URIs from the people directory (`associate-*`, people-connections) are ever stored.
 
@@ -427,19 +451,23 @@ This is used only for retrieval-family diagnosis and doc stats. It is never used
 **Stage 1 (every turn), `gemini-3.8-flash`, `eu` multi-region, temperature 0, structured output (JSON schema).** Input: scrubbed question, answer, grounding segments with reference snippets (when present), up to 2 prior turns. Output, all closed or numeric:
 
 ```text
-intent, topic, answer_language_matches (bool),
+intent, topic (judge only when there are no citations; topic_source),
+answer_language_matches (bool),
 relation_to_previous (FIRST|FOLLOW_UP|REPHRASE|CORRECTION|FRUSTRATION|NEW_TOPIC),
 relevance 1-5, completeness 1-5, clarity 1-5,
-groundedness 1-5 (only if references exist),
+groundedness 1-5 (only if references exist and intent is knowledge),
 unsupported_segment_count, total_segment_count (from segments[]),
 is_refusal_or_empty (bool), contradicts_previous_answer (bool),
-needs_internal_knowledge (bool), failure_types[] (closed), primary_failure (closed),
-severity (LOW|MEDIUM|HIGH), confidence 0-1
+needs_internal_knowledge (bool), failure_types[] (stage-1 codes only, §5.2),
+primary_failure, severity (LOW|MEDIUM|HIGH),
+confidence 0-1 (informational only, D15)
 ```
 
-Groundedness is checked **per segment**: each `segments[].text` against the snippets it references (`referenceIndices`). That is deterministic input, not a guess. `UNGROUNDED_INTERNAL_ANSWER` is set when `needs_internal_knowledge` is true and there are no references.
+Fields are gated by intent (§5.3, D11). Groundedness is checked **per segment**: each `segments[].text` against the snippets it references (`referenceIndices`). That is deterministic input, not a guess. `UNGROUNDED_INTERNAL_ANSWER` is set when `needs_internal_knowledge` is true and there are no references. Knowledge turns without references are not verifiable (D10): only deterministic codes apply.
 
-**Stage 2 (flagged turns only, if necessary), `gemini-4-argon`, `eu` multi-region.** Triggered by: `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, any retrieval/corpus failure, a dislike, or a late trigger. It adds the old design's two-level gap analysis:
+**Rubric (D12).** Written meaning of each score level (at least 1, 3 and 5) in Polish and English, plus synthetic few-shot examples built from canary and evaluator turns, which engineers may read. Tuned against the canary (§8.13) and versioned as `rubric_version`. The rubric text is not written yet.
+
+**Stage 2 (flagged turns only, if necessary), `gemini-4-argon`, `eu` multi-region.** Triggered by: `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (§8.2). Stage 1 never emits retrieval or corpus codes (D9), so they are not a trigger. It adds the old design's two-level gap analysis:
 
 1. **Snippet vs answer**: did the model use what it was given? → `UNSUPPORTED_CLAIM`, `REASONING_ERROR`.
 2. **Full document vs snippet**: fetch the cited documents from `mcp-document-content`, scrub them, and check whether a better passage exists → `CHUNKING_ISSUE`, `RETRIEVAL_MISS`. If no source supports an answer → `KNOWLEDGE_GAP`. If the document is stale or two documents contradict → `OUTDATED_SOURCE`, `CONFLICTING_SOURCES`.
@@ -495,7 +523,8 @@ Sensitivity, at ~5,500 web turns per 5-weekday window and an illustrative AQR of
 A cluster key is `(primary_failure, data_store, doc_uri)`, or `(primary_failure, topic)` when there is no document (for example `KNOWLEDGE_GAP`). Weekly:
 
 ```text
-impact_k = turns_k(week) × severity_weight(primary_failure) × mean_confidence_k
+impact_k = turns_k(week) × severity_weight(primary_failure)
+  (confidence is not used, D15)
   severity_weight: HIGH-capable failures (UNSUPPORTED_CLAIM, OUTDATED_SOURCE,
                    CONFLICTING_SOURCES, REASONING_ERROR) = 3, retrieval/corpus = 2,
                    presentation/question = 1   (proposal, tune after baseline)
@@ -550,15 +579,16 @@ erDiagram
 | `day` | DATE | no finer timestamp is stored |
 | `engine`, `client` | STRING | `prod`, `web_ui` |
 | `conversation_id` | STRING | random UUID (§8.3) |
-| `turn_index`, `gap_to_previous_bucket`, `context_truncated`, `input_truncated` | INT / STRING / BOOL | |
-| `intent`, `topic`, `relation_to_previous`, `severity`, `primary_failure` | STRING (enum) | |
-| `failure_types` | ARRAY<STRING> (enum) | |
-| `relevance`, `completeness`, `clarity`, `groundedness` | INT64 1-5 | groundedness NULL if no references |
+| `assessment_status` | STRING (enum) | `ASSESSED`, `SKIPPED_TOO_LARGE` (D13). Skipped rows carry only ids, `day`, versions. |
+| `turn_index`, `gap_to_previous_bucket`, `context_truncated` | INT / STRING / BOOL | |
+| `intent`, `topic`, `topic_source`, `relation_to_previous`, `severity`, `primary_failure` | STRING (enum) | `topic_source`: `CITATION` or `JUDGE` (D16) |
+| `failure_types` | ARRAY<STRING> (enum) | identified only (D9) |
+| `relevance`, `completeness`, `clarity`, `groundedness` | INT64 1-5 | NULL where not applicable to the intent (D11); groundedness NULL if no references |
 | `unsupported_segment_count`, `total_segment_count`, `n_references` | INT64 | |
 | `cited_doc_uris`, `cited_data_stores` | ARRAY<STRING> | allowlisted, people directory excluded |
 | `n_retrieval_calls`, `n_retrieved_results`, `retrieved_store_mix` | INT64 / JSON of numbers | heuristic §8.4 |
 | `is_refusal_or_empty`, `contradicts_previous_answer`, `needs_internal_knowledge`, `answer_language_matches` | BOOL | |
-| `stage2_done`, `confidence` | BOOL / FLOAT64 | |
+| `stage2_done`, `confidence` | BOOL / FLOAT64 | `confidence` informational only (D15) |
 | `feedback_type`, `feedback_reason` | STRING (enum) | joined later |
 | `pii_entity_count_bucket` | STRING | scrubber monitoring |
 | `rubric_version`, `taxonomy_version`, `judge_model`, `prompt_sha`, `assessor_version` | STRING | |
@@ -575,7 +605,7 @@ erDiagram
 
 **`judge_calibration`**: `day, rubric_version, judge_model, label, kappa, mutation_recall, cross_model_disagreement, n`.
 
-**`pipeline_runs`**: `run_id, started_at, finished_at, eligible, assessed, stage2, missed, failed_by_class, oldest_unassessed_age_min, window_margin_min`.
+**`pipeline_runs`**: `run_id, started_at, finished_at, eligible, assessed, skipped_too_large, stage2, missed, failed_by_class, oldest_unassessed_age_min, window_margin_min`.
 
 Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluator DB.
 
@@ -628,7 +658,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 
 | Phase | Content | Exit criterion |
 |---|---|---|
-| 0. Spikes | Resolve Q1 (missing grounding metadata), Q2 (URI/ID → document mapping), Presidio PL recall on canary text, `gemini-3.8-flash` judge vs evaluator reference judge on canary; `gemini-4-argon` stage 2 vs stage 1 on flagged canary turns | Each open question answered or design adjusted |
+| 0. Spikes | Resolve Q1 (missing grounding metadata), Q2 (URI/ID → document mapping), Q11 (size cap), Q12 ("identified" bar), Presidio PL recall on canary text, rubric v1 with few-shot examples (D12), `gemini-3.8-flash` judge vs evaluator reference judge on canary; `gemini-4-argon` stage 2 vs stage 1 on flagged canary turns | Each open question answered or design adjusted |
 | 1. Shadow | `turn-assessor` + `quality-aggregator`, canary calibration, no Slack except health | 4-week baseline; coverage ≥ 98%; kappa and recall thresholds met |
 | 2. Visibility | Slack digest, anomalies, severe-cluster alerts, prioritization | Team uses the digest for 4 weeks; first clusters resolved |
 | 3. Closed loop | eval-builder (anchor + focus), release gate (AIENGLAB-522/524), release impact | Every prod change has a gate result and an impact report |
@@ -651,7 +681,8 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 
 | Risk | Effect | Mitigation |
 |---|---|---|
-| Grounding metadata missing on ~72% of answers (Q1) | Groundedness and retrieval diagnosis cover only ~28% of turns | Phase-0 spike; until resolved, report grounded and ungrounded strata separately and use `UNGROUNDED_INTERNAL_ANSWER` |
+| Grounding metadata missing on ~72% of answers (Q1) | Groundedness and retrieval diagnosis cover only ~28% of turns | Phase-0 spike; until resolved, knowledge turns without citations are "not verifiable" (D10), reported separately and excluded from AQR; `UNGROUNDED_INTERNAL_ANSWER` still applies |
+| Only identified problems are recorded (D9) | Failure rates and cluster volumes under-count real problems | Report them as lower bounds; report the not-verifiable share next to AQR |
 | Judge quality on real traffic differs from its quality on evaluator turns (same `gemini-3.8-flash` as the evaluator judge, but a different input distribution) | Noisy labels, wrong priorities | Canary kappa, mutation recall, trust thresholds, cross-model check |
 | Presidio misses names or IDs in Polish text | PII reaches the LLM (still EU, nothing stored) | Recall test on canary text with seeded PII; conservative custom recognizers |
 | Window shrinks (anonymizer change) or the job is down | Turns lost forever | Margin check at start, coverage alerts, oldest-first, 20 attempts per turn |
@@ -675,6 +706,10 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Q8 | `daily_user_activity` raw emails vs the SHA256 promise | Dashboard owners, SECOPS |
 | Q9 | Slack channel and owner for quality messages | Team |
 | Q10 | Cause of the 2026-09-30 to 10-04 data gap; can it recur? | Logging export owner |
+| Q11 | Size cap above which a turn is `SKIPPED_TOO_LARGE` (D13) | Phase 0: size distribution of question + answer + snippets |
+| Q12 | Exact bar for "identified" on non-deterministic stage-1 codes (D9): judge evidence check, stage-2 confirmation, or a calibrated threshold | Team; phase-0 canary results |
+| Q13 | Topic rule when an answer cites several data stores (D16) | Team |
+| Q14 | Detecting a finished conversation, and whether to handle sessions longer than 4h (§8.3). No longer blocks the quality verdict (D14). | Team |
 
 ## Appendix A. Evidence
 

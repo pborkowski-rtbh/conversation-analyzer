@@ -4,6 +4,8 @@ Goal: detect that something got worse (or changed) on the web channel, using onl
 
 v2 = v1 after verification against live data on 2026-10-16 (counts only). What changed and why is listed at the end.
 
+Status: absorbed into `design.md` as the health layer (§14). Where the two differ, `design.md` is current. Counts here are as of 2026-10-16.
+
 ## Inputs and their limits (verified)
 - Columns: `timestamp`, `methodName`, `serviceAttributionToken`, `assistToken`, `request`, `response`, `userIamPrincipal`, `userQuery`, `serviceLabel`, `serviceName`. No status/error column, no latency.
 - Inside the window, `userIamPrincipal` and `response` are 100% filled. At 4h `audit_logs_annonymizer` NULLs them. Rows land ~4 min after the call. Rows are deleted after 30 days.
@@ -28,7 +30,7 @@ v2 = v1 after verification against live data on 2026-10-16 (counts only). What c
 |---|---|---|
 | Data completeness | rows per hour vs same hour/weekday baseline; zero-row hours on weekdays | `audit_logs`, replayable |
 | Volume | non-eval `StreamAssist` calls per day | `audit_logs`, replayable |
-| Thumbs-down | `add-feedback` DISLIKE count and per-call rate | `audit_logs` (`WriteUserEvent`), replayable, informational only (37 events in a month) |
+| Thumbs-down | `add-feedback` DISLIKE count and per-call rate | `audit_logs` (`WriteUserEvent`), replayable, informational only (37 events in a month as of 2026-10-16; 33 as of 2026-10-19) |
 | Active users, retention | `daily_active_user_count`, `user_retention_ratio_for7d` | `ge_metrics` (3-day lag) |
 | Change events | `UpdateEngine`, `UpdateAgent`, `UpdateDataConnector` | `audit_logs` |
 
