@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-21. Sections 1-3 written; further sections to follow. |
+| Status | Draft, 2026-10-21. Sections 1-4 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -111,11 +111,54 @@ Terms used in this document. Each term has exactly one meaning.
 | **Release impact** | After a release, the live numbers of the 5 weekdays before compared with the 5 weekdays after. It detects only changes of about 2 to 3 percentage points; smaller effects are judged by the gate. |
 | **Change event** | A recorded change that can affect quality: a prompt, data store, model, engine or indexer change. Used to annotate alerts and to measure release impact. |
 
-## 3. High-level flow
+## 3. Principles and constraints
+
+The design follows from a few rules and from what the log lets us see. Everything after this section is built on them.
+
+### 3.1 Rules
+
+| Rule | What it means | Why |
+|---|---|---|
+| **Derived values only** | The system stores scores, closed-list labels, document IDs, counts and versions. It never stores question text, answer text, summaries, feedback comments or identity. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. |
+| **Synthetic questions only** | Tests use questions generated from the documents that real traffic retrieves or cites. Real questions are never re-asked or copied into a test set. | Same reason: real questions stay out of anything we keep. |
+| **EU endpoints only** | Text reaches a model only on an EU endpoint (an EU region or the `eu` multi-region, never `global`), and only after PII scrubbing. | Question and answer text must not leave the EU, and personal details must not reach the model. Whether the security team accepts the `eu` multi-region is still open. |
+| **Notifications only on Slack** | Alerts and the digest are sent only to Slack, in messages built from derived values. There are no per-session tickets. A dashboard may be added later; it is not part of this design yet. | One place for the team to be notified, and no path for text to leave the system. |
+| **Fully automated** | No person reads questions or answers. The judge is tested on canary turns, which may be read. | Requirement of the project. Debugging and calibration use the canary, so there is never a need to look at a real turn. |
+| **Only identified problems are reported** | A failure is recorded only when it follows from the data or is confirmed against the sources. When the judge is unsure, the turn is recorded as having no failure. | A false alarm costs the team's trust. The price is that failure rates are lower bounds. |
+| **Not verifiable is not good** | A knowledge turn without references cannot be checked against sources. It is reported separately, never counted as good and left out of AQR. | Counting it as good would inflate AQR, and counting it as bad would invent failures. |
+| **Assessment and reaction stay separate** | The assessment uses only the judge's findings. How the user reacted in the next turn is its own metric. | A rephrase may mean a bad answer or a new thought. Mixing them hides which one it was. |
+| **Informational fields drive nothing** | The judge's confidence and the session grade are shown to people but used by no metric, ranking or trigger. | They are hints for the team, not checked results: confidence is the judge's own estimate, and a session grade is often provisional or missing because part of the session is already erased. |
+| **All channels, one set of rules** | Web UI, Slack Bolek and MCP are assessed the same way, and every metric exists per channel and combined. | The same Bolek answers all three, so quality has to be comparable between them. |
+| **The anonymizer is not touched** | It keeps its 4-hour rule and runs separately from the assessment. We store no list linking turns to sessions. | Changing retention needs a security decision, and such a list would let sessions be rebuilt after the window. |
+
+### 3.2 What the log lets us see
+
+| Fact | Value |
+|---|---|
+| Window | Answer text, session ID and identity exist for about 4 hours, up to about 4h22m because the anonymizer runs every 15 minutes. |
+| Question text | Kept for 30 days. |
+| Volume | About 900 to 1,450 web UI turns per weekday, 20 to 140 on a weekend day, and about 115 other API turns per day (810 in one 7-day window), which are Slack Bolek and MCP; the split between the two is not known yet. |
+| Feedback | About 0.1 to 0.15% of web UI answers. |
+| References | Only about 28% of web UI answers carry reference information in the log (two samples of about 400 turns each). The cause is not yet known. |
+| Session ID | Present in the answer, so it is lost with the answer. Each turn has its own token, so tokens cannot group turns into a session. |
+| Evaluator traffic | Passes through the same log and is told apart by its prompt prefix. It is used as the canary, never as real traffic. |
+
+### 3.3 What follows from this
+
+| Because | We |
+|---|---|
+| The evidence disappears after 4 hours | Assess inside the window, with a target of 3 hours and a hard limit of 3h30. |
+| Text may not be stored | Keep derived values, and check every write with the leak guard. |
+| Feedback is too rare to measure quality | Assess every turn with a judge instead of waiting for feedback. |
+| Most web UI answers have no references | Treat knowledge turns without references as not verifiable: only deterministic failures are recorded for them, and they are reported separately. |
+| Nobody may read real questions or answers | Calibrate the judge on the canary, on injected faults and by comparing it with a second model. |
+| Session IDs vanish with the answer | Group turns by a keyed hash of the session ID while it exists, and keep no map. |
+
+## 4. High-level flow
 
 The system is one loop: assess every turn, turn the results into numbers, tell the team, fix, test, release, and check that the numbers moved.
 
-### 3.1 The loop
+### 4.1 The loop
 
 ```mermaid
 flowchart TB
@@ -138,7 +181,7 @@ flowchart TB
 | 6 | Team fixes | The team changes a prompt, a data store, the indexer, a document or the model. |
 | 7 | Test, release, check | The release gate tests the change on synthetic questions; after release, release impact compares the live numbers before and after. |
 
-### 3.2 Step 2 in detail: assessment
+### 4.2 Step 2 in detail: assessment
 
 ```mermaid
 flowchart LR
@@ -153,7 +196,7 @@ flowchart LR
 
 Feedback joins the same turn. A dislike that arrives while the turn is still in the window is a late trigger and flags it.
 
-### 3.3 Step 7 in detail: verification
+### 4.3 Step 7 in detail: verification
 
 ```mermaid
 flowchart LR
@@ -163,7 +206,7 @@ flowchart LR
     D --> E["Release impact<br/>5 weekdays before vs after"]
 ```
 
-### 3.4 The life of one turn
+### 4.4 The life of one turn
 
 Everything about a turn must be read before the anonymizer erases its answer.
 
@@ -176,7 +219,7 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | 4 hours (up to 4h22m) | The anonymizer erases the answer, the session ID and the user's identity. |
 | 30 days | The question text is deleted. |
 
-### 3.5 Where each guarantee is enforced
+### 4.5 Where each guarantee is enforced
 
 | Guarantee | Where |
 |---|---|
@@ -184,4 +227,4 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | Text goes only to EU endpoints | PII scrubbing, then the judge on the `eu` multi-region. |
 | No person reads questions or answers | Every step is automatic; the judge is tested on the canary, not on real turns. |
 | Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
-| Findings leave the system only through Slack | Step 5; messages are built from derived values. |
+| Notifications go only to Slack | Step 5; messages are built from derived values. |

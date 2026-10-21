@@ -10,6 +10,7 @@ Current design: `design.md`. Decision IDs below match its §3.1.
 - SECOPS: parked.
 
 ## Decisions
+- **Notifications (D4, narrowed 2026-10-21)**: notifications (alerts, digest) go to Slack only. A dashboard, likely Grafana, will probably be needed; to be discussed later (`design.md` Q18).
 - **Models (D3, D8, 2026-10-20)**: `eu` multi-region is an accepted EU endpoint, never `global`. Stage 1 `gemini-3.8-flash` on every turn; stage 2 `gemini-4-argon` on flagged turns, only if necessary. Gemini 2.5 not used.
 - **Stage 1 form (2026-10-21)**:
   - D9: only identified problems are reported (deterministic or confirmed against sources). Stage 1 never guesses retrieval/corpus codes; stage 2 assigns them with evidence.

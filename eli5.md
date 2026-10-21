@@ -111,7 +111,7 @@ After release, we compare the real numbers for 5 weekdays before and after. The 
 1. **Store only derived values.** Scores, labels, document links, counts. Never question or answer text, summaries, or identity. We also never store a list linking log entries to chats, so chats can't be rebuilt after 4 hours.
 2. **No person reads conversations.** Everything is automatic, and debugging uses synthetic test traffic.
 3. **Only EU Gemini endpoints** (the `eu` multi-region), and only after blacking out private details.
-4. **Slack is the only place findings go.**
+4. **Notifications go only to Slack.** A dashboard (probably Grafana) may come later; not decided yet.
 5. **Real questions are never re-asked or copied** into tests.
 
 ## How we know the grader is any good

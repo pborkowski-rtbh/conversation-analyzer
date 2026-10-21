@@ -58,7 +58,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 ### 2.4 Non-goals
 - Storing or showing any conversation text to people.
 - Re-asking real user questions (decision D2).
-- Per-conversation tickets (decision D4: Slack only).
+- Per-conversation tickets (decision D4: notifications on Slack only).
 - Changing the Gemini Enterprise web UI. It is Google-managed; feedback arrives with `feedbackSource = GOOGLE_WEBAPP`.
 - Latency monitoring. There is no latency field in `audit_logs`.
 
@@ -71,7 +71,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 | D1 | The system may persist **derived values only**: scores, closed-list labels, cited document IDs/URIs, counts, versions. Never question/answer text, summaries or identity. Nothing else is stored beyond what exists today. | User, 2026-10-19 |
 | D2 | **Synthetic evals only.** Real questions are never re-asked or copied. Evals are generated from documents that real traffic retrieves or cites. | User, 2026-10-19 |
 | D3 | Conversation data may be sent to **Gemini on Vertex AI, EU endpoints only** (a EU region or the `eu` multi-region, never `global`), after **PII scrubbing**. | User, 2026-10-19; `eu` multi-region accepted 2026-10-20 |
-| D4 | Findings go to **Slack only**. | User, 2026-10-19 |
+| D4 | **Notifications go to Slack only** (alerts, digest). A quality dashboard, likely Grafana, will probably be needed; to be discussed (Q18). | User, 2026-10-19; narrowed to notifications 2026-10-21 |
 | D5 | **All channels from the start**: web UI, Slack Bolek and MCP are assessed from phase 1, with metrics per channel (`client`). Slack emoji reactions are collected as feedback, like web thumbs. Evaluator traffic stays canary only. SECOPS approval is out of scope of this doc; the design assumes the current storage boundary (D1). | User, 2026-10-21 (replaces "web UI first") |
 | D6 | Analysis is 100% automated. No person reads conversations. | Earlier requirements |
 | D7 | New jobs run as **Cloud Run jobs in `rtbhouse-agentspace`**, not Composer. Composer `rtbh-ai-main-airflow-v3` is being retired and its non-indexer DAGs are planned to move to Cloud Run jobs there (`jira-stage/5-port-remaining-composer-dags.md`). | Verified plan |
@@ -682,7 +682,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
   - Clustering `audit_logs` on `methodName` would cut window-read cost; needs a check that the Gemini Enterprise export accepts it.
 
 ## 12. Cost and capacity (estimates, prices not checked)
-- **Stage 1**: about 900-1,450 web turns plus ~115 Slack/MCP turns per weekday (810 API rows in 7 days) × at most ~10k input tokens (rubric ~2k, answer ~0.6k, snippets capped at 6k, 2 prior turns ~1.5k) ≈ **up to ~15M input tokens per weekday** on `gemini-3.8-flash`.
+- **Stage 1**: about 900-1,450 web turns plus ~115 Slack/MCP turns per day (810 API rows in 7 days, not split yet, Q15) × at most ~10k input tokens (rubric ~2k, answer ~0.6k, snippets capped at 6k, 2 prior turns ~1.5k) ≈ **up to ~15M input tokens per weekday** on `gemini-3.8-flash`.
 - **Stage 2**: at most 20% of turns × at most ~30k tokens (capped full documents) ≈ **up to ~9M tokens per weekday** on `gemini-4-argon` (price and tokenizer not checked). The session grade (D19) adds one more `gemini-4-argon` call per flagged turn, over the segment's turns; not yet estimated.
 - **Calibration**: canary plus 5% cross-model, small.
 - **Throughput**: ~110 web turns per hour observed in one 3h40m Monday window (402 turns), ≈ 20 per 10-min run; the true peak is not measured. Well within one job instance. `eu` multi-region quota for `gemini-3.8-flash` and `gemini-4-argon` to be confirmed (Q3).
@@ -752,6 +752,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Q15 | How to tell Slack Bolek from MCP among `query.text` rows (both are API clients) | Phase 0: inspect request fields of the 810 API rows |
 | Q16 | Where Slack emoji reactions are stored and how they join to a turn. `bolek_slack` (in `agent_usage_analytics_*`) has query, email and session, no answer text; reactions not verified | Phase 0: Slack Bolek owner |
 | Q17 | Do Slack and MCP turns carry a usable `session_id` in `response.answer.name`, and does one Slack thread map to one session? | Phase 0: inspect API rows in the window |
+| Q18 | Quality dashboard (likely Grafana) next to Slack notifications (D4): scope, audience, which derived tables it reads | Team, later |
 
 ## Appendix A. Evidence
 
