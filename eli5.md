@@ -2,7 +2,7 @@
 
 Start here if you are new. This is the big picture in plain words. For details and numbers see `design.md`; for the form the grader fills in see `categorizarion.md`.
 
-Matches `design.md` Draft v4 (2026-10-21). Maintained: update this file whenever a decision changes the flow.
+Matches `design.md` Draft v5 (2026-10-21). Maintained: update this file whenever a decision changes the flow.
 
 ## The problem
 

@@ -4,7 +4,8 @@
 |---|---|
 | Date | 2026-10-21 |
 | Compared | `main` at `d665478` (`design.md` Draft v4, `design-doc.md` §1-4, `notes.md`, `eli5.md`) against the analysis notes of AIENGLAB-787 and 795-803 (merged on branch `analysis-bundle`) |
-| Scope | Facts and proposals that contradict each other. `design.md` and `design-doc.md` were **not edited**; the items in §1 are for their owner. |
+| Scope | Facts and proposals that contradict each other. |
+| Resolution | Applied the same day in `design.md` Draft v5 and `design-doc.md` §3.2. Factual items 1-4, 6-11, 13 and 14 are corrected in the text, and Q1, Q2, Q3, Q10 and Q17 are marked answered. Items that would change a decision are added as open questions instead of being decided: item 4's context-grounded class (Q19), item 5 (Q20), item 12 (Q21), the document catalog of item 3 (Q22) and the multi-turn canary of item 13 (Q23). |
 
 ## 1. Items in `design.md` / `design-doc.md` that the new findings contradict
 
