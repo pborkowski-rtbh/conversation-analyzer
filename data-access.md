@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Problem | `design-doc.md` §5.10, `design.md` Q24 (part of Q12) |
-| Status | Adopted for stage 1, 2026-10-23: `design-doc.md` §5.2, §5.7, §5.8, §5.11; `design.md` D23. Stage 2 use of L3/L4 waits for the stage 2 section. Changes on adoption: URLs in the answer text moved from L2 to the evidence check (they give no content without reading the document); a new code `CONTRADICTED_CLAIM` carries `HIGH`; queries use the scrubbed question only until §7 is settled. |
+| Problem | `design-doc.md` §6.11, `design.md` Q24 (part of Q12) |
+| Status | Adopted for stage 1, 2026-10-23: `design-doc.md` §6.2, §6.7, §6.8, §6.11; `design.md` D23. Stage 2 use of L3/L4 waits for the stage 2 section. Changes on adoption: URLs in the answer text moved from L2 to the evidence check (they give no content without reading the document); a new code `CONTRADICTED_CLAIM` carries `HIGH`; queries use the scrubbed question only until §7 is settled. |
 | Builds on | `document-mapping.md` (cited documents → full content), `grounding-metadata.md` (why answers lack references, session-level grounding), `retrieval-linkage.md` (`Search` calls per turn), `cost-quota.md` |
 
 ## 1. Summary

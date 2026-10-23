@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-23. Sections 1-6 written; further sections to follow. |
+| Status | Draft, 2026-10-23. Sections 1-7 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -81,7 +81,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Flagged turn** | A turn that goes to stage 2: relevance or groundedness 2 or lower, `HIGH` severity, a dislike, or a late trigger. |
 | **Late trigger** | A signal that arrives after the turn was first assessed but while it is still in the window: a dislike, or a next turn that rephrases the question or says the answer was wrong. |
 | **Rubric** | The written meaning of each score level plus synthetic example turns, given to the judge. Versioned; results from different versions are only compared through a parallel run. |
-| **Intent** | The type of question: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION` are **knowledge intents**: question types whose answer may have to come from our documents. Whether a given question really needs internal knowledge is checked per turn (§5.5). Which fields are assessed depends on the intent. |
+| **Intent** | The type of question: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION` are **knowledge intents**: question types whose answer may have to come from our documents. Whether a given question really needs internal knowledge is checked per turn (§6.5). Which fields are assessed depends on the intent. |
 | **Topic** | The knowledge area of a turn (one per data store, plus `OTHER`). Taken from the data stores of its references; the judge decides it only when there are no references. |
 | **Failure type** | A code from a closed list, in five families: retrieval, corpus, generation, question, system. A turn can have several; one is its **primary failure**. Retrieval and corpus codes are assigned only in stage 2. |
 | **Identified problem** | A failure that is either deterministic (follows from the data, e.g. no references on a knowledge question) or confirmed against the evidence. Only identified problems are recorded, so failure rates are lower bounds. |
@@ -233,11 +233,93 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
 | Notifications go only to Slack | Step 5; messages are built from derived values. |
 
-## 5. Stage 1: assessing every turn
+## 5. Sessions
 
-Every eligible turn gets a stage 1 assessment: a fixed form that the judge fills in. The form has no free text, only labels from closed lists, scores and counts. Each turn has one stored assessment. It may be updated while the turn is in the window (§5.1), and the latest result replaces the earlier one; a rubric change is the only exception (§5.10). Flagged turns go on to stage 2 (§6).
+People often ask several questions in a row, and a later turn often depends on an earlier one: a follow-up, a rephrase, a "that's wrong". In weekday samples of about 180 web UI sessions each, 57% of sessions had more than one turn, and they held 85% of all turns. So every turn is assessed together with the earlier turns of its session. All of this happens inside the window, because the session ID is erased together with the answer.
 
-### 5.1 One turn, step by step
+### 5.1 How turns are grouped
+
+- Each turn's record in the log carries its session ID until the window ends. We never keep the ID itself, only the session key.
+- Turns with the same session key form a session, ordered by time. Feedback reaches its turn through the same key.
+- Every assessment run reads again the turns of a session that are still in the window, including turns assessed in earlier runs, so a new turn always sees the turns before it.
+- After the window nothing links a turn to its session any more. Sessions cannot be rebuilt later.
+
+| Channel | What a session is |
+|---|---|
+| Web UI | One chat. Real conversations of several turns. |
+| Slack Bolek, MCP | Nearly every turn has its own session ID (in one sample, 165 of 168 sessions had a single turn), so even a Slack thread is not one session. Until a better grouping is found (§5.5), these turns are assessed on their own. |
+
+### 5.2 Segments
+
+A session can go on for longer than the window. Its first turns would then be erased while the user is still asking, and the session could not be assessed or graded as a whole. So a session is cut into **segments**, each of which fits inside the window.
+
+```mermaid
+flowchart TB
+    A["New turn"] --> B{"Does its session have<br/>an open segment?"}
+    B -->|"yes"| C["Joins that segment"]
+    B -->|"no"| D{"Did the session have<br/>an earlier segment?"}
+    D -->|"yes"| E["Starts the next segment,<br/>marked resumed"]
+    D -->|"no"| F["Starts the first segment"]
+```
+
+A segment is open until one of two things happens:
+
+- **30 minutes without a new turn.** The conversation is treated as finished.
+- **Its oldest turn is 3h30 old.** The segment is forced closed, so it is complete while all of its text still exists. The anonymizer starts erasing it at 4 hours.
+
+Example of one session:
+
+| Time | What happens | Segment |
+|---|---|---|
+| 10:00 | Turn 1 | Segment 1 opens |
+| 10:04 | Turn 2, a follow-up | Segment 1 |
+| 10:09 | Turn 3, a rephrase of turn 2 | Segment 1 |
+| 10:39 | 30 minutes without a new turn | Segment 1 closes |
+| 11:20 | Turn 4, in the same chat | Segment 2 opens, marked resumed |
+
+Most gaps between turns are short: half are under 2.5 minutes and 90% under 28 minutes. But 6-9% of gaps are 30 minutes or longer, so 19-29% of sessions with more than one turn are cut into two or more segments. Most of those gaps are 30 to 120 minutes, so when the user comes back, the earlier text usually still exists (§5.5).
+
+The 30 minutes are a starting value. Waiting longer would cut fewer conversations, but keeps segments open and delays their final session grade: covering 98% of gaps would mean waiting about 100 minutes. So the value is tuned on how often a resumed segment finds its earlier text already erased, not on the gaps alone.
+
+### 5.3 What a turn takes from its session
+
+| What | Used for | From where |
+|---|---|---|
+| Up to 2 earlier turns, as text | Understanding the question, and checking whether the answer contradicts an earlier one | The same segment |
+| The references of all earlier turns | Evidence, when the turn has no references of its own (§6.2) | The same segment |
+| The labels and scores of the earlier segment | Context for the first turn of a resumed segment, whose earlier text may already be erased | The previous segment |
+
+- When an earlier turn's text is already erased, the turn is assessed without it, and this is recorded with the assessment.
+- The form records how each turn relates to the one before it (§6.4). That label becomes the earlier turn's **reaction**. So a turn's reaction is known only once the next turn is assessed, and the last turn of a session has none.
+- If an earlier turn arrives in the log late, the context of the turns after it changes, and they are assessed again (§6.1).
+
+### 5.4 What is stored
+
+**For each turn**, besides its assessment:
+
+| Value | Example |
+|---|---|
+| Session key and segment number | segment 2 |
+| Position in the segment | turn 1 of segment 2 |
+| Gap to the previous turn, as a bucket | under 1 min, 1-5 min, 5-30 min, 30-60 min, over 60 min |
+| Resumed | yes or no |
+| Earlier text missing | yes or no |
+
+**For each segment:** the session facts, computed again each time the segment gets a new turn. A segment one of whose turns was flagged also gets a session grade (§7.6).
+
+### 5.5 Open problems
+
+- **Slack and MCP.** Their turns almost never share a session ID. Is there another key that groups the turns of one Slack thread?
+- **The 30 minutes.** Too short cuts real conversations in two; too long keeps a segment open and delays its final session grade (§5.2).
+- **Resumed segments.** Most resumes come 30 to 120 minutes later, while the earlier text still exists. Should the first turn of a resumed segment then get that text, and fall back to labels and scores only when it is gone?
+- **How much context.** Up to 2 earlier turns, or the whole segment up to a size cap? The whole segment would catch more contradictions and rephrases in long conversations, for about $2 more per weekday.
+- **Chats reopened from history.** Does a chat that the user opens again from the history keep its session ID? If yes, its new turns start a resumed segment; if no, a new session.
+
+## 6. Stage 1: assessing every turn
+
+Every eligible turn gets a stage 1 assessment: a fixed form that the judge fills in. The form has no free text, only labels from closed lists, scores and counts. Each turn has one stored assessment. It may be updated while the turn is in the window (§6.1), and the latest result replaces the earlier one; a rubric change is the only exception (§6.10). Flagged turns go on to stage 2 (§7).
+
+### 6.1 One turn, step by step
 
 ```mermaid
 flowchart TB
@@ -262,7 +344,7 @@ flowchart TB
 
 Each update overwrites the stored assessment, so a turn never counts twice. The fingerprint records what the current assessment was based on, so the same input is never assessed twice.
 
-### 5.2 What the answer is compared with
+### 6.2 What the answer is compared with
 
 The judge does not know what is true at our company. It can only compare the answer with documents it is given. So in this design:
 
@@ -276,12 +358,12 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 |---|---|---|
 | 1. The turn's own references | The log | 36% |
 | 2. The references of earlier turns in the same session segment | The log | 24% more, mostly follow-ups answered from what Bolek found earlier |
-| 3. Documents found by the evidence check | The judge searches our documents itself (§5.8) | Knowledge turns with neither of the above |
+| 3. Documents found by the evidence check | The judge searches our documents itself (§6.8) | Knowledge turns with neither of the above |
 
 - A turn with evidence 1 or 2 is **verifiable**. It gets a groundedness score.
 - A knowledge turn with neither gets the **evidence check**. It stays **not verifiable** whatever the check finds: the check can find an error, but it can never prove the answer right. An error it finds is still recorded as an identified problem.
 
-### 5.3 What the judge sees
+### 6.3 What the judge sees
 
 | Input | Form | Evidence check |
 |---|---|---|
@@ -295,7 +377,7 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 - A turn above the size limit is **too large**: it is not sent to the judge at all, never cut and partly assessed. The limit is not set yet.
 - The judge is `gemini-3.8-flash` on the `eu` multi-region, at temperature 0, answering in a fixed structured format.
 
-### 5.4 The form
+### 6.4 The form
 
 | Group | Field | Values |
 |---|---|---|
@@ -307,14 +389,14 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 | | Clarity | 1 to 5: is it easy to read and use? |
 | | Groundedness | 1 to 5: is it supported by its evidence? Verifiable turns only. Where the log splits the answer into answer spans, each span is checked against the references it points to. |
 | **Answer span counts** | Unsupported answer spans, total answer spans | Numbers. Only when the log splits the answer into answer spans. |
-| **Yes / no checks** | Answer language matches the question; refusal or empty answer; contradicts an earlier answer in the session; needs internal knowledge (knowledge intents only, §5.5) | true or false |
-| **What went wrong** | Failure types, primary failure | Codes from §5.6 |
-| | Severity | `LOW`, `MEDIUM`, `HIGH`. `HIGH` only for a contradicted claim (§5.7). |
+| **Yes / no checks** | Answer language matches the question; refusal or empty answer; contradicts an earlier answer in the session; needs internal knowledge (knowledge intents only, §6.5) | true or false |
+| **What went wrong** | Failure types, primary failure | Codes from §6.6 |
+| | Severity | `LOW`, `MEDIUM`, `HIGH`. `HIGH` only for a contradicted claim (§6.7). |
 | **Hint** | Confidence | 0 to 1. Informational only. |
 
 What each score level means is set by the rubric: a written meaning of at least levels 1, 3 and 5, in Polish and English, plus synthetic example turns. A first draft of the rubric text exists; it is not yet tuned on the canary.
 
-### 5.5 Which fields apply to which intent
+### 6.5 Which fields apply to which intent
 
 Fields that do not apply to an intent are left empty and are not asked of the judge.
 
@@ -325,13 +407,13 @@ Fields that do not apply to an intent are left empty and are not asked of the ju
 | `GENERAL_TASK`, `CHITCHAT` | Relevance, completeness, clarity | No | Generation, except the four that need sources (`CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`); question; system |
 | `OTHER` | Relevance, completeness, clarity | No | Question and system |
 
-**Knowledge intents and "needs internal knowledge".** The knowledge intents are `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION`: question types whose answer may have to come from our documents. Not every such question does. "How do I book a business trip?" needs internal knowledge; "How do I write a SQL join?" is also `HOW_TO`, but does not. The judge decides this per turn with the "needs internal knowledge" check, which is asked for knowledge intents only. When it is true and the answer has no references, the turn gets `UNGROUNDED_INTERNAL_ANSWER` (§5.6).
+**Knowledge intents and "needs internal knowledge".** The knowledge intents are `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION`: question types whose answer may have to come from our documents. Not every such question does. "How do I book a business trip?" needs internal knowledge; "How do I write a SQL join?" is also `HOW_TO`, but does not. The judge decides this per turn with the "needs internal knowledge" check, which is asked for knowledge intents only. When it is true and the answer has no references, the turn gets `UNGROUNDED_INTERNAL_ANSWER` (§6.6).
 
 **Why `PEOPLE_LOOKUP` is not a knowledge intent.** Questions about people, such as who owns a project or which team someone is in, are answered from the people directory. Its documents are personal data, so they are never stored or read as evidence. With nothing to check the answer against, only relevance and tool errors are assessed.
 
 This table is the starting point and will be finalized together with the rubric.
 
-### 5.6 Failure types
+### 6.6 Failure types
 
 Stage 1 assigns the generation, question and system codes. The retrieval and corpus codes need the full cited documents, so only stage 2 assigns them.
 
@@ -359,7 +441,7 @@ Stage 1 assigns the generation, question and system codes. The retrieval and cor
 | `AGENT_OR_TOOL_ERROR` | A tool or agent failed, or the answer is empty. | Stage 1, deterministic | Team |
 | `NONE` | No identified problem. | Both | |
 
-### 5.7 Rules for recording a failure
+### 6.7 Rules for recording a failure
 
 - **Only identified problems.** A code is recorded only when it is deterministic (follows from the data, like the two marked above) or confirmed against the evidence. If the judge is unsure, the turn gets `NONE`. Failure rates are therefore lower bounds. How strong the confirmation must be for the other stage 1 codes is not decided yet.
 - **`HIGH` means contradicted.** `HIGH` severity is set only together with `CONTRADICTED_CLAIM`, on a knowledge intent. A claim that is only unsupported, or about which nothing was found, is at most `MEDIUM`. A `HIGH` always flags the turn.
@@ -367,9 +449,9 @@ Stage 1 assigns the generation, question and system codes. The retrieval and cor
 - **Not verifiable turns** get no groundedness score. They can only get deterministic codes and `CONTRADICTED_CLAIM` from the evidence check.
 - **Confidence changes nothing.** No rule, threshold or weight uses it.
 
-### 5.8 The evidence check
+### 6.8 The evidence check
 
-**What it is for.** About 4 in 10 web UI turns have no evidence in the log (39% in the sample of §5.2). Without the check, a wrong answer on such a turn could never be caught. The check lets the judge look for evidence itself: it finds our documents on the question and reads them. It can find an error, but never prove an answer right, so the turn stays not verifiable either way.
+**What it is for.** About 4 in 10 web UI turns have no evidence in the log (39% in the sample of §6.2). Without the check, a wrong answer on such a turn could never be caught. The check lets the judge look for evidence itself: it finds our documents on the question and reads them. It can find an error, but never prove an answer right, so the turn stays not verifiable either way.
 
 **When it runs.** On knowledge turns with no evidence 1 or 2, right after the form is filled in.
 
@@ -397,7 +479,7 @@ flowchart LR
 - **Safe by design.** The search runs under its own read-only account, which is not a user, so its searches never count in any metric. Only document IDs and codes are stored, through the leak guard.
 - **Cost.** One judge call with up to 3 documents per checked turn. Not measured yet; at most about the cost of stage 1 again.
 
-### 5.9 Leak guard
+### 6.9 Leak guard
 
 Nothing leaves the assessment without passing these checks:
 
@@ -407,13 +489,13 @@ Nothing leaves the assessment without passing these checks:
 - Errors reach logs and Slack without any text from the turn.
 - An automated test feeds in text with planted personal data and fails if any piece of the input longer than 20 characters appears in the stored result, other than an allowed document link.
 
-### 5.10 Versions stored with every assessment
+### 6.10 Versions stored with every assessment
 
 Each assessment records the rubric version, the failure-list version, the judge model, the prompt version and the assessment code version.
 
 **Rubric or judge model change.** Turns already assessed keep their assessment; they are never re-assessed under the new version. For the first 5 weekdays after the change, every new turn is assessed under both the old and the new version, and both assessments are stored. The difference between them links the metrics across the change, so results from different versions are only ever compared through this parallel run. After it, only the new version is used.
 
-### 5.11 Open problems
+### 6.11 Open problems
 
 | Problem | Why it matters | Next step |
 |---|---|---|
@@ -422,13 +504,13 @@ Each assessment records the rubric version, the failure-list version, the judge 
 | **How many turns need the evidence check?** | It sets the cost. | Measure the share of knowledge intents among turns without evidence in the first week. |
 | **Access approval** | The judge's account reads the full text of documents and searches them. | Approval by the security team. |
 
-## 6. Stage 2: finding out why
+## 7. Stage 2: finding out why
 
 Stage 1 says **what** went wrong with an answer. That is not enough to fix it: an unsupported claim may come from a search that missed the right document, from a document that is out of date, or from a source that does not exist at all, and each has a different owner. Stage 2 finds out **why**. It runs only on flagged turns, reads much more than stage 1, and uses the stronger judge, `gemini-4-argon` on the `eu` multi-region.
 
-When a turn is flagged, stage 2 also grades its whole session segment (§6.6).
+When a turn is flagged, stage 2 also grades its whole session segment (§7.6).
 
-### 6.1 When a turn is flagged
+### 7.1 When a turn is flagged
 
 | Signal | From | Why it flags |
 |---|---|---|
@@ -440,7 +522,7 @@ When a turn is flagged, stage 2 also grades its whole session segment (§6.6).
 
 The last two are late triggers: they can arrive after stage 1 is done, up to 3h30 after the turn. A turn is flagged at most once; a second signal adds to the reasons but does not start stage 2 again. Expected share: under 20% of turns, to be measured in the first weeks.
 
-### 6.2 What stage 2 sees
+### 7.2 What stage 2 sees
 
 Everything stage 1 saw, plus the documents behind the answer:
 
@@ -451,9 +533,9 @@ Everything stage 1 saw, plus the documents behind the answer:
 | The full text of the cited documents | To see whether the snippet left out what was needed |
 | Documents found by its own search of our documents, plus those the evidence check already found | To see whether the right document exists elsewhere |
 
-All of it is PII scrubbed first, and each document is capped in length. The search works as in the evidence check (§5.8): the people directory is left out, and only document IDs are kept.
+All of it is PII scrubbed first, and each document is capped in length. The search works as in the evidence check (§6.8): the people directory is left out, and only document IDs are kept.
 
-### 6.3 How the cause is found
+### 7.3 How the cause is found
 
 Stage 2 follows one path per problem claim. Each question is answered from what it reads, so every code it assigns points at a specific document or a specific absence.
 
@@ -476,11 +558,11 @@ flowchart TD
 | A cited document is contradicted by a newer one, or marks itself as replaced | `OUTDATED_SOURCE` |
 | Two cited documents say different things on the same point | `CONFLICTING_SOURCES` |
 
-**What and why are both kept.** The stage 1 code (for example `CONTRADICTED_CLAIM`) stays, and stage 2 adds the cause (for example `RETRIEVAL_MISS`). The cause becomes the **primary failure**, because it names who should fix it (§5.6).
+**What and why are both kept.** The stage 1 code (for example `CONTRADICTED_CLAIM`) stays, and stage 2 adds the cause (for example `RETRIEVAL_MISS`). The cause becomes the **primary failure**, because it names who should fix it (§6.6).
 
 **Stage 2 may also correct stage 1.** With the full documents in front of it, it can find that an "unsupported" claim is in fact supported, or that a `HIGH` is not a real contradiction. It then drops the finding.
 
-### 6.4 The stage 2 form
+### 7.4 The stage 2 form
 
 Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts: one entry per problem claim, and a summary for the turn.
 
@@ -490,7 +572,7 @@ Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts:
 |---|---|
 | Answer span | Its position in the answer, when the log splits the answer into answer spans |
 | What | `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM` or `REASONING_ERROR` |
-| Why | The cause from §6.3: `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, or none when the cause is the answer itself |
+| Why | The cause from §7.3: `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, or none when the cause is the answer itself |
 | Documents | The IDs of the documents behind the finding, each with its role: *cited*, *holds the right answer*, *contradicts the claim*, *outdated* or *conflicting* |
 
 **For the turn:**
@@ -499,7 +581,7 @@ Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts:
 |---|---|
 | Groundedness | 1 to 5, scored again with the full documents |
 | Failure types, primary failure | As in stage 1, with the causes added. The primary failure is the cause of the most important claim. |
-| Severity | `LOW`, `MEDIUM`, `HIGH`, by the same rule as stage 1 (§5.7) |
+| Severity | `LOW`, `MEDIUM`, `HIGH`, by the same rule as stage 1 (§6.7) |
 | Stage 1 findings | For each stage 1 code: *confirmed* or *dropped* |
 | Document to fix | The document a fix should start from: the cited one for `CHUNKING_ISSUE`, the one that holds the right answer for `RETRIEVAL_MISS`, the outdated or conflicting one for those codes. Empty for `KNOWLEDGE_GAP`, which has no document. |
 | Confidence | 0 to 1, informational only |
@@ -508,14 +590,14 @@ Relevance, completeness and clarity are not scored again: the full documents do 
 
 The "document to fix" groups problem clusters by document, so the team sees, for example, "Document X caused 12 retrieval misses this week".
 
-### 6.5 Results
+### 7.5 Results
 
 - **Both results are kept.** The stage 1 result is not overwritten; a turn that was never flagged simply has no stage 2 result.
 - **Metrics use the stage 2 result where it exists.** A turn whose findings stage 2 dropped can count as a good answer again.
 - **Keeping both shows how often stage 2 changes stage 1.** A high rate means the stage 1 rubric needs work.
-- The same leak guard (§5.9) and versions (§5.10) apply.
+- The same leak guard (§6.9) and versions (§6.10) apply.
 
-### 6.6 Session grade
+### 7.6 Session grade
 
 When a turn is flagged, the judge also grades its whole session segment: did the user get what they needed, and if not, where did it go wrong. It reads the text of all turns of the segment, together with their stage 1 and stage 2 results.
 
@@ -550,7 +632,7 @@ An alert shows the grade it had when it was sent and says whether it was provisi
 
 **Informational only.** No metric, ranking or trigger uses the session grade. It is shown in Slack cluster alerts as context: for example "5 turns, unresolved (provisional), went wrong at turn 2, rephrased 2 or more times". Each grade behind an alert can be looked up by the alert's ID.
 
-### 6.7 Open problems
+### 7.7 Open problems
 
 | Problem | Why it matters | Next step |
 |---|---|---|

@@ -78,5 +78,5 @@ Initial table, finalized with the rubric.
 - Exact bar for "identified" on non-deterministic stage-1 codes (Q12). Open parts of D23 (Q24): whether evidence-check searches reach `audit_logs`, rule precision, volume, SECOPS approval.
 - Topic rule when an answer cites several data stores (Q13).
 - A formal JSON schema.
-- The stage 2 output fields: proposed in `design-doc.md` §6.4 (per problem claim: span, what, why, documents with roles; per turn: groundedness re-scored, failure types, primary failure = cause, severity, stage-1 findings confirmed or dropped, document to fix, confidence).
-- The session-grade rubric: proposed in `design-doc.md` §6.6 (outcome meanings; rephrases counted from stage-1 labels, not judged; recovered = `YES`/`NO`/`NO_CORRECTION`). Tuning needs multi-turn canary sessions (Q23).
+- The stage 2 output fields: proposed in `design-doc.md` §7.4 (per problem claim: span, what, why, documents with roles; per turn: groundedness re-scored, failure types, primary failure = cause, severity, stage-1 findings confirmed or dropped, document to fix, confidence).
+- The session-grade rubric: proposed in `design-doc.md` §7.6 (outcome meanings; rephrases counted from stage-1 labels, not judged; recovered = `YES`/`NO`/`NO_CORRECTION`). Tuning needs multi-turn canary sessions (Q23).
