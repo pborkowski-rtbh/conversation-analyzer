@@ -1,15 +1,16 @@
 # Turn categorization (stage 1 form)
 
-Source: `design.md` §3.1 (D8-D22), §5.2, §5.3, §8.3, §8.6. Each turn (web UI, Slack Bolek, MCP; D5) gets one filled-in form from the judge (`gemini-3.8-flash`, `eu` multi-region, temperature 0, structured output). All values are closed lists or numbers, no free text.
+Source: `design.md` §3.1 (D8-D23), §5.2, §5.3, §8.3, §8.6. Each turn (web UI, Slack Bolek, MCP; D5) gets one filled-in form from the judge (`gemini-3.8-flash`, `eu` multi-region, temperature 0, structured output). All values are closed lists or numbers, no free text.
 
 ## Rules
 
 - **Only identified problems are reported (D9).** A failure code is recorded only when it is deterministic or confirmed against the sources; otherwise `NONE`. Stage 1 never guesses retrieval or corpus codes. Failure rates are lower bounds.
-- **Not verifiable (D10).** Knowledge answers without citation metadata: `groundedness` NULL, only deterministic codes, reported separately, never counted as good.
+- **Not verifiable (D10, D23).** Knowledge answers with no evidence in the log (no references of their own or of an earlier turn in the same segment): `groundedness` NULL, only deterministic codes and `CONTRADICTED_CLAIM` from the evidence check, reported separately, never counted as good.
 - **Gated by intent (D11).** Fields that do not apply to an intent are NULL and not asked of the judge (table below).
 - **Rubric (D12).** Written meaning of each score level plus synthetic few-shot examples from canary and evaluator turns, versioned and tuned on the canary.
 - **Oversized turns (D13).** Above the size cap: not graded, recorded as `SKIPPED_TOO_LARGE`, counted in coverage.
 - **Verdict vs reaction (D14).** The quality verdict uses only the judge's findings. The user's reaction (next turn's `relation_to_previous`) is a separate metric; the last turn of a conversation has none.
+- **Evidence and `HIGH` (D23).** A claim is wrong only when one of our documents says something different. Evidence: own references, then earlier turns' references, then the evidence check (search with the scrubbed question, read up to 3 full documents, look only for a contradiction). `HIGH` only with `CONTRADICTED_CLAIM`; unsupported is at most `MEDIUM`. Details: `data-access.md`.
 - **Confidence (D15).** Informational only, no logic uses it.
 - **Topic (D16).** From the cited data stores when there are citations, by the judge otherwise; `topic_source` records which.
 
@@ -25,7 +26,7 @@ Source: `design.md` §3.1 (D8-D22), §5.2, §5.3, §8.3, §8.6. Each turn (web U
 | `unsupported_segment_count`, `total_segment_count` | Counts from `segments[]` |
 | `answer_language_matches`, `is_refusal_or_empty`, `contradicts_previous_answer`, `needs_internal_knowledge` | Booleans |
 | `failure_types[]`, `primary_failure` | Stage-1 codes from the taxonomy below |
-| `severity` | `LOW`, `MEDIUM`, `HIGH` (`HIGH` = concrete factual error on an internal knowledge question) |
+| `severity` | `LOW`, `MEDIUM`, `HIGH` (`HIGH` only with `CONTRADICTED_CLAIM` on a knowledge intent, D23) |
 | `confidence` | 0-1, informational only |
 
 ## Fields by intent
@@ -34,7 +35,7 @@ Source: `design.md` §3.1 (D8-D22), §5.2, §5.3, §8.3, §8.6. Each turn (web U
 |---|---|---|---|---|---|
 | Knowledge | yes | yes | yes, if citations exist; otherwise NULL and not verifiable | yes | all; not verifiable → deterministic only |
 | `PEOPLE_LOOKUP` | yes | no | no | no | `AGENT_OR_TOOL_ERROR` only |
-| `GENERAL_TASK`, `CHITCHAT` | yes | yes | no | no | generation codes except `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`; question and system codes |
+| `GENERAL_TASK`, `CHITCHAT` | yes | yes | no | no | generation codes except `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`; question and system codes |
 | `OTHER` | yes | yes | no | no | question and system codes |
 
 Initial table, finalized with the rubric.
@@ -45,6 +46,7 @@ Initial table, finalized with the rubric.
 |---|---|---|
 | Retrieval | `RETRIEVAL_MISS`, `CHUNKING_ISSUE` | Stage 2 only |
 | Corpus | `KNOWLEDGE_GAP`, `OUTDATED_SOURCE`, `CONFLICTING_SOURCES` | Stage 2 only |
+| Generation | `CONTRADICTED_CLAIM` | Stage 1 (form or evidence check), stage 2 |
 | Generation | `UNSUPPORTED_CLAIM` | Stage 1 (per segment, grounded turns only), stage 2 |
 | Generation | `REASONING_ERROR` | Stage 2 only |
 | Generation | `INCOMPLETE_ANSWER`, `MISUNDERSTOOD_QUERY`, `PRESENTATION_ISSUE` | Stage 1 |
@@ -71,9 +73,9 @@ Initial table, finalized with the rubric.
 
 ## Not defined yet
 
-- The rubric text: level definitions and few-shot examples (approach decided, D12).
+- The rubric text: first draft in `rubric.md` (level texts in English and Polish, placeholder examples), not yet tuned on the canary (D12).
 - Size cap for `SKIPPED_TOO_LARGE` (Q11).
-- Exact bar for "identified" on non-deterministic stage-1 codes (Q12), including how `HIGH` severity is set when the judge only sees the answer and its references (Q24).
+- Exact bar for "identified" on non-deterministic stage-1 codes (Q12). Open parts of D23 (Q24): whether evidence-check searches reach `audit_logs`, rule precision, volume, SECOPS approval.
 - Topic rule when an answer cites several data stores (Q13).
 - A formal JSON schema.
 - The stage 2 output fields.

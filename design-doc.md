@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-21. Sections 1-5 written; further sections to follow. |
+| Status | Draft, 2026-10-23. Sections 1-5 written (§5 covers stage 1); stage 2 and further sections to follow. |
 
 ## 1. Goal
 
@@ -64,6 +64,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Reference** | A source snippet Bolek attached to an answer, with the ID and link of its document. |
 | **Answer span** | A part of an answer's text that the log links to the references supporting it. Used to count unsupported claims. |
 | **Data store** | A collection of documents Bolek searches, such as HR House or the API docs. Each reference belongs to one data store. |
+| **People directory** | The data store of employee profiles, used to answer questions about people. Its documents are personal data: they are never stored, never read by the evidence check, and dropped by the leak guard. |
 | **Canary** | Synthetic questions from the evaluator that pass through the same log as real traffic. Unlike real turns, engineers may read them, so they are used to test and calibrate the judge. |
 | **Derived value** | Anything this system stores: a number, a label from a closed list, a document ID or link, a version. Never question or answer text, summaries, or identity. |
 
@@ -73,17 +74,19 @@ Terms used in this document. Each term has exactly one meaning.
 |---|---|
 | **Assessment** | The form the judge fills in for one turn: closed-list labels and scores only, no free text. Each turn has one stored assessment per rubric version; when the turn is assessed again, the new result replaces it. |
 | **Judge** | The language model filling in a form, always on an EU endpoint: `gemini-3.8-flash` for stage 1, `gemini-4-argon` for stage 2 and session grades. |
-| **Stage 1** | The assessment every eligible turn gets, within about 5 to 15 minutes. |
+| **Stage 1** | The assessment every eligible turn gets, within about 5 to 15 minutes, including the evidence check where needed. |
+| **Evidence** | The documents an answer is compared with: the turn's own references, the references of earlier turns in the same session segment, or documents found by the evidence check. A claim is wrong only when evidence says something different. |
+| **Evidence check** | A step of stage 1 for knowledge turns that have no evidence in the log: the judge searches our documents itself, reads up to 3 of them, and looks for one that contradicts the answer. |
 | **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full source documents and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
 | **Flagged turn** | A turn that goes to stage 2: relevance or groundedness 2 or lower, `HIGH` severity, a dislike, or a late trigger. |
 | **Late trigger** | A signal that arrives after the turn was first assessed but while it is still in the window: a dislike, or a next turn that rephrases the question or says the answer was wrong. |
 | **Rubric** | The written meaning of each score level plus synthetic example turns, given to the judge. Versioned; results from different versions are only compared through a parallel run. |
-| **Intent** | The type of question: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION` are **knowledge intents**: questions that need internal knowledge. Which fields are assessed depends on the intent. |
+| **Intent** | The type of question: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION` are **knowledge intents**: question types whose answer may have to come from our documents. Whether a given question really needs internal knowledge is checked per turn (§5.5). Which fields are assessed depends on the intent. |
 | **Topic** | The knowledge area of a turn (one per data store, plus `OTHER`). Taken from the data stores of its references; the judge decides it only when there are no references. |
 | **Failure type** | A code from a closed list, in five families: retrieval, corpus, generation, question, system. A turn can have several; one is its **primary failure**. Retrieval and corpus codes are assigned only in stage 2. |
-| **Identified problem** | A failure that is either deterministic (follows from the data, e.g. no references on a knowledge question) or confirmed against the sources. Only identified problems are recorded, so failure rates are lower bounds. |
-| **Verifiable turn** | A turn whose answer can be checked against sources: any non-knowledge turn, or a knowledge turn with at least one reference. Knowledge turns without references are **not verifiable**: they are reported separately and never counted as good. |
-| **Severity** | `LOW`, `MEDIUM` or `HIGH`. `HIGH` means a concrete factual error on an internal knowledge question. |
+| **Identified problem** | A failure that is either deterministic (follows from the data, e.g. no references on a knowledge question) or confirmed against the evidence. Only identified problems are recorded, so failure rates are lower bounds. |
+| **Verifiable turn** | A turn whose answer can be checked against sources: any non-knowledge turn, or a knowledge turn with references of its own or of an earlier turn in the same session segment. Other knowledge turns are **not verifiable**: they are reported separately and never counted as good, even after the evidence check. |
+| **Severity** | `LOW`, `MEDIUM` or `HIGH`. `HIGH` means a claim on a knowledge question that one of our documents contradicts (`CONTRADICTED_CLAIM`). |
 | **Reaction** | How the user's next turn in the same session relates to this one: a follow-up, a rephrase, a correction ("that's wrong"), frustration, or a new topic. A separate metric, never part of the turn's assessment. The last turn of a session has none. |
 | **Fingerprint** | A hash of the IDs and versions an assessment depended on (the turn, its context turns, triggers, rubric, model). Never built from text. A turn is assessed again only when its fingerprint changes, so the same input is never assessed twice. |
 | **Session facts** | Counts per session segment: number of turns, of rephrases, corrections and frustrations, the duration bucket, whether it was resumed or forced closed. Facts only. |
@@ -125,7 +128,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | **Notifications only on Slack** | Alerts and the digest are sent only to Slack, in messages built from derived values. There are no per-session tickets. A dashboard may be added later; it is not part of this design yet. | One place for the team to be notified, and no path for text to leave the system. |
 | **Fully automated** | No person reads questions or answers. The judge is tested on canary turns, which may be read. | Requirement of the project. Debugging and calibration use the canary, so there is never a need to look at a real turn. |
 | **Only identified problems are reported** | A failure is recorded only when it follows from the data or is confirmed against the sources. When the judge is unsure, the turn is recorded as having no failure. | A false alarm costs the team's trust. The price is that failure rates are lower bounds. |
-| **Not verifiable is not good** | A knowledge turn without references cannot be checked against sources. It is reported separately, never counted as good and left out of AQR. | Counting it as good would inflate AQR, and counting it as bad would invent failures. |
+| **Not verifiable is not good** | A knowledge turn without evidence in the log cannot be checked against sources. It is reported separately, never counted as good and left out of AQR. Errors that the evidence check finds in it still count as identified problems. | Counting it as good would inflate AQR, and counting it as bad would invent failures. |
 | **Assessment and reaction stay separate** | The assessment uses only the judge's findings. How the user reacted in the next turn is its own metric. | A rephrase may mean a bad answer or a new thought. Mixing them hides which one it was. |
 | **Informational fields drive nothing** | The judge's confidence and the session grade are shown to people but used by no metric, ranking or trigger. | They are hints for the team, not checked results: confidence is the judge's own estimate, and a session grade is often provisional or missing because part of the session is already erased. |
 | **All channels, one set of rules** | Web UI, Slack Bolek and MCP are assessed the same way, and every metric exists per channel and combined. | The same Bolek answers all three, so quality has to be comparable between them. |
@@ -139,7 +142,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | Question text | Kept for 30 days. |
 | Volume | About 900 to 1,450 web UI turns per weekday, 20 to 140 on a weekend day, and about 115 other API turns per day (810 in one 7-day window), which are Slack Bolek and MCP; the split between the two is not known yet. |
 | Feedback | About 0.1 to 0.15% of web UI answers. |
-| References | Only about 28% of web UI answers carry reference information in the log (two samples of about 400 turns each). The cause is not yet known. |
+| References | Only about 28 to 36% of web UI answers carry references in the log (three samples of about 390 to 530 turns). Mostly these are answers given without citations, often follow-ups answered from an earlier turn, not a gap in the log. |
 | Session ID | Present in the answer, so it is lost with the answer. Each turn has its own token, so tokens cannot group turns into a session. |
 | Evaluator traffic | Passes through the same log and is told apart by its prompt prefix. It is used as the canary, never as real traffic. |
 
@@ -150,7 +153,8 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | The evidence disappears after 4 hours | Assess inside the window, with a target of 3 hours and a hard limit of 3h30. |
 | Text may not be stored | Keep derived values, and check every write with the leak guard. |
 | Feedback is too rare to measure quality | Assess every turn with a judge instead of waiting for feedback. |
-| Most web UI answers have no references | Treat knowledge turns without references as not verifiable: only deterministic failures are recorded for them, and they are reported separately. |
+| Most web UI answers have no references | Also use the references of earlier turns in the same session, and let the judge search our documents itself for the rest. Knowledge turns with no evidence in the log are not verifiable and are reported separately. |
+| The judge does not know what is true at our company | Count a claim as wrong only when one of our documents says something different. |
 | Nobody may read real questions or answers | Calibrate the judge on the canary, on injected faults and by comparing it with a second model. |
 | Session IDs vanish with the answer | Group turns by a keyed hash of the session ID while it exists, and keep no map. |
 
@@ -229,9 +233,9 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
 | Notifications go only to Slack | Step 5; messages are built from derived values. |
 
-## 5. Assessment
+## 5. Stage 1: assessing every turn
 
-Every eligible turn has one stored assessment: a fixed form that the judge fills in. It may be updated while the turn is in the window (§5.1), and the latest result replaces the earlier one. The only exception is a rubric change (§5.9). The form has no free text, only labels from closed lists, scores and counts. Stage 1 runs on every turn; stage 2 runs only on flagged turns.
+Every eligible turn gets a stage 1 assessment: a fixed form that the judge fills in. The form has no free text, only labels from closed lists, scores and counts. Each turn has one stored assessment. It may be updated while the turn is in the window (§5.1), and the latest result replaces the earlier one; a rubric change is the only exception (§5.10). Flagged turns go on to stage 2, which is described in a later section.
 
 ### 5.1 One turn, step by step
 
@@ -239,38 +243,59 @@ Every eligible turn has one stored assessment: a fixed form that the judge fills
 flowchart TB
     A["Eligible turn"] --> B{"Too large?"}
     B -->|"yes"| S["Recorded as too large,<br/>not assessed"]
-    B -->|"no"| C["Collect inputs"]
-    C --> D["PII scrubbing"]
-    D --> E["Stage 1"]
-    E --> F{"Flagged?"}
+    B -->|"no"| C["Collect inputs,<br/>PII scrubbing"]
+    C --> E["Fill in the form"]
+    E --> D{"Knowledge turn<br/>without evidence?"}
+    D -->|"yes"| V["Evidence check"]
+    D -->|"no"| F{"Flagged?"}
+    V --> F
     F -->|"no"| L["Leak guard"]
-    F -->|"yes"| G["Stage 2<br/>+ session grade"]
+    F -->|"yes"| G["Stage 2"]
     G --> L
     L --> R[("Assessment stored")]
 ```
 
 **Updates.** A turn is assessed again only when something it depends on changes while it is still in the window (before 3h30):
 
-- a late trigger (a dislike, or a next turn marked `REPHRASE` or `CORRECTION`), which flags the turn and starts stage 2;
+- a late trigger (a dislike, or a next turn marked `REPHRASE` or `CORRECTION`), which flags the turn;
 - an earlier turn of its session that arrived late, so the context is now different.
 
 Each update overwrites the stored assessment, so a turn never counts twice. The fingerprint records what the current assessment was based on, so the same input is never assessed twice.
 
-### 5.2 What the judge sees
+### 5.2 What the answer is compared with
 
-| Input | Stage 1 | Stage 2 |
+The judge does not know what is true at our company. It can only compare the answer with documents it is given. So in this design:
+
+> **A claim is wrong when one of our documents says something different.**
+
+Bolek's job is to answer from our documents, so this is the right test for it. If a document is itself wrong, that is a problem of the document, not of the answer. If no document says anything about a claim, the claim is not wrong, only unsupported.
+
+The documents an answer is compared with are its **evidence**. Stage 1 has three kinds, used in this order:
+
+| Evidence | Where it comes from | Web UI turns that have it (one sample of 533 turns) |
+|---|---|---|
+| 1. The turn's own references | The log | 36% |
+| 2. The references of earlier turns in the same session segment | The log | 24% more, mostly follow-ups answered from what Bolek found earlier |
+| 3. Documents found by the evidence check | The judge searches our documents itself (§5.8) | Knowledge turns with neither of the above |
+
+- A turn with evidence 1 or 2 is **verifiable**. It gets a groundedness score.
+- A knowledge turn with neither gets the **evidence check**. It stays **not verifiable** whatever the check finds: the check can find an error, but it can never prove the answer right. An error it finds is still recorded as an identified problem.
+
+### 5.3 What the judge sees
+
+| Input | Form | Evidence check |
 |---|---|---|
 | The question | yes | yes |
-| The answer, split into answer spans | yes | yes |
-| The references (snippets) | yes | yes |
-| Up to 2 earlier turns of the same session | yes | yes |
-| The full text of the cited documents | no | yes |
+| The answer, split into answer spans where the log has them | yes | yes |
+| The turn's own references (snippets) | yes | (there are none) |
+| Up to 2 earlier turns of the same session, and the references of all its earlier turns | yes | no |
+| The full text of documents linked in the answer text or found by search | no | yes |
 
 - All text is **PII scrubbed** first. The same person, email or phone number gets the same placeholder across all inputs of a turn, so the judge can still compare them. The mapping exists only in memory during the run.
 - A turn above the size limit is **too large**: it is not sent to the judge at all, never cut and partly assessed. The limit is not set yet.
-- The judge is `gemini-3.8-flash` in stage 1 and `gemini-4-argon` in stage 2, both on the `eu` multi-region, at temperature 0, answering in a fixed structured format.
+- The judge is `gemini-3.8-flash` on the `eu` multi-region, at temperature 0, answering in a fixed structured format.
 
-### 5.3 The stage 1 form
+### 5.4 The form
 
 | Group | Field | Values |
 |---|---|---|
@@ -280,29 +305,35 @@ Each update overwrites the stored assessment, so a turn never counts twice. The 
 | **How good the answer is** | Relevance | 1 to 5: does it answer this question? |
 | | Completeness | 1 to 5: does it cover every part of the question? |
 | | Clarity | 1 to 5: is it easy to read and use? |
-| | Groundedness | 1 to 5: is it supported by its references? Checked answer span by answer span, each against the references it points to. |
-| **Counts** | Unsupported answer spans, total answer spans | Numbers |
-| **Yes / no checks** | Answer language matches the question; refusal or empty answer; contradicts an earlier answer in the session; needs internal knowledge | true or false |
-| **What went wrong** | Failure types, primary failure | Codes from §5.5 |
-| | Severity | `LOW`, `MEDIUM`, `HIGH`. `HIGH` means a concrete factual error on an internal knowledge question. |
+| | Groundedness | 1 to 5: is it supported by its evidence? Verifiable turns only. Where the log splits the answer into answer spans, each span is checked against the references it points to. |
+| **Answer span counts** | Unsupported answer spans, total answer spans | Numbers. Only when the log splits the answer into answer spans. |
+| **Yes / no checks** | Answer language matches the question; refusal or empty answer; contradicts an earlier answer in the session; needs internal knowledge (knowledge intents only, §5.5) | true or false |
+| **What went wrong** | Failure types, primary failure | Codes from §5.6 |
+| | Severity | `LOW`, `MEDIUM`, `HIGH`. `HIGH` only for a contradicted claim (§5.7). |
 | **Hint** | Confidence | 0 to 1. Informational only. |
 
-What each score level means is set by the rubric: a written meaning of at least levels 1, 3 and 5, in Polish and English, plus synthetic example turns. The rubric text is not written yet.
+What each score level means is set by the rubric: a written meaning of at least levels 1, 3 and 5, in Polish and English, plus synthetic example turns. A first draft of the rubric text exists; it is not yet tuned on the canary.
 
-### 5.4 Which fields apply to which intent
+### 5.5 Which fields apply to which intent
 
 Fields that do not apply to an intent are left empty and are not asked of the judge.
 
 | Intent | Scores | Groundedness | Failure types |
 |---|---|---|---|
-| Knowledge intents | Relevance, completeness, clarity | Yes, when the answer has references. Without references the turn is not verifiable. | All. Not verifiable: deterministic ones only. |
+| Knowledge intents | Relevance, completeness, clarity | Yes, when the turn has evidence 1 or 2. Otherwise the evidence check runs, and the turn is not verifiable. | All stage 1 codes. Not verifiable: deterministic ones, and `CONTRADICTED_CLAIM` from the evidence check. |
 | `PEOPLE_LOOKUP` | Relevance only | No | `AGENT_OR_TOOL_ERROR` only |
-| `GENERAL_TASK`, `CHITCHAT` | Relevance, completeness, clarity | No | Generation, except the three that need sources (`UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`); question; system |
+| `GENERAL_TASK`, `CHITCHAT` | Relevance, completeness, clarity | No | Generation, except the four that need sources (`CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`); question; system |
 | `OTHER` | Relevance, completeness, clarity | No | Question and system |
 
-"Needs internal knowledge" is asked for knowledge intents only. For `PEOPLE_LOOKUP`, no people-directory document is ever stored. This table is the starting point and will be finalized together with the rubric.
+**Knowledge intents and "needs internal knowledge".** The knowledge intents are `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION`: question types whose answer may have to come from our documents. Not every such question does. "How do I book a business trip?" needs internal knowledge; "How do I write a SQL join?" is also `HOW_TO`, but does not. The judge decides this per turn with the "needs internal knowledge" check, which is asked for knowledge intents only. When it is true and the answer has no references, the turn gets `UNGROUNDED_INTERNAL_ANSWER` (§5.6).
 
-### 5.5 Failure types
+**Why `PEOPLE_LOOKUP` is not a knowledge intent.** Questions about people, such as who owns a project or which team someone is in, are answered from the people directory. Its documents are personal data, so they are never stored or read as evidence. With nothing to check the answer against, only relevance and tool errors are assessed.
+
+This table is the starting point and will be finalized together with the rubric.
+
+### 5.6 Failure types
+
+Stage 1 assigns the generation, question and system codes. The retrieval and corpus codes need the full cited documents, so only stage 2 assigns them.
 
 | Code | Meaning | Assigned in | Usually fixed by |
 |---|---|---|---|
@@ -314,7 +345,8 @@ Fields that do not apply to an intent are left empty and are not asked of the ju
 | `OUTDATED_SOURCE` | The source is stale. | Stage 2 | Document owner |
 | `CONFLICTING_SOURCES` | The cited sources contradict each other. | Stage 2 | Document owners |
 | **Generation** | | | |
-| `UNSUPPORTED_CLAIM` | A claim is not supported by its references. | Stage 1 (turns with references), stage 2 | Team: prompt, model |
+| `CONTRADICTED_CLAIM` | A claim contradicts one of our documents that the assessment read: a different number, name, date, rule or step. | Stage 1 (form or evidence check), stage 2 | Team: prompt, model, search configuration |
+| `UNSUPPORTED_CLAIM` | A claim is not supported by its evidence, and no document read contradicts it. | Stage 1 (verifiable turns), stage 2 | Team: prompt, model |
 | `REASONING_ERROR` | The sources are fine, but were combined or interpreted wrongly. | Stage 2 | Team: prompt, model |
 | `INCOMPLETE_ANSWER` | Parts of the question are not answered. | Stage 1 | Team: prompt |
 | `MISUNDERSTOOD_QUERY` | A different question was answered. | Stage 1 | Team: prompt |
@@ -327,63 +359,58 @@ Fields that do not apply to an intent are left empty and are not asked of the ju
 | `AGENT_OR_TOOL_ERROR` | A tool or agent failed, or the answer is empty. | Stage 1, deterministic | Team |
 | `NONE` | No identified problem. | Both | |
 
-### 5.6 Rules for recording a failure
+### 5.7 Rules for recording a failure
 
-- **Only identified problems.** A code is recorded only when it is deterministic (follows from the data, like the two marked above) or confirmed against the sources. If the judge is unsure, the turn gets `NONE`. Failure rates are therefore lower bounds. How strong the confirmation must be for the non-deterministic stage 1 codes is not decided yet.
-- **Stage 1 never guesses causes.** Retrieval and corpus codes need the full documents, so only stage 2 assigns them.
-- **Not verifiable turns** (knowledge intents without references) get no groundedness score and only deterministic codes.
+- **Only identified problems.** A code is recorded only when it is deterministic (follows from the data, like the two marked above) or confirmed against the evidence. If the judge is unsure, the turn gets `NONE`. Failure rates are therefore lower bounds. How strong the confirmation must be for the other stage 1 codes is not decided yet.
+- **`HIGH` means contradicted.** `HIGH` severity is set only together with `CONTRADICTED_CLAIM`, on a knowledge intent. A claim that is only unsupported, or about which nothing was found, is at most `MEDIUM`. A `HIGH` always flags the turn.
+- **Stage 1 never guesses causes.** It says *what* went wrong, not *why*: retrieval and corpus codes are left to stage 2.
+- **Not verifiable turns** get no groundedness score. They can only get deterministic codes and `CONTRADICTED_CLAIM` from the evidence check.
 - **Confidence changes nothing.** No rule, threshold or weight uses it.
 
-### 5.7 Stage 2
+### 5.8 The evidence check
 
-**When.** A turn is flagged when stage 1 gives relevance or groundedness 2 or lower, or `HIGH` severity, or when a late trigger arrives before the turn is 3h30 old: a dislike, or a next turn marked `REPHRASE` or `CORRECTION`. Expected share: under 20% of turns, to be measured in the first weeks.
+The evidence check lets the judge look for evidence itself when the log has none. It runs on knowledge turns without evidence 1 or 2: about 4 in 10 web UI turns before filtering by intent (39% in the sample of §5.2).
 
-**What it checks**, in order:
+```mermaid
+flowchart LR
+    A["Knowledge turn<br/>without evidence"] --> B["Documents linked<br/>in the answer text"]
+    A --> C["Search our documents<br/>with the question"]
+    B --> D["Read the full text<br/>of up to 3 documents"]
+    C --> D
+    D --> E{"A document<br/>contradicts a claim?"}
+    E -->|"yes"| F["CONTRADICTED_CLAIM, HIGH,<br/>turn flagged"]
+    E -->|"no"| G["Nothing recorded,<br/>turn stays not verifiable"]
+```
 
-| Check | Question | Codes it can assign |
-|---|---|---|
-| 1. Answer vs references | Did Bolek use what it was given? | `UNSUPPORTED_CLAIM`, `REASONING_ERROR` |
-| 2. Full document vs reference | Was there a better passage, or no source at all? Is the source stale or contradicted? | `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, `OUTDATED_SOURCE`, `CONFLICTING_SOURCES` |
-| 3. Session grade | How did the whole session segment go? | None. The session grade is informational (§6). |
+- **Search.** The query is the scrubbed question. It runs on the same documents Bolek searches, with the people directory left out, and takes the top 10 results.
+- **Reading.** The full text of up to 3 documents is read, each capped in length. Full text is kept for about 94% of the documents Bolek cites; Google Drive, the BigQuery documentation and the people directory have none.
+- **Judging.** The judge looks only for a specific contradiction. It does not score the answer.
+- **Identity.** The search runs under its own read-only account, which is not a user. Its searches are never mistaken for a user's searches or counted in any metric.
+- **Stored.** The document IDs of the documents read, each marked as *found* (by this check) or *cited* (by Bolek), and the result.
+- **Limit.** The check searches the same documents with the same search that Bolek uses, so it can miss what Bolek missed. It helps most where Bolek did not search at all, which was the case for 29% of the web UI answers without references in one sample.
+- **Cost.** One judge call with up to 3 documents per checked turn. Not measured yet; at most about the cost of stage 1 again.
 
-**Both results are kept.** The stage 1 result is not overwritten by stage 2; a turn that was never flagged simply has no stage 2 result. Metrics use the stage 2 result where it exists. Keeping both shows how often stage 2 changes what stage 1 found.
-
-### 5.8 Leak guard
+### 5.9 Leak guard
 
 Nothing leaves the assessment without passing these checks:
 
-- The output format has **no free-text field**. Every value is a number, a closed-list value, or a document ID or link that matches an allowlist of data stores.
+- The output format has **no free-text field**. Every value is a number, a closed-list value, or a document ID or link that matches an allowlist of data stores. Documents found by the evidence check pass the same allowlist.
 - People-directory documents are dropped.
 - An output that fails the check is retried once, then recorded as failed with an error class. The judge's raw output is never logged.
 - Errors reach logs and Slack without any text from the turn.
 - An automated test feeds in text with planted personal data and fails if any piece of the input longer than 20 characters appears in the stored result, other than an allowed document link.
 
-### 5.9 Versions stored with every assessment
+### 5.10 Versions stored with every assessment
 
-Each assessment records the rubric version, the failure-list version, the judge model, the prompt version and the assessment code version. **Rubric or judge model change.** Turns already assessed keep their assessment; they are never re-assessed under the new version. For the first 5 weekdays after the change, every new turn is assessed under both the old and the new version, and both assessments are stored. The difference between them links the metrics across the change, so results from different versions are only ever compared through this parallel run. After it, only the new version is used.
+Each assessment records the rubric version, the failure-list version, the judge model, the prompt version and the assessment code version.
 
-### 5.10 Problems to solve
+**Rubric or judge model change.** Turns already assessed keep their assessment; they are never re-assessed under the new version. For the first 5 weekdays after the change, every new turn is assessed under both the old and the new version, and both assessments are stored. The difference between them links the metrics across the change, so results from different versions are only ever compared through this parallel run. After it, only the new version is used.
 
-**How can a turn get `HIGH` severity when the judge does not know what is true?**
+### 5.11 Open problems
 
-§5.3 defines `HIGH` as a concrete factual error on an internal knowledge question. But the judge has no knowledge of the company beyond what is in the turn. It sees the question, the answer and the references, nothing else. It can only compare the answer with its references.
-
-| What the judge can see | What that allows |
-|---|---|
-| An answer span that a reference contradicts | A confirmed error |
-| An answer span that no reference supports | Only "unsupported". The claim may be wrong, or true but not sourced. |
-| An answer with no references | Nothing. The turn is not verifiable (§5.4). |
-
-**Why it matters.** `HIGH` flags the turn for stage 2 (§5.7), keeps it from counting as a good answer, and drives the alerts for severe problem clusters. If `HIGH` is set too easily, stage 2 is flooded and alerts turn noisy. If it is set too rarely, the confident wrong answers that hurt most go unseen.
-
-**Options**
-
-| Option | `HIGH` is set when | Gain | Cost |
-|---|---|---|---|
-| A. Contradiction only | Stage 1 finds an answer span contradicted by a reference it cites | Checkable by comparing two texts. Matches "only identified problems" (§5.6). | Misses confident invented facts that no reference touches. Turns without references can never be `HIGH`. |
-| B. Stage 2 decides | Stage 1 may only suggest it. It counts after stage 2 confirms it against the full documents. | The stronger judge and the full documents make the call. | Turns that stage 1 does not flag are never confirmed. Metrics wait for stage 2. |
-| C. Unsupported is enough | Any unsupported answer span on a knowledge intent | Catches invented facts | `HIGH` becomes frequent. It mixes true but unsourced claims with real errors. |
-
-**Leaning toward A, with B as a check.** Start strict, so that every `HIGH` is a real contradiction, and measure how often stage 2 changes stage 1's `HIGH` (§5.7, both results are kept). Loosen only if the baseline shows real errors being missed.
-
-**Open.** The choice of option, and the exact wording of `HIGH` in the form (§5.3) and the rubric. Until it is decided, the failure rates for `UNSUPPORTED_CLAIM` are lower bounds.
+| Problem | Why it matters | Next step |
+|---|---|---|
+| **Are the evidence check's searches written to the log, with their query?** | The log keeps question text for 30 days. A query that held words from the answer would keep answer text past the window. That is why the query is the scrubbed question only. | One synthetic search shows whether these searches reach the log. If they don't, or if a separate search setup keeps them out, the query may also use short phrases from the answer, which finds better documents. |
+| **Is the `HIGH` rule precise enough?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are found and how many correct answers are wrongly marked `HIGH`. |
+| **How many turns need the evidence check?** | It sets the cost. | Measure the share of knowledge intents among turns without evidence in the first week. |
+| **Access approval** | The judge's account reads the full text of documents and searches them. | Approval by the security team. |

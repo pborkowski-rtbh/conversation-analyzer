@@ -77,7 +77,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 | D7 | New jobs run as **Cloud Run jobs in `rtbhouse-agentspace`**, not Composer. Composer `rtbh-ai-main-airflow-v3` is being retired and its non-indexer DAGs are planned to move to Cloud Run jobs there (`jira-stage/5-port-remaining-composer-dags.md`). | Verified plan |
 | D8 | **Models**: stage 1 (every turn) uses `gemini-3.8-flash`. Stage 2 (flagged turns, only if necessary) uses `gemini-4-argon`. Both on the `eu` multi-region. Gemini 2.5 is not used. | User, 2026-10-20 |
 | D9 | **Only identified problems are reported.** A failure code is recorded only when it is deterministic or confirmed against the sources; otherwise the turn gets `NONE`. Stage 1 never guesses retrieval or corpus codes; stage 2 assigns them with evidence (§5.2). Failure rates are therefore lower bounds. | User, 2026-10-21 |
-| D10 | **Knowledge answers without citation metadata are "not verifiable".** `groundedness` is NULL, only deterministic failure codes apply, they are reported separately and never counted as good (§5.4). | User, 2026-10-21 |
+| D10 | **Knowledge answers without evidence in the log are "not verifiable".** Evidence = the turn's own references or those of an earlier turn in the same segment (D23); only turns with neither are not verifiable. `groundedness` is NULL, only deterministic failure codes and `CONTRADICTED_CLAIM` from the evidence check apply, they are reported separately and never counted as good (§5.4). | User, 2026-10-21 |
 | D11 | **Fields are gated by intent** (table in §5.3). Non-applicable fields are NULL and are not asked of the judge. | User, 2026-10-21 |
 | D12 | **Rubric** = written meaning of each score level plus synthetic few-shot examples from canary and evaluator turns, versioned and tuned on the canary (§8.6). | User, 2026-10-21 |
 | D13 | **Oversized turns are skipped**, recorded as `SKIPPED_TOO_LARGE`, never truncated and graded. They count in coverage (§5.4). | User, 2026-10-21 |
@@ -90,6 +90,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 | D20 | **Assessor and anonymizer stay separate jobs.** | User, 2026-10-21 |
 | D21 | **No persisted session map.** Sessions can't be rebuilt from `audit_logs` after 4h. | User, 2026-10-21 |
 | D22 | **The anonymizer's 4h rule is unchanged.** No session-aware delay. | User, 2026-10-21 |
+| D23 | **Evidence and `HIGH`.** A claim is wrong only when one of our documents says something different. Evidence, in order: the turn's own references; references of earlier turns in the same segment (answers Q19); documents found by the **evidence check**, a stage-1 step on `gemini-3.8-flash` for knowledge turns with neither: search with the scrubbed question (people directory excluded, top 10), read up to 3 full documents from `mcp-document-content` (capped), look only for a specific contradiction. Found: `CONTRADICTED_CLAIM`, `HIGH`, flagged. Not found: nothing recorded, the turn stays not verifiable (the check can find errors, never prove an answer right). Own read-only search identity, excluded from `Search` linkage and metrics. Answers Q24. Details: `data-access.md`. | User, 2026-10-23 |
 
 ### 3.2 Requirements traceability
 
@@ -212,7 +213,8 @@ Only identified problems are recorded (D9). "Assigned by" says which stage may e
 | Corpus | `KNOWLEDGE_GAP` | The information is not in any source | Stage 2 only | Corpus owner: add source |
 | Corpus | `OUTDATED_SOURCE` | Source content is stale | Stage 2 only | Document owner |
 | Corpus | `CONFLICTING_SOURCES` | Cited sources contradict each other | Stage 2 only | Document owners |
-| Generation | `UNSUPPORTED_CLAIM` | A claim is not supported by the cited snippets (hallucination) | Stage 1 (per segment vs its snippets, grounded turns only), stage 2 | AIEL: prompt, model |
+| Generation | `CONTRADICTED_CLAIM` | A claim contradicts one of our documents that the assessment read (a different number, name, date, rule or step) | Stage 1 (form or evidence check, D23), stage 2 | AIEL: prompt, model, search configuration |
+| Generation | `UNSUPPORTED_CLAIM` | A claim is not supported by the cited snippets (hallucination), and no document read contradicts it | Stage 1 (per segment vs its snippets, grounded turns only), stage 2 | AIEL: prompt, model |
 | Generation | `REASONING_ERROR` | Sources fine, combined or interpreted wrongly | Stage 2 only | AIEL: prompt, model |
 | Generation | `INCOMPLETE_ANSWER` | Misses parts of the question | Stage 1 | AIEL: prompt |
 | Generation | `MISUNDERSTOOD_QUERY` | Answered a different question | Stage 1 | AIEL: prompt |
@@ -237,9 +239,9 @@ Deterministic codes: `UNGROUNDED_INTERNAL_ANSWER`, `AGENT_OR_TOOL_ERROR`. The ex
 |---|---|---|---|---|---|
 | Knowledge (`FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `DATA_QUESTION`) | yes | yes | yes, if citations exist; otherwise NULL and the turn is not verifiable (D10) | yes | all; not verifiable → deterministic only |
 | `PEOPLE_LOOKUP` | yes | no | no | no | `AGENT_OR_TOOL_ERROR` only (relevance-only assessment, §8.5) |
-| `GENERAL_TASK`, `CHITCHAT` | yes | yes | no | no | generation codes except `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`; question and system codes |
+| `GENERAL_TASK`, `CHITCHAT` | yes | yes | no | no | generation codes except `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM`, `REASONING_ERROR`, `UNGROUNDED_INTERNAL_ANSWER`; question and system codes |
 | `OTHER` | yes | yes | no | no | question and system codes |
-- **Severity**: `LOW`, `MEDIUM`, `HIGH`. `HIGH` means a concrete factual error on an internal knowledge question.
+- **Severity**: `LOW`, `MEDIUM`, `HIGH`. `HIGH` only together with `CONTRADICTED_CLAIM` on a knowledge intent (D23); unsupported or not found is at most `MEDIUM`. A `HIGH` always flags the turn.
 
 ### 5.4 Metric definitions
 
@@ -371,7 +373,7 @@ Feedback is joined in derived space, so it does not race the window. The aggrega
 | Message | When | Content (derived values only) |
 |---|---|---|
 | Pipeline health | Immediately, to `#ai-engineering-lab-alerts-prod` | Coverage below 98%, oldest unassessed turn age above 3h, job failure class. Never a payload. |
-| Severe cluster alert | After an assessor run, batched | Example: "3 HIGH-severity UNSUPPORTED_CLAIM answers citing doc `<uri>` (biztech) in the last hour". No times finer than the hour, no tokens, no people-directory docs. Adds the session grades of the cluster's turns (D19): outcome distribution, `NOT_GRADABLE` count and the worst few, e.g. "5 turns, UNRESOLVED (provisional), went wrong at turn 2, 2+ rephrases". Carries an `alert_id`; `alert_sessions` lists every session grade in the alert. |
+| Severe cluster alert | After an assessor run, batched | Example: "3 HIGH-severity CONTRADICTED_CLAIM answers citing doc `<uri>` (biztech) in the last hour". No times finer than the hour, no tokens, no people-directory docs. Adds the session grades of the cluster's turns (D19): outcome distribution, `NOT_GRADABLE` count and the worst few, e.g. "5 turns, UNRESOLVED (provisional), went wrong at turn 2, 2+ rephrases". Carries an `alert_id`; `alert_sessions` lists every session grade in the alert. |
 | Daily anomaly | Daily | Metric, value vs baseline, z / CUSUM, nearby changes |
 | Weekly digest | Monday | AQR trend (standardized); top 10 problem clusters with volume, trend and fix owner; top 5 best-performing docs and topics (the "very good"); unusual items: new topic share spikes, `OTHER` growth, newly hot docs; release impact results; burn-down |
 | Release report | When a post-window completes | Pre/post difference with CI per metric, offline gate result |
@@ -498,7 +500,7 @@ confidence 0-1 (informational only, D15)
 
 Fields are gated by intent (§5.3, D11). Groundedness is checked **per segment**: each `segments[].text` against the snippets it references (`referenceIndices`). That is deterministic input, not a guess. `UNGROUNDED_INTERNAL_ANSWER` is set when `needs_internal_knowledge` is true and there are no references. Knowledge turns without references are not verifiable (D10): only deterministic codes apply.
 
-**Rubric (D12).** Written meaning of each score level (at least 1, 3 and 5) in Polish and English, plus synthetic few-shot examples built from canary and evaluator turns, which engineers may read. Tuned against the canary (§8.13) and versioned as `rubric_version`. The rubric text is not written yet.
+**Rubric (D12).** Written meaning of each score level (at least 1, 3 and 5) in Polish and English, plus synthetic few-shot examples built from canary and evaluator turns, which engineers may read. Tuned against the canary (§8.13) and versioned as `rubric_version`. First draft (`r0-draft`, 2026-10-23): `rubric.md`; examples are placeholders until built from canary turns.
 
 **Stage 2 (flagged turns only, if necessary), `gemini-4-argon`, `eu` multi-region.** Triggered by: `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (§8.2). Stage 1 never emits retrieval or corpus codes (D9), so they are not a trigger. It adds the old design's two-level gap analysis:
 
@@ -562,7 +564,7 @@ A cluster key is `(primary_failure, data_store, doc_uri)`, or `(primary_failure,
 ```text
 impact_k = turns_k(week) × severity_weight(primary_failure)
   (confidence is not used, D15)
-  severity_weight: HIGH-capable failures (UNSUPPORTED_CLAIM, OUTDATED_SOURCE,
+  severity_weight: HIGH-capable failures (CONTRADICTED_CLAIM, UNSUPPORTED_CLAIM, OUTDATED_SOURCE,
                    CONFLICTING_SOURCES, REASONING_ERROR) = 3, retrieval/corpus = 2,
                    presentation/question = 1   (proposal, tune after baseline)
 trend_k  = turns_k(week) vs mean of previous 4 weeks
@@ -780,12 +782,12 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Q16 | Where Slack emoji reactions are stored and how they join to a turn. `bolek_slack` (in `agent_usage_analytics_*`) has query, email and session, no answer text; reactions not verified | Phase 0: Slack Bolek owner |
 | Q17 | Do Slack and MCP turns carry a usable `session_id`? **Answered 2026-10-21** (§4.3): yes, but nearly every API turn is its own session, so a Slack thread is not one session. Open: which key groups Slack turns (the bot's own session ID?) | Slack Bolek owner |
 | Q18 | Quality dashboard (likely Grafana) next to Slack notifications (D4): scope, audience, which derived tables it reads | Team, later |
-| Q19 | Add a "context-grounded" class to D10: a knowledge turn without references whose earlier turn in the same session has references, judged against those references (24% of web turns in one sample; not verifiable would drop from ~64% to ~39%)? | Team |
+| Q19 | Add a "context-grounded" class to D10: a knowledge turn without references whose earlier turn in the same session has references, judged against those references (24% of web turns in one sample; not verifiable would drop from ~64% to ~39%)? **Answered 2026-10-23** (D23): yes, as evidence from earlier turns of the same segment | done |
 | Q20 | Resumed segments: use the earlier segment's text while it is still in the window (the usual case), and derived labels only when it is gone? Then `NOT_GRADABLE` (D19) applies only when text is really gone. Recalibrate the idle threshold on that share | Team |
 | Q21 | Stage-1 context: up to 2 prior turns (§8.3) or the whole session capped at 60k characters (~$2 more per weekday, better `relation_to_previous` and contradiction checks on long sessions)? | Team |
 | Q22 | A `doc_catalog` table written by the indexers' sink (`data_store_id, doc_id, uri_sha256, host, has_content, is_people_directory`; no titles or URIs) to map retrieved-only IDs to data stores and content | Indexers owner |
 | Q23 | Canary for multi-turn behavior: 20-50 synthetic conversations of 3-5 turns sent in one session; store `answer.name` and `assistToken` per evaluator result | Evaluator owner |
-| Q24 | How stage 1 can set `HIGH` severity without knowing the truth: it only sees the answer and its references. Options: contradiction by a cited reference only (leaning), stage 2 confirms, or any unsupported span. Part of Q12 | Team, with the rubric |
+| Q24 | How stage 1 can set `HIGH` without knowing the truth. **Answered 2026-10-23** (D23): a contradiction by a document read, with the evidence check for turns without evidence. Still open: (a) do the evidence check's `Search` calls reach `audit_logs` with their query (only then may queries use answer phrases); (b) precision of the rule, measured on the canary with planted errors; (c) share of knowledge intents among turns without evidence (cost); (d) SECOPS approval of the search identity reading `mcp-document-content` | Team, SECOPS |
 
 ## Appendix A. Evidence
 

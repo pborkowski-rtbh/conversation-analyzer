@@ -55,7 +55,9 @@ It fills in a fixed form, not an essay: what kind of question was it, was the an
 Some rules for the form:
 
 - **Only real, identified problems are reported.** If the grader is not sure, the answer is *not* marked as a failure. So our failure counts are "at least this many".
-- **Answers with no sources shown** (about 7 in 10 today) can't be checked for made-up claims. We call them *not verifiable*. They are reported separately and never counted as "good".
+- **The grader doesn't know what is true at our company.** So an answer is "very wrong" only when one of our documents clearly says something different. If nothing is found, it is only "not backed by sources".
+- **Sources from earlier in the chat count too.** Many follow-up answers show no sources because Bolek found them for the previous question. Those earlier sources are used.
+- **Answers with no sources at all** (about 4 in 10 on the web page) get a quick extra check: the grader searches our documents itself and reads up to 3 of them, looking only for a clear contradiction. These answers are still called *not verifiable*: the check can catch a mistake but never prove the answer right. They are reported separately and never counted as "good".
 - **Different questions get different forms.** Small talk or "write me an email" are not graded on source-backing.
 - **Huge pasted texts are skipped** and counted as "too large", not half-graded.
 - The grader also says how *confident* it is. That is just a hint for people. No rule or calculation uses it.
@@ -120,10 +122,11 @@ Nobody may read real conversations, so we check the grader on material that is a
 
 ## What is not decided yet
 
-- The text of the grading guide and its examples (the approach is decided).
+- The grading guide: a first draft is written (what each score means, in English and Polish), but its examples are made up for now and it is not yet tested on our test traffic.
 - Whether a chat reopened from history keeps its old ID, and whether 30 minutes is the right "chat is idle" time.
 - The size above which a turn counts as "too large".
-- Exactly how sure a grade must be to count as an "identified" problem, and how the grader can call an answer "very wrong" when it only sees the answer and its sources.
+- Exactly how sure a grade must be to count as an "identified" problem.
+- Whether the grader's own searches end up in the log (if they don't, it may search with words from the answer too, which finds better documents).
 - Which topic to use when an answer cites several data stores.
 - Why about 7 in 10 answers show no sources in the log (a spike is planned first, because it decides how useful the grader can be).
 - For Slack and MCP: how to tell the two apart in the log, where Slack emoji reactions are stored, and whether their chats have the same hidden chat ID as the web page.
@@ -135,6 +138,8 @@ Nobody may read real conversations, so we check the grader on material that is a
 |---|---|
 | `design.md` | The full design: decisions, facts, algorithms, data model, risks |
 | `categorizarion.md` | The form the first grader fills in, the failure list, which fields apply to which question type |
+| `rubric.md` | What each score level means (English and Polish), with example turns: the grading guide, first draft |
+| `data-access.md` | Why the grader searches our documents itself, and when an answer counts as "very wrong" |
 | `notes.md` | Decisions and early thinking |
 | `session-analysis.md` | How chats (sessions) are found in the log; partly adopted, see its review table |
 | `monitoring.md` | Early idea for metadata-only monitoring, now kept as the health layer |
