@@ -172,4 +172,4 @@ Groundedness does not apply to this intent.
 - **Tuning on the canary:** whether the level texts give stable scores. Each level text changes `rubric_version`, and a change starts the 5-weekday parallel run.
 - **The bar for "identified"** on non-deterministic codes such as `INCOMPLETE_ANSWER` and `MISUNDERSTOOD_QUERY` (Q12).
 - **Severity of `UNGROUNDED_INTERNAL_ANSWER`**: `MEDIUM` here, because the user can't check the answer. It could be argued as `LOW` when the evidence check finds nothing against it.
-- **The session grade rubric** (outcome levels, rephrase buckets) belongs with stage 2 and is not covered here.
+- **The session grade rubric** belongs with stage 2: outcome meanings are proposed in `design-doc.md` §6.6, to be translated and given examples here.

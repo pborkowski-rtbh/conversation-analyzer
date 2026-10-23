@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-23. Sections 1-5 written (§5 covers stage 1); stage 2 and further sections to follow. |
+| Status | Draft, 2026-10-23. Sections 1-6 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -77,7 +77,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Stage 1** | The assessment every eligible turn gets, within about 5 to 15 minutes, including the evidence check where needed. |
 | **Evidence** | The documents an answer is compared with: the turn's own references, the references of earlier turns in the same session segment, or documents found by the evidence check. A claim is wrong only when evidence says something different. |
 | **Evidence check** | A step of stage 1 for knowledge turns that have no evidence in the log: the judge searches our documents itself, reads up to 3 of them, and looks for one that contradicts the answer. |
-| **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full source documents and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
+| **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full text of the cited documents and searches our documents itself, and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
 | **Flagged turn** | A turn that goes to stage 2: relevance or groundedness 2 or lower, `HIGH` severity, a dislike, or a late trigger. |
 | **Late trigger** | A signal that arrives after the turn was first assessed but while it is still in the window: a dislike, or a next turn that rephrases the question or says the answer was wrong. |
 | **Rubric** | The written meaning of each score level plus synthetic example turns, given to the judge. Versioned; results from different versions are only compared through a parallel run. |
@@ -235,7 +235,7 @@ Everything about a turn must be read before the anonymizer erases its answer.
 
 ## 5. Stage 1: assessing every turn
 
-Every eligible turn gets a stage 1 assessment: a fixed form that the judge fills in. The form has no free text, only labels from closed lists, scores and counts. Each turn has one stored assessment. It may be updated while the turn is in the window (§5.1), and the latest result replaces the earlier one; a rubric change is the only exception (§5.10). Flagged turns go on to stage 2, which is described in a later section.
+Every eligible turn gets a stage 1 assessment: a fixed form that the judge fills in. The form has no free text, only labels from closed lists, scores and counts. Each turn has one stored assessment. It may be updated while the turn is in the window (§5.1), and the latest result replaces the earlier one; a rubric change is the only exception (§5.10). Flagged turns go on to stage 2 (§6).
 
 ### 5.1 One turn, step by step
 
@@ -421,3 +421,139 @@ Each assessment records the rubric version, the failure-list version, the judge 
 | **Does the evidence check catch enough errors, without false `HIGH`s?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. The check uses Bolek's search, so it can share Bolek's blind spots. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are caught and how many correct answers are wrongly marked `HIGH`. If too many are missed, search in a way that does not share Bolek's blind spots: with the answer's key claims, or with a separate keyword search over the document text. |
 | **How many turns need the evidence check?** | It sets the cost. | Measure the share of knowledge intents among turns without evidence in the first week. |
 | **Access approval** | The judge's account reads the full text of documents and searches them. | Approval by the security team. |
+
+## 6. Stage 2: finding out why
+
+Stage 1 says **what** went wrong with an answer. That is not enough to fix it: an unsupported claim may come from a search that missed the right document, from a document that is out of date, or from a source that does not exist at all, and each has a different owner. Stage 2 finds out **why**. It runs only on flagged turns, reads much more than stage 1, and uses the stronger judge, `gemini-4-argon` on the `eu` multi-region.
+
+When a turn is flagged, stage 2 also grades its whole session segment (§6.6).
+
+### 6.1 When a turn is flagged
+
+| Signal | From | Why it flags |
+|---|---|---|
+| Relevance 2 or lower | Stage 1 | The answer missed the question. |
+| Groundedness 2 or lower | Stage 1 | Most key claims are unsupported, or one is contradicted. |
+| `HIGH` severity | Stage 1 or the evidence check | A document contradicts the answer. |
+| Dislike | Feedback | The user said the answer was bad. |
+| Next turn is `REPHRASE` or `CORRECTION` | The next turn's stage 1 | The user had to ask again or said it was wrong. |
+
+The last two are late triggers: they can arrive after stage 1 is done, up to 3h30 after the turn. A turn is flagged at most once; a second signal adds to the reasons but does not start stage 2 again. Expected share: under 20% of turns, to be measured in the first weeks.
+
+### 6.2 What stage 2 sees
+
+Everything stage 1 saw, plus the documents behind the answer:
+
+| Input | Why |
+|---|---|
+| The question, the answer, its references, up to 2 earlier turns | As in stage 1 |
+| The stage 1 result and the reasons for the flag | So stage 2 knows what to confirm or correct |
+| The full text of the cited documents | To see whether the snippet left out what was needed |
+| Documents found by its own search of our documents, plus those the evidence check already found | To see whether the right document exists elsewhere |
+
+All of it is PII scrubbed first, and each document is capped in length. The search works as in the evidence check (§5.8): the people directory is left out, and only document IDs are kept.
+
+### 6.3 How the cause is found
+
+Stage 2 follows one path per problem claim. Each question is answered from what it reads, so every code it assigns points at a specific document or a specific absence.
+
+```mermaid
+flowchart TD
+    A["Problem claim"] --> B{"Supported by the<br/>cited snippets?"}
+    B -->|"yes, but combined<br/>or read wrongly"| R["REASONING_ERROR"]
+    B -->|"no"| C{"In the full text of<br/>a cited document?"}
+    C -->|"yes"| CH["CHUNKING_ISSUE"]
+    C -->|"no"| D{"In another document<br/>found by search?"}
+    D -->|"yes"| RM["RETRIEVAL_MISS"]
+    D -->|"no"| KG["KNOWLEDGE_GAP"]
+```
+
+- A turn with no references starts at the third question: there is nothing cited to check.
+- Two more checks run on the documents themselves:
+
+| Check | Code |
+|---|---|
+| A cited document is contradicted by a newer one, or marks itself as replaced | `OUTDATED_SOURCE` |
+| Two cited documents say different things on the same point | `CONFLICTING_SOURCES` |
+
+**What and why are both kept.** The stage 1 code (for example `CONTRADICTED_CLAIM`) stays, and stage 2 adds the cause (for example `RETRIEVAL_MISS`). The cause becomes the **primary failure**, because it names who should fix it (§5.6).
+
+**Stage 2 may also correct stage 1.** With the full documents in front of it, it can find that an "unsupported" claim is in fact supported, or that a `HIGH` is not a real contradiction. It then drops the finding.
+
+### 6.4 The stage 2 form
+
+Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts: one entry per problem claim, and a summary for the turn.
+
+**Per problem claim** (at most 3 per turn, the most important first):
+
+| Field | Values |
+|---|---|
+| Answer span | Its position in the answer, when the log splits the answer into answer spans |
+| What | `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM` or `REASONING_ERROR` |
+| Why | The cause from §6.3: `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, or none when the cause is the answer itself |
+| Documents | The IDs of the documents behind the finding, each with its role: *cited*, *holds the right answer*, *contradicts the claim*, *outdated* or *conflicting* |
+
+**For the turn:**
+
+| Field | Values |
+|---|---|
+| Groundedness | 1 to 5, scored again with the full documents |
+| Failure types, primary failure | As in stage 1, with the causes added. The primary failure is the cause of the most important claim. |
+| Severity | `LOW`, `MEDIUM`, `HIGH`, by the same rule as stage 1 (§5.7) |
+| Stage 1 findings | For each stage 1 code: *confirmed* or *dropped* |
+| Document to fix | The document a fix should start from: the cited one for `CHUNKING_ISSUE`, the one that holds the right answer for `RETRIEVAL_MISS`, the outdated or conflicting one for those codes. Empty for `KNOWLEDGE_GAP`, which has no document. |
+| Confidence | 0 to 1, informational only |
+
+Relevance, completeness and clarity are not scored again: the full documents do not change them. Their stage 1 scores stay in use.
+
+The "document to fix" groups problem clusters by document, so the team sees, for example, "Document X caused 12 retrieval misses this week".
+
+### 6.5 Results
+
+- **Both results are kept.** The stage 1 result is not overwritten; a turn that was never flagged simply has no stage 2 result.
+- **Metrics use the stage 2 result where it exists.** A turn whose findings stage 2 dropped can count as a good answer again.
+- **Keeping both shows how often stage 2 changes stage 1.** A high rate means the stage 1 rubric needs work.
+- The same leak guard (§5.9) and versions (§5.10) apply.
+
+### 6.6 Session grade
+
+When a turn is flagged, the judge also grades its whole session segment: did the user get what they needed, and if not, where did it go wrong. It reads the text of all turns of the segment, together with their stage 1 and stage 2 results.
+
+| Field | Values | How it is set |
+|---|---|---|
+| Outcome | `RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR` | Judged, by the meanings below |
+| First bad turn | The position of the first turn where it went wrong | Judged: the first turn with an identified problem of `MEDIUM` or `HIGH` severity, or the first one the user corrected. Empty when nothing went wrong. |
+| Rephrases | 0, 1, 2 or more | Counted, not judged: turns whose relation to the previous turn is `REPHRASE` or `CORRECTION` |
+| Recovered after correction | `YES`, `NO`, `NO_CORRECTION` | Judged: after the user's first correction, did a later answer give what was asked, without an identified problem? |
+| Confidence | 0 to 1 | Informational only |
+
+**What each outcome means.** The user's need is what they were trying to get from the segment as a whole, not from one turn.
+
+| Outcome | Meaning |
+|---|---|
+| `RESOLVED` | By the end of the segment the user got what they needed: the last answer on their need is relevant and has no `MEDIUM` or `HIGH` problem, and the user did not correct it or show frustration afterwards. Earlier bad answers are allowed if a later one fixed them. |
+| `PARTIALLY_RESOLVED` | The user had several needs, or a need with several parts, and only some were met by the end. |
+| `UNRESOLVED` | The need was not met by the end: the last answer on it has a `MEDIUM` or `HIGH` problem, or the user's last turn is a correction or shows frustration. |
+| `UNCLEAR` | The judge cannot tell what the user needed, or whether it was met, for example when the segment ends right after an answer that cannot be checked. |
+
+The level meanings and example segments are written in Polish and English, like the stage 1 rubric, and tuned on synthetic multi-turn sessions in the canary.
+
+**Why a grade can change.** A turn is often flagged while the user is still chatting, and alerts go out soon after a flag, before anyone knows how the chat ended. So the first grade covers only the turns so far, and the segment is graded again once it closes.
+
+| State | When | Example |
+|---|---|---|
+| **Provisional** | Graded when a turn is flagged, on the turns so far. It stays provisional if the re-grade at close does not happen, for example when the job is down. | 10:02, turn 2 is flagged: `UNRESOLVED` so far |
+| **Final** | Graded again on all its turns when the segment closes. This normally always happens: a segment closes after 30 minutes without a new turn, or at the latest when its oldest turn is 3h30 old, before the text is erased at 4 hours. If the segment has already closed when the turn is flagged (for example a dislike that comes an hour later), the first grade is final at once. | 10:35, after the user rephrased at 10:05 and got a good answer: `RESOLVED`, recovered after correction |
+| **Not gradable** | Part of the segment's text was already erased when the turn was flagged, so no grade is made. | A dislike arrives 3 hours after a turn late in a long segment, whose first turns are already more than 4 hours old |
+
+An alert shows the grade it had when it was sent and says whether it was provisional. Looking a grade up later by the alert's ID shows the latest one.
+
+**Informational only.** No metric, ranking or trigger uses the session grade. It is shown in Slack cluster alerts as context: for example "5 turns, unresolved (provisional), went wrong at turn 2, rephrased 2 or more times". Each grade behind an alert can be looked up by the alert's ID.
+
+### 6.7 Open problems
+
+| Problem | Why it matters | Next step |
+|---|---|---|
+| **`KNOWLEDGE_GAP` rests on not finding something** | Search can miss a document that exists, so this is the least certain code. | Measure on the canary with questions whose answer is known to be in a document; report the code with that miss rate. |
+| **Share of flagged turns** | Sets the cost; expected under 20%. | Measure in the first weeks. |
+| **The canary has no multi-turn sessions** | The session grade can't be tuned on single synthetic questions. | Add 20 to 50 synthetic conversations of 3 to 5 turns, sent in one session. |

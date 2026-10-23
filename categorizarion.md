@@ -59,7 +59,7 @@ Initial table, finalized with the rubric.
 
 ## Stage 2 (flagged turns only)
 
-`gemini-4-argon` (`eu` multi-region), only if necessary, with the cited full documents (scrubbed). Triggered by `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (next turn `REPHRASE`/`CORRECTION`). Checks snippet vs answer, then full document vs snippet, and assigns the stage-2 codes with evidence. Both results are stored: stage 2 does not overwrite stage 1, and an unflagged turn has no stage-2 result. Metrics use stage 2 where it exists.
+`gemini-4-argon` (`eu` multi-region), only if necessary, with the cited full documents (scrubbed). It also searches our documents itself (as the evidence check). Path per problem claim: misread snippets → `REASONING_ERROR`; in the full cited document → `CHUNKING_ISSUE`; in another found document → `RETRIEVAL_MISS`; nowhere → `KNOWLEDGE_GAP`. The cause becomes the primary failure; stage-1 findings it disproves are dropped. Triggered by `relevance ≤ 2`, `groundedness ≤ 2`, `severity = HIGH`, a dislike, or a late trigger (next turn `REPHRASE`/`CORRECTION`). Checks snippet vs answer, then full document vs snippet, and assigns the stage-2 codes with evidence. Both results are stored: stage 2 does not overwrite stage 1, and an unflagged turn has no stage-2 result. Metrics use stage 2 where it exists.
 
 ## Sessions (D17-D22)
 
@@ -78,5 +78,5 @@ Initial table, finalized with the rubric.
 - Exact bar for "identified" on non-deterministic stage-1 codes (Q12). Open parts of D23 (Q24): whether evidence-check searches reach `audit_logs`, rule precision, volume, SECOPS approval.
 - Topic rule when an answer cites several data stores (Q13).
 - A formal JSON schema.
-- The stage 2 output fields.
-- The session-grade rubric (level meanings of `outcome`, `rephrase_bucket` boundaries).
+- The stage 2 output fields: proposed in `design-doc.md` §6.4 (per problem claim: span, what, why, documents with roles; per turn: groundedness re-scored, failure types, primary failure = cause, severity, stage-1 findings confirmed or dropped, document to fix, confidence).
+- The session-grade rubric: proposed in `design-doc.md` §6.6 (outcome meanings; rephrases counted from stage-1 labels, not judged; recovered = `YES`/`NO`/`NO_CORRECTION`). Tuning needs multi-turn canary sessions (Q23).

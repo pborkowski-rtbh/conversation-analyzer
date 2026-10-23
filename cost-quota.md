@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Ticket | AIENGLAB-800 (epic AIENGLAB-543), `design.md` Q3 and §12 |
-| Status | Findings, 2026-10-21. Aligned with `design.md` v4: all channels (D5), stage 1 per turn (D18), session grade by `gemini-4-argon` on flagged turns only (D19). |
+| Status | Findings, 2026-10-21. Aligned with `design.md` v4: all channels (D5), stage 1 per turn (D18), session grade by `gemini-4-argon` on flagged turns only (D19). **Update 2026-10-23:** `gemini-4-argon` price and terms accepted by the user; the "unknown price" items below no longer block. |
 | Data | Service Usage consumer quotas for `aiplatform.googleapis.com` in `rtbhouse-agentspace` (read-only REST). Vertex AI public pricing page. `audit_logs` 4h window, Wed 2026-10-21 ~09:45-13:45 UTC, web UI prod: 526 turns, 183 sessions; only character counts were output. |
 
 ## 1. Summary

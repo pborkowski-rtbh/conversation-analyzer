@@ -109,7 +109,7 @@ Ways out, to verify in this order:
 | V1 | Do the assessor's `Search` calls appear in `audit_logs`, and with which fields? | §7 |
 | V2 | On the canary: inject known factual errors into synthetic answers (with and without references). Measure how often L1-L4 finds the contradicting document, and how often a correct answer is wrongly marked `HIGH`. | Whether the rule is precise enough |
 | V3 | Share of knowledge intents among turns without references | Evidence-check volume and cost |
-| V4 | `gemini-4-argon` price | Stage 2 cost with L4 (already open) |
+| V4 | ~~`gemini-4-argon` price~~ | Accepted (user, 2026-10-23) |
 | V5 | SECOPS: assessor service account reading `mcp-document-content` and searching the engine | Access approval |
 
 ## 9. Changes to the design if adopted

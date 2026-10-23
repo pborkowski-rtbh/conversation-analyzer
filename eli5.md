@@ -65,7 +65,7 @@ Some rules for the form:
 
 ### 5. A second, stronger grader looks at the doubtful ones (Gemini 4 argon, only if needed)
 
-If the first grade is bad, the answer was very wrong, a user clicked thumbs down (or reacted badly on Slack), or the user's next message sounds like "that's wrong", the stronger grader also reads the full source documents (also blacked out). Only it can say *why* things went wrong, for example "the right document exists but was not found" or "nobody wrote this down anywhere".
+If the first grade is bad, the answer was very wrong, a user clicked thumbs down (or reacted badly on Slack), or the user's next message sounds like "that's wrong", the stronger grader also reads the full source documents (also blacked out) and searches our documents itself. It follows one path: was the answer in what Bolek cited, in the full document, somewhere else, or nowhere? Only it can say *why* things went wrong, for example "the right document exists but was not found" or "nobody wrote this down anywhere".
 
 ### 6. A checker stops anything unsafe
 
@@ -130,7 +130,7 @@ Nobody may read real conversations, so we check the grader on material that is a
 - Which topic to use when an answer cites several data stores.
 - Why about 7 in 10 answers show no sources in the log (a spike is planned first, because it decides how useful the grader can be).
 - For Slack and MCP: how to tell the two apart in the log, where Slack emoji reactions are stored, and whether their chats have the same hidden chat ID as the web page.
-- Whether the security team accepts the `eu` multi-region and the data terms for the Gemini 4 argon model, and whether our quota is enough.
+- Whether the security team accepts the `eu` multi-region, and whether our quota is enough. (The Gemini 4 argon model itself is accepted.)
 
 ## Where to read more
 
