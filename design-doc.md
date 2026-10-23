@@ -369,25 +369,32 @@ Stage 1 assigns the generation, question and system codes. The retrieval and cor
 
 ### 5.8 The evidence check
 
-The evidence check lets the judge look for evidence itself when the log has none. It runs on knowledge turns without evidence 1 or 2: about 4 in 10 web UI turns before filtering by intent (39% in the sample of §5.2).
+**What it is for.** About 4 in 10 web UI turns have no evidence in the log (39% in the sample of §5.2). Without the check, a wrong answer on such a turn could never be caught. The check lets the judge look for evidence itself: it finds our documents on the question and reads them. It can find an error, but never prove an answer right, so the turn stays not verifiable either way.
+
+**When it runs.** On knowledge turns with no evidence 1 or 2, right after the form is filled in.
 
 ```mermaid
 flowchart LR
-    A["Knowledge turn<br/>without evidence"] --> B["Documents linked<br/>in the answer text"]
-    A --> C["Search our documents<br/>with the question"]
-    B --> D["Read the full text<br/>of up to 3 documents"]
-    C --> D
-    D --> E{"A document<br/>contradicts a claim?"}
-    E -->|"yes"| F["CONTRADICTED_CLAIM, HIGH,<br/>turn flagged"]
-    E -->|"no"| G["Nothing recorded,<br/>turn stays not verifiable"]
+    A["Knowledge turn<br/>without evidence"] --> B["1. Find documents"]
+    B --> C["2. Read up to 3"]
+    C --> D{"3. A document<br/>contradicts a claim?"}
+    D -->|"yes"| E["4. CONTRADICTED_CLAIM,<br/>HIGH, turn flagged"]
+    D -->|"no"| F["4. Nothing recorded"]
 ```
 
-- **Search.** The query is the scrubbed question. It runs on the same documents Bolek searches, with the people directory left out, and takes the top 10 results.
-- **Reading.** The full text of up to 3 documents is read, each capped in length. Full text is kept for about 94% of the documents Bolek cites; Google Drive, the BigQuery documentation and the people directory have none.
-- **Judging.** The judge looks only for a specific contradiction. It does not score the answer.
-- **Identity.** The search runs under its own read-only account, which is not a user. Its searches are never mistaken for a user's searches or counted in any metric.
-- **Stored.** The document IDs of the documents read, each marked as *found* (by this check) or *cited* (by Bolek), and the result.
-- **Limit.** The check searches the same documents with the same search that Bolek uses, so it can miss what Bolek missed. It helps most where Bolek did not search at all, which was the case for 29% of the web UI answers without references in one sample.
+| Step | What happens |
+|---|---|
+| 1. Find documents | Take the documents linked in the answer text, then search our documents with the scrubbed question. The search leaves out the people directory and returns the top 10. |
+| 2. Read | Read the full text of up to 3 of them, each capped in length. |
+| 3. Judge | The judge compares the answer with these documents and looks only for a specific contradiction: a different number, name, date, rule or step. It gives no scores. |
+| 4. Record | Contradiction found: `CONTRADICTED_CLAIM`, severity `HIGH`, and the turn is flagged. Nothing found: nothing is recorded. Either way, the IDs of the documents read are stored, marked *found*. |
+
+**Boundaries**
+
+- **It checks the answer against our documents, never against Bolek's answers.** The only part it shares with Bolek is the search, to find documents.
+- **Shared search, shared blind spots.** If the search can't find the right document for a question, the check usually can't either. Then the error is missed, but nothing false is recorded. The check helps most where Bolek did not search at all, which was the case for 29% of the web UI answers without references in one sample.
+- **Not every document can be read.** Full text is kept for every data store except Google Drive, and the people directory is never read.
+- **Safe by design.** The search runs under its own read-only account, which is not a user, so its searches never count in any metric. Only document IDs and codes are stored, through the leak guard.
 - **Cost.** One judge call with up to 3 documents per checked turn. Not measured yet; at most about the cost of stage 1 again.
 
 ### 5.9 Leak guard
@@ -411,6 +418,6 @@ Each assessment records the rubric version, the failure-list version, the judge 
 | Problem | Why it matters | Next step |
 |---|---|---|
 | **Are the evidence check's searches written to the log, with their query?** | The log keeps question text for 30 days. A query that held words from the answer would keep answer text past the window. That is why the query is the scrubbed question only. | One synthetic search shows whether these searches reach the log. If they don't, or if a separate search setup keeps them out, the query may also use short phrases from the answer, which finds better documents. |
-| **Is the `HIGH` rule precise enough?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are found and how many correct answers are wrongly marked `HIGH`. |
+| **Does the evidence check catch enough errors, without false `HIGH`s?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. The check uses Bolek's search, so it can share Bolek's blind spots. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are caught and how many correct answers are wrongly marked `HIGH`. If too many are missed, search in a way that does not share Bolek's blind spots: with the answer's key claims, or with a separate keyword search over the document text. |
 | **How many turns need the evidence check?** | It sets the cost. | Measure the share of knowledge intents among turns without evidence in the first week. |
 | **Access approval** | The judge's account reads the full text of documents and searches them. | Approval by the security team. |
