@@ -235,7 +235,7 @@ Everything about a turn must be read before the anonymizer erases its answer.
 
 ## 5. Sessions
 
-People often ask several questions in a row, and a later turn often depends on an earlier one: a follow-up, a rephrase, a "that's wrong". In weekday samples of about 180 web UI sessions each, 57% of sessions had more than one turn, and they held 85% of all turns. So every turn is assessed together with the earlier turns of its session. All of this happens inside the window, because the session ID is erased together with the answer.
+People often ask several questions in a row, and a later turn often depends on an earlier one: a follow-up, a rephrase, a "that's wrong". So every turn is assessed together with the earlier turns of its session. All of this happens inside the window, because the session ID is erased together with the answer.
 
 ### 5.1 How turns are grouped
 
@@ -247,7 +247,7 @@ People often ask several questions in a row, and a later turn often depends on a
 | Channel | What a session is |
 |---|---|
 | Web UI | One chat. Real conversations of several turns. |
-| Slack Bolek, MCP | Nearly every turn has its own session ID (in one sample, 165 of 168 sessions had a single turn), so even a Slack thread is not one session. Until a better grouping is found (§5.5), these turns are assessed on their own. |
+| Slack Bolek, MCP | Nearly every turn has its own session ID, so even a Slack thread is not one session. Until a better grouping is found (§5.5), these turns are assessed on their own. |
 
 ### 5.2 Segments
 
@@ -277,9 +277,9 @@ Example of one session:
 | 10:39 | 30 minutes without a new turn | Segment 1 closes |
 | 11:20 | Turn 4, in the same chat | Segment 2 opens, marked resumed |
 
-Most gaps between turns are short: half are under 2.5 minutes and 90% under 28 minutes. But 6-9% of gaps are 30 minutes or longer, so 19-29% of sessions with more than one turn are cut into two or more segments. Most of those gaps are 30 to 120 minutes, so when the user comes back, the earlier text usually still exists (§5.5).
+For most sessions, one segment is the whole session. When a user comes back after a longer pause, the earlier text usually still exists (§5.5).
 
-The 30 minutes are a starting value. Waiting longer would cut fewer conversations, but keeps segments open and delays their final session grade: covering 98% of gaps would mean waiting about 100 minutes. So the value is tuned on how often a resumed segment finds its earlier text already erased, not on the gaps alone.
+The 30 minutes are a starting value. Waiting longer would cut fewer conversations, but keeps segments open and delays their final session grade. So the value is tuned on how often a resumed segment finds its earlier text already erased, not on the pauses alone.
 
 ### 5.3 What a turn takes from its session
 
@@ -311,8 +311,8 @@ The 30 minutes are a starting value. Waiting longer would cut fewer conversation
 
 - **Slack and MCP.** Their turns almost never share a session ID. Is there another key that groups the turns of one Slack thread?
 - **The 30 minutes.** Too short cuts real conversations in two; too long keeps a segment open and delays its final session grade (§5.2).
-- **Resumed segments.** Most resumes come 30 to 120 minutes later, while the earlier text still exists. Should the first turn of a resumed segment then get that text, and fall back to labels and scores only when it is gone?
-- **How much context.** Up to 2 earlier turns, or the whole segment up to a size cap? The whole segment would catch more contradictions and rephrases in long conversations, for about $2 more per weekday.
+- **Resumed segments.** Most users who come back do so while the earlier text still exists. Should the first turn of a resumed segment then get that text, and fall back to labels and scores only when it is gone?
+- **How much context.** Up to 2 earlier turns, or the whole segment up to a size cap? The whole segment would catch more contradictions and rephrases in long conversations, at a higher cost.
 - **Chats reopened from history.** Does a chat that the user opens again from the history keep its session ID? If yes, its new turns start a resumed segment; if no, a new session.
 
 ## 6. Stage 1: assessing every turn
