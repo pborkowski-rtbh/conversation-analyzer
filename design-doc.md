@@ -538,7 +538,7 @@ Stage 1 assigns the generation codes except `REASONING_ERROR`, and the question 
 - **Only identified problems.** A code is recorded only when it is deterministic (follows from the data and the yes / no checks, like the two marked above) or the judge can point to what confirms it (§6.5). If the judge is unsure, the code is not recorded, and a turn with no recorded code gets `NONE`. Failure rates are therefore lower bounds.
 - **`HIGH` means contradicted.** `HIGH` severity is set only together with `CONTRADICTED_CLAIM`, on a knowledge intent. A claim that is only unsupported, or about which nothing was found, is at most `MEDIUM`. A `HIGH` always flags the turn.
 - **Stage 1 never guesses causes.** It says *what* went wrong, not *why*: retrieval and corpus codes are left to stage 2.
-- **Not verifiable turns** get no groundedness score. They can only get deterministic codes and `CONTRADICTED_CLAIM` from the evidence check.
+- **Turns that are not verifiable** can be assessed only in part: they get no groundedness score, only deterministic codes and `CONTRADICTED_CLAIM` from the evidence check.
 - **Confidence changes nothing.** No rule, threshold or weight uses it.
 
 ### 6.9 The evidence check
@@ -645,7 +645,7 @@ flowchart TD
     A["Problem claim"] --> B{"Do the cited snippets<br/>support the claim?"}
     B -->|"yes, and the document<br/>passed both checks"| OK["No problem:<br/>finding dropped"]
     B -->|"yes, but the document is<br/>outdated or conflicting"| OS["OUTDATED_SOURCE or<br/>CONFLICTING_SOURCES"]
-    B -->|"no: the right content is<br/>there, but read wrongly"| AN["No cause:<br/>the answer itself"]
+    B -->|"no: the snippets hold the right facts,<br/>but the answer misread them"| AN["Answer error:<br/>no source cause"]
     B -->|"no: the right content<br/>is not there"| C{"Is it in the full text<br/>of a cited document?"}
     C -->|"yes"| CH["CHUNKING_ISSUE"]
     C -->|"no"| D{"Is it in another<br/>document found by search?"}
@@ -670,7 +670,7 @@ Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts:
 |---|---|
 | Answer span | Its position in the answer, when the log splits the answer into answer spans |
 | What | `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM` or `REASONING_ERROR` |
-| Why | The cause from §7.3: `OUTDATED_SOURCE`, `CONFLICTING_SOURCES`, `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, or none when the cause is the answer itself |
+| Why | The cause from §7.3: `OUTDATED_SOURCE`, `CONFLICTING_SOURCES`, `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, or none when the snippets hold the right facts and the answer misread them (the What is then `REASONING_ERROR`, or `CONTRADICTED_CLAIM` when a snippet says the opposite) |
 | Documents | The IDs of the documents behind the finding, each with its role: *cited*, *holds the right answer*, *contradicts the claim*, *outdated* or *conflicting* |
 
 **For the turn:**
