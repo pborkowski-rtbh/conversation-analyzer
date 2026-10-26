@@ -120,18 +120,23 @@ After release, we compare the real numbers for 5 weekdays before and after. The 
 
 ## How we know the grader is any good
 
-Nobody may read real conversations, so we check the grader on material that is allowed to be read: our own test traffic (the evaluator's synthetic questions also pass through the same logs). We compare its grades with the evaluator's answer key, inject known faults to see whether it notices them, and run a second model on a small sample to see whether the two agree. Labels that are not trustworthy enough are shown as "experimental".
+Nobody may read real conversations, so we check the grader on material that is allowed to be read.
+
+- **A test suite for the grader**, like unit tests: a few hundred made-up cases covering every situation (every kind of question, every kind of mistake, whole chats), each with the grade a perfect grader would give. We measure how far the grader's answers are from those, and a change to the grader is kept only if that distance goes down. A fifth of the cases is kept hidden while tuning, to catch a grader that just learned the test.
+- **Our own test traffic** (the evaluator's questions go through Bolek and the same logs), to check the whole path, and to plant known mistakes in answers and see whether the grader catches them.
+- **A second model** on a small sample of real grades, to see whether the two agree.
+
+Labels that are not trustworthy enough are shown as "experimental".
 
 ## What is not decided yet
 
-- The grading guide: a first draft is written (what each score means, in English and Polish), but its examples are made up for now and it is not yet tested on our test traffic.
-- Whether a chat reopened from history keeps its old ID, and whether 30 minutes is the right "chat is idle" time.
-- The size above which a turn counts as "too large".
+- The grading guide: a first draft is written (what each score means, in English and Polish), but it is not yet tuned on the grader's test suite, which has to be written first.
+- Whether 30 minutes is the right "chat is idle" time. We start with 30 and watch on the dashboard how often a returning user's earlier messages are already erased.
 - Exactly how sure a grade must be to count as an "identified" problem.
 - Whether the grader's own searches end up in the log (if they don't, it may search with words from the answer too, which finds better documents).
 - Which topic to use when an answer cites several data stores.
 - Why about 7 in 10 answers show no sources in the log (a spike is planned first, because it decides how useful the grader can be).
-- For Slack and MCP: how to tell the two apart in the log, where Slack emoji reactions are stored, and whether their chats have the same hidden chat ID as the web page.
+- For Slack and MCP: how to tell the two apart in the log. Slack emoji reactions are optional: used only if we find a way to collect them.
 - Whether the security team accepts the `eu` multi-region, and whether our quota is enough. (The Gemini 4 argon model itself is accepted.)
 
 ## Where to read more

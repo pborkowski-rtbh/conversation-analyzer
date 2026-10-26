@@ -7,7 +7,7 @@ Source: `design.md` §3.1 (D8-D23), §5.2, §5.3, §8.3, §8.6. Each turn (web U
 - **Only identified problems are reported (D9).** A failure code is recorded only when it is deterministic or confirmed against the sources; otherwise `NONE`. Stage 1 never guesses retrieval or corpus codes. Failure rates are lower bounds.
 - **Not verifiable (D10, D23).** Knowledge answers with no evidence in the log (no references of their own or of an earlier turn in the same segment): `groundedness` NULL, only deterministic codes and `CONTRADICTED_CLAIM` from the evidence check, reported separately, never counted as good.
 - **Gated by intent (D11).** Fields that do not apply to an intent are NULL and not asked of the judge (table below).
-- **Rubric (D12).** Written meaning of each score level plus synthetic few-shot examples from canary and evaluator turns, versioned and tuned on the canary.
+- **Rubric (D12).** Written meaning of each score level plus synthetic few-shot examples from canary and evaluator turns, versioned and tuned on the judge test suite (D24).
 - **Oversized turns (D13).** Above the size cap: not graded, recorded as `SKIPPED_TOO_LARGE`, counted in coverage.
 - **Verdict vs reaction (D14).** The quality verdict uses only the judge's findings. The user's reaction (next turn's `relation_to_previous`) is a separate metric; the last turn of a conversation has none.
 - **Evidence and `HIGH` (D23).** A claim is wrong only when one of our documents says something different. Evidence: own references, then earlier turns' references, then the evidence check (search with the scrubbed question, read up to 3 full documents, look only for a contradiction). `HIGH` only with `CONTRADICTED_CLAIM`; unsupported is at most `MEDIUM`. Details: `data-access.md`.
@@ -64,7 +64,7 @@ Initial table, finalized with the rubric.
 ## Sessions (D17-D22)
 
 - **Only the 4h window exists.** Turns are grouped by `session_key` = HMAC(engine, `session_id` from `response.answer.name`).
-- **Stage 1 stays per turn**, with up to 2 prior turns of the same session as context. A turn is assessed again only when its `input_fingerprint` (IDs and versions, no text) is new: a late context row or a late trigger. A new rubric applies to new turns only; during its bridge each turn is assessed under both versions.
+- **Stage 1 stays per turn**, with all earlier turns of the segment as context, capped at 60k characters (D24). A turn is assessed again only when its `input_fingerprint` (IDs and versions, no text) is new: a late context row or a late trigger. A new rubric applies to new turns only; during its bridge each turn is assessed under both versions.
 - **Segments**: closed after 30 min idle (provisional) or forced at 3h30. A turn in a closed session starts segment n+1 (`resumed`), with the previous segment's derived labels as context.
 - **Session facts.** `session_facts` per segment holds facts only: turn count, reaction counts, duration bucket.
 - **Session grade (D19), informational only.** When a turn is flagged for stage 2, `gemini-4-argon` grades its whole segment so far: `outcome` (`RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`), `first_bad_turn_index`, `rephrase_bucket`, `recovered_after_correction`, `confidence`. `grade_state`: `PROVISIONAL` while open, `FINAL` after a re-grade at close, `NOT_GRADABLE` if part of the text is gone. No metric uses it; it is attached to Slack alerts, each grade reachable by `alert_id`.
@@ -73,10 +73,10 @@ Initial table, finalized with the rubric.
 
 ## Not defined yet
 
-- The rubric text: first draft in `rubric.md` (level texts in English and Polish, placeholder examples), not yet tuned on the canary (D12).
+- The rubric text: first draft in `rubric.md` (level texts in English and Polish, placeholder examples), not yet tuned on the judge test suite (D12, D24).
 - Size cap for `SKIPPED_TOO_LARGE` (Q11).
 - Exact bar for "identified" on non-deterministic stage-1 codes (Q12). Open parts of D23 (Q24): whether evidence-check searches reach `audit_logs`, rule precision, volume, SECOPS approval.
 - Topic rule when an answer cites several data stores (Q13).
 - A formal JSON schema.
 - The stage 2 output fields: proposed in `design-doc.md` §7.4 (per problem claim: span, what, why, documents with roles; per turn: groundedness re-scored, failure types, primary failure = cause, severity, stage-1 findings confirmed or dropped, document to fix, confidence).
-- The session-grade rubric: proposed in `design-doc.md` §7.6 (outcome meanings; rephrases counted from stage-1 labels, not judged; recovered = `YES`/`NO`/`NO_CORRECTION`). Tuning needs multi-turn canary sessions (Q23).
+- The session-grade rubric: proposed in `design-doc.md` §7.7 (outcome meanings; rephrases counted from stage-1 labels, not judged; recovered = `YES`/`NO`/`NO_CORRECTION`). Tuned on the conversations of the judge test suite (D24).

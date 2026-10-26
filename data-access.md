@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Problem | `design-doc.md` §6.11, `design.md` Q24 (part of Q12) |
-| Status | Adopted for stage 1, 2026-10-23: `design-doc.md` §6.2, §6.7, §6.8, §6.11; `design.md` D23. Stage 2 use of L3/L4 waits for the stage 2 section. Changes on adoption: URLs in the answer text moved from L2 to the evidence check (they give no content without reading the document); a new code `CONTRADICTED_CLAIM` carries `HIGH`; queries use the scrubbed question only until §7 is settled. |
+| Problem | `design-doc.md` §6.12, `design.md` Q24 (part of Q12) |
+| Status | Adopted for stage 1, 2026-10-23: `design-doc.md` §6.2, §6.8, §6.9, §6.12; `design.md` D23. Stage 2 use of L3/L4 waits for the stage 2 section. Changes on adoption: URLs in the answer text moved from L2 to the evidence check (they give no content without reading the document); a new code `CONTRADICTED_CLAIM` carries `HIGH`; queries use the scrubbed question only until §7 is settled. |
 | Builds on | `document-mapping.md` (cited documents → full content), `grounding-metadata.md` (why answers lack references, session-level grounding), `retrieval-linkage.md` (`Search` calls per turn), `cost-quota.md` |
 
 ## 1. Summary
@@ -110,7 +110,7 @@ Ways out, to verify in this order:
 | V2 | On the canary: inject known factual errors into synthetic answers (with and without references). Measure how often L1-L4 finds the contradicting document, and how often a correct answer is wrongly marked `HIGH`. | Whether the rule is precise enough |
 | V3 | Share of knowledge intents among turns without references | Evidence-check volume and cost |
 | V4 | ~~`gemini-4-argon` price~~ | Accepted (user, 2026-10-23) |
-| V5 | SECOPS: assessor service account reading `mcp-document-content` and searching the engine | Access approval |
+| V5 | SECOPS: assessor service account reading `mcp-document-content` and searching the engine | Access will be granted (user, 2026-10-26); which service account is a setup detail |
 
 ## 9. Changes to the design if adopted
 
