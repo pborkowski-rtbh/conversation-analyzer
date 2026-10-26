@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-23. Sections 1-7 written; further sections to follow. |
+| Status | Draft, 2026-10-23. Sections 1-8 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -20,7 +20,7 @@ AQR is the share of verifiable turns whose answer was judged good, standardized 
 
 ### 1.2 What we build
 
-An automated assessment of every turn on every channel, done inside the window, that stores **derived values only**: scores, labels from closed lists, and the document IDs of references. From these we compute AQR and the other quality metrics, ranked problem clusters, alerts, and a way to verify releases. Feedback is attached to the assessed turns. When a turn is flagged, its session segment also gets a session grade, shown in alerts as extra context for the team; no metric uses it.
+An automated assessment of every turn on every channel, done inside the window, that stores **derived values only**: scores, labels from closed lists, and the document IDs of references. From these we compute AQR and the other quality metrics, ranked problem clusters, alerts, a dashboard, and a way to verify releases. Feedback is attached to the assessed turns. When a turn is flagged, its session segment also gets a session grade, shown in alerts as extra context for the team; no metric uses it.
 
 ### 1.3 Success criteria
 
@@ -102,12 +102,15 @@ Terms used in this document. Each term has exactly one meaning.
 | **Coverage** | The share of eligible turns that were assessed or skipped as too large. A pipeline health measure, not quality. |
 | **Too large** | A turn above the size limit (to be set). It is skipped, not partly assessed, and counted in coverage. |
 | **Good answer** | A verifiable turn with relevance 4 or higher, groundedness 4 or higher (knowledge intents only), and no identified `HIGH` severity failure. The user's reaction is not used. |
-| **AQR (Answer Quality Rate)** | Good answers divided by assessed verifiable turns, **standardized**: computed per stratum (intent family × data-store family) and weighted by each stratum's share in the baseline, so a change in what people ask does not look like a change in quality. Also reported raw. |
+| **AQR (Answer Quality Rate)** | Good answers divided by assessed verifiable turns, **standardized**: computed per stratum (a slice by intent family × data-store family) and weighted by each stratum's share in the baseline, so a change in what people ask does not look like a change in quality. Also reported raw. |
+| **Slice** | A part of the turns that a metric is shown for: a channel, an intent, a topic, a data store, or a stratum of AQR. A slice with fewer turns than the **minimum slice size** (20, a setting) is not shown on its own; it is merged into a bigger slice. |
 | **Failure rate** | For one failure type: turns with it as the identified primary failure, divided by assessed turns. A lower bound. |
 | **Baseline** | The first 4 weeks after assessment goes live. All numeric targets and the AQR weights are set from it. |
+| **Anomaly** | A day on which a metric is unusually far from its recent values, either as a sudden jump or as a slow drift. Found by the daily anomaly check and open until someone acknowledges it. |
 | **Problem cluster** | Identified failures grouped by primary failure, data store and document (or by failure and topic when there is no document), ranked weekly by volume and severity. |
 | **Alert** | A Slack message sent when something needs attention now: a severe problem cluster after an assessment run, a daily anomaly, or a pipeline health issue. A cluster alert carries the session grades of its turns, and each one can be looked up by the alert's ID. |
 | **Digest** | The weekly Slack summary: AQR trend, top problem clusters with owners, best documents and topics, unusual items, release results. |
+| **Dashboard** | One Grafana page the team reads every morning: pipeline health, open anomalies, AQR and the other metrics over time, and the problem clusters. It shows daily and weekly aggregates only. |
 | **Release gate** | The check every change must pass before release: a paired offline evaluation of the candidate against the current version on synthetic questions. |
 | **Anchor set** | About 300 to 500 synthetic questions, fixed per quarter, generated from documents in proportion to how much real traffic uses each data store. Must not get worse at the gate. |
 | **Focus set** | 10 to 20 synthetic questions per active problem cluster, generated from its document. Must improve at the gate. |
@@ -125,7 +128,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | **Derived values only** | The system stores scores, closed-list labels, document IDs, counts and versions. It never stores question text, answer text, summaries, feedback comments or identity. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. |
 | **Synthetic questions only** | Tests use questions generated from the documents that real traffic retrieves or cites. Real questions are never re-asked or copied into a test set. | Same reason: real questions stay out of anything we keep. |
 | **EU endpoints only** | Text reaches a model only on an EU endpoint (an EU region or the `eu` multi-region, never `global`), and only after PII scrubbing. | Question and answer text must not leave the EU, and personal details must not reach the model. Whether the security team accepts the `eu` multi-region is still open. |
-| **Notifications only on Slack** | Alerts and the digest are sent only to Slack, in messages built from derived values. There are no per-session tickets. A dashboard may be added later; it is not part of this design yet. | One place for the team to be notified, and no path for text to leave the system. |
+| **Slack for notifications, one dashboard for looking** | Alerts and the digest are sent only to Slack, in messages built from derived values. The dashboard shows only daily and weekly aggregates, with no way down to a single turn. There are no per-session tickets. | One place to be notified and one place to look, and no path for text to leave the system. |
 | **Fully automated** | No person reads questions or answers. The judge is tested on canary turns, which may be read. | Requirement of the project. Debugging and calibration use the canary, so there is never a need to look at a real turn. |
 | **Only identified problems are reported** | A failure is recorded only when it follows from the data or is confirmed against the sources. When the judge is unsure, the turn is recorded as having no failure. | A false alarm costs the team's trust. The price is that failure rates are lower bounds. |
 | **Not verifiable is not good** | A knowledge turn without evidence in the log cannot be checked against sources. It is reported separately, never counted as good and left out of AQR. Errors that the evidence check finds in it still count as identified problems. | Counting it as good would inflate AQR, and counting it as bad would invent failures. |
@@ -169,7 +172,7 @@ flowchart TB
     A["1. Users ask Bolek"] --> B["2. Assess every turn<br/>inside the window"]
     B --> C["3. Keep derived values only"]
     C --> D["4. Compute metrics and<br/>rank problem clusters"]
-    D --> E["5. Tell the team on Slack"]
+    D --> E["5. Tell the team:<br/>Slack and dashboard"]
     E --> F["6. Team fixes"]
     F --> G["7. Test on synthetic questions,<br/>release, check live numbers"]
     G --> A
@@ -181,7 +184,7 @@ flowchart TB
 | 2 | Assess every turn | Every 10 minutes, new turns are scrubbed of PII and assessed by the judge, before the anonymizer erases the answers. |
 | 3 | Keep derived values only | Scores, labels and document IDs are stored; all text is dropped. |
 | 4 | Compute metrics and rank problem clusters | Daily metrics (AQR, failure rates, coverage, anomalies) and a weekly ranked list of problem clusters. |
-| 5 | Tell the team on Slack | Alerts and a weekly digest, built only from derived values. |
+| 5 | Tell the team | Alerts and a weekly digest on Slack, and a dashboard for the daily look, all built only from derived values. |
 | 6 | Team fixes | The team changes a prompt, a data store, the indexer, a document or the model. |
 | 7 | Test, release, check | The release gate tests the change on synthetic questions; after release, release impact compares the live numbers before and after. |
 
@@ -231,7 +234,7 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | Text goes only to EU endpoints | PII scrubbing, then the judge on the `eu` multi-region. |
 | No person reads questions or answers | Every step is automatic; the judge is tested on the canary, not on real turns. |
 | Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
-| Notifications go only to Slack | Step 5; messages are built from derived values. |
+| Notifications go only to Slack; the dashboard shows aggregates only | Step 5; messages are built from derived values, and the dashboard's account can read only aggregates. |
 
 ## 5. Sessions
 
@@ -639,3 +642,188 @@ An alert shows the grade it had when it was sent and says whether it was provisi
 | **`KNOWLEDGE_GAP` rests on not finding something** | Search can miss a document that exists, so this is the least certain code. | Measure on the canary with questions whose answer is known to be in a document; report the code with that miss rate. |
 | **Share of flagged turns** | Sets the cost; expected under 20%. | Measure in the first weeks. |
 | **The canary has no multi-turn sessions** | The session grade can't be tuned on single synthetic questions. | Add 20 to 50 synthetic conversations of 3 to 5 turns, sent in one session. |
+
+## 8. Metrics
+
+Assessments are made per turn. Metrics turn them into a few numbers per day that say whether Bolek is getting better or worse, and where. The numbers are shown on one dashboard (§8.8), and they drive the alerts and the digest (§9).
+
+### 8.1 From assessments to numbers
+
+```mermaid
+flowchart LR
+    A[("Assessments<br/>stage 1 and stage 2")] --> C["Daily metrics<br/>per channel and slice"]
+    F["Feedback"] --> C
+    R["Reactions"] --> C
+    K["Completeness check<br/>of the log"] --> C
+    C --> D["Anomaly check"]
+    C --> G["Dashboard"]
+    D --> G
+    D --> S["Slack alerts (§9)"]
+    P[("Assessment runs")] --> G
+```
+
+- **Once a day, for the day before.** A turn's assessment can still change until 3h30 after the turn: a late trigger can flag it, and stage 2 can change its result. So a day's numbers are computed only once its last turns are past that point, early the next morning.
+- **Pipeline health is the exception.** It comes from the assessment runs themselves and is shown as soon as a run ends.
+- **Numbers are recomputed, never added up.** Each day is computed again from the stored assessments, so a re-run gives the same result.
+
+### 8.2 Which turns count
+
+- **Every turn of the production engine, on every channel.** Canary turns never count.
+- **One result per turn.** The stage 2 result where it exists, otherwise the stage 1 result (§7.5).
+- **One rubric version at a time.** During the parallel run after a rubric or judge model change (§6.10), metrics use the old version, and switch to the new one when the run ends. The switch is marked on the dashboard.
+- **Users whose pace is not human are left out.** A user with more than 10 turns in 10 minutes is most likely a script. Their turns are left out of the metrics for that day and only counted, so the exclusion itself can be watched.
+- **Days with a gap in the log are marked incomplete.** Every hour, the number of log records is compared with the usual number for that hour and weekday, per channel. A day with a gap is still shown, but marked, and it is left out of every baseline. This is how a broken log export is told apart from a real drop in quality.
+- **Weekdays and weekends are compared only with their own kind.** Weekend traffic is about a tenth of weekday traffic, and it is different.
+
+### 8.3 The metrics
+
+| Metric | Question it answers | How it is computed |
+|---|---|---|
+| **Quality** | | |
+| **AQR, standardized** | Are answers getting better? | Good answers divided by assessed verifiable turns, weighted to the baseline question mix (§8.4). The main number. |
+| AQR, raw | Did the question mix change? | The same without weighting. When raw and standardized AQR move apart, people ask different things; quality did not change. |
+| Not verifiable share | How much of the traffic can we not check? | Not verifiable knowledge turns divided by knowledge turns. Shown with the evidence mix: own references, earlier turns' references, none. If it grows, AQR covers less of the traffic. |
+| **What goes wrong** | | |
+| Failure rate, per failure type | Which kind of problem grows? | Turns with that type as their primary failure, divided by assessed turns. A lower bound, because only identified problems count. |
+| Contradicted claims | How often do we say something our documents contradict? | Turns with `HIGH` severity, as a count and as a share of assessed knowledge turns. The most serious error. |
+| Unsupported claims | How often do answers say more than their evidence? | Verifiable knowledge turns with at least one unsupported answer span, divided by verifiable knowledge turns. |
+| **User reactions** (never part of AQR) | | |
+| Negative reaction rate | Do users push back? | Turns whose next turn is a rephrase, a correction or frustration, divided by turns that have a next turn. |
+| Dislike rate | Do users complain? | Dislikes divided by turns. About 1 in 1,000, so it is shown as a count, for information only. |
+| **Usage** (must not drop while AQR rises) | | |
+| Volume | How much is Bolek used? | Turns per day and channel. |
+| Active users, 7-day retention | Do people keep coming back? | As Google reports them for the engine, about 3 days late. |
+| **Pipeline health** | | |
+| Coverage | Did we assess everything? | Assessed and too-large turns divided by eligible turns. Target 98%. |
+| Too-large share | How much do we skip? | Too-large turns divided by eligible turns. |
+| Missed turns | Did we lose any? | Turns not assessed by 3h30. They can never be assessed. |
+| Oldest waiting turn | Are we falling behind? | The age of the oldest eligible turn not yet assessed, per run. |
+| Log completeness | Is the input whole? | Hours with a gap in the log, per channel (§8.2). |
+
+### 8.4 Standardized AQR
+
+**Why.** Some kinds of questions are answered better than others. If people ask more of the easy kind in one week, AQR rises although no answer got better. Standardizing removes that effect.
+
+**Example.** HR fact questions are answered well, API how-to questions less well. In week 2 there are many more HR questions, for example during payroll season:
+
+| Stratum | Share in the baseline | Week 1: share, AQR | Week 2: share, AQR |
+|---|---|---|---|
+| HR, fact lookup | 50% | 50%, 90% | 80%, 90% |
+| API docs, how-to | 50% | 50%, 60% | 20%, 60% |
+| **Raw AQR** | | **75%** | **84%** |
+| **Standardized AQR** | | **75%** | **75%** |
+
+Raw AQR rose by 9 points, but no answer got better. Standardized AQR shows that correctly.
+
+**How.**
+
+1. Turns are split into **strata**: intent family × data-store family, about 10 to 20 strata.
+2. AQR is computed per stratum and day.
+3. The stratum AQRs are added up, each weighted by the stratum's share of turns in the baseline.
+4. A stratum below the minimum slice size on a day is merged into its family (§8.5).
+
+The weights stay fixed. They change only by a deliberate rebase, for example when a new data store is added, and the rebase is recorded as a change event.
+
+### 8.5 Slices and the minimum size
+
+Every metric exists per channel and for all channels together, and can be split further by intent, topic and data store. Each such part is a **slice**.
+
+A small slice jumps around by chance. With 20 turns, one bad answer moves its rate by 5 points. So a slice with fewer turns than the **minimum slice size** in the period shown is not shown on its own: it is merged into a bigger slice (its family, or "other"), and can be looked at per week instead of per day.
+
+The minimum slice size is **20 turns**. It is a setting, kept in one place, so it can be changed without changing the metrics.
+
+In practice, Slack Bolek and MCP have about 115 turns a day together. Their daily lines are rough, and they are best read per week.
+
+### 8.6 Baseline and targets
+
+The baseline is the first 4 weeks after assessment goes live. From it we set:
+
+- the numeric targets of §1.3, including the AQR increase;
+- the stratum weights of standardized AQR (§8.4);
+- the first reference values for the anomaly check (§8.7).
+
+Pipeline health is alerted on from the first day. Quality anomalies are alerted on once 14 complete days of the same kind exist, so weekend checks start weeks later than weekday checks.
+
+### 8.7 Spotting anomalies
+
+An anomaly check runs every day on standardized AQR, each failure rate, the negative reaction rate and coverage, per channel and for all channels together. It compares the day with the same kind of days before it (weekdays with weekdays, weekends with weekends).
+
+| Check | What it catches | Rule |
+|---|---|---|
+| **Sudden jump** | A release or a data store that broke something overnight | The day's value is more than 3 noise levels away from the reference value. |
+| **Slow drift** | Documents slowly going stale, a gradual model change | Small daily differences in the same direction add up; an alert is raised when the sum passes a limit (a CUSUM check, with 0.5 and 4 noise levels). |
+
+- **Reference value:** the rate over the last 28 complete days of the same kind (14 while there are fewer), without days that belong to an open anomaly.
+- **Noise level:** the larger of two: what pure chance gives for that day's number of turns, and how much the days in the reference period really varied. The second is usually larger, because one person asking many questions makes days less alike than chance alone.
+- **Skipped:** days with fewer than 100 turns, and incomplete days.
+- **An anomaly stays open until someone acknowledges it.** The reference period then restarts from that day, so a lasting change raises one alert, not one every day.
+- **Each anomaly lists the change events of the 48 hours before it**, marked "likely caused by". An anomaly without one is marked "unexplained".
+
+**What it can see.** On all web UI turns, a daily check notices a change of about 3 percentage points, and a weekly view about 1 to 1.5 points. For Slack Bolek and MCP, only changes of more than about 10 points show on a single day. Smaller effects of a release are judged by the release gate (§10). With about 20 checks a day, expect roughly one false alarm a month.
+
+### 8.8 The dashboard
+
+**What it is for.** Slack tells the team when something needs attention now (§9). The dashboard is where the team looks every morning: is the pipeline healthy, is anything unusual, and is quality moving after the last fixes. It is built in **Grafana** and reads the daily and weekly aggregates from BigQuery.
+
+**Layout.** One page, read from top to bottom. The first rows answer "can I trust today's numbers?", the last ones "what should we work on?". Values below are made up.
+
+```text
+┌─ Filters: channel ▾  period ▾  weekdays / weekends ▾     Markers: change events, rubric switches ─┐
+│ 1. IS THE PIPELINE HEALTHY?                                                                       │
+│  [Coverage 99.2%]  [Missed 0]  [Oldest waiting 42 min]  [Too large 0.3%]  [Log complete: yes]     │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 2. ANYTHING UNUSUAL?                                                                              │
+│  Open anomalies: metric · value vs reference · since · change events before it · acknowledged     │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 3. IS QUALITY MOVING?                                                     [AQR 78%, +1.2 vs ref.] │
+│  AQR standardized and raw, per day, with 7-day average and the reference band                     │
+│  Not verifiable share and evidence mix                                    [Contradicted today: 3] │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 4. WHAT GOES WRONG?                                                                               │
+│  Failure rates by type, stacked per day          │  Contradicted and unsupported claims per day   │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 5. WHERE?                                                                                         │
+│  AQR by topic × week (heat map)                  │  Question mix by intent over time              │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 6. HOW DO USERS REACT?                                                                            │
+│  Negative reaction rate (rephrase / correction / frustration) · dislikes · volume · active users  │
+├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 7. WHAT TO FIX, AND DID IT HELP?                                                                  │
+│  Top problem clusters this week (§9)             │  Change events with their release impact (§10) │
+└───────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Row | Panels | Use it to |
+|---|---|---|
+| 1. Pipeline health | Coverage, missed turns, oldest waiting turn, too-large share, log completeness | Decide whether today's numbers can be trusted. If this row is red, fix the pipeline before reading the rest. |
+| 2. Anomalies | Open anomalies with their change events and acknowledgement | See what the anomaly check found, and acknowledge it or start work on it. |
+| 3. Quality | Standardized and raw AQR with the reference band; not verifiable share; evidence mix; contradicted claims today | See the trend. If raw and standardized AQR move apart, the question mix changed, not quality. |
+| 4. Failures | Failure rates per type; contradicted and unsupported claims | Find which kind of problem moved. |
+| 5. Where | AQR per topic and week; question mix per intent | Find where it moved: which topic or data store. |
+| 6. Users | Negative reaction rate, dislikes, volume, active users | Check that users see the same as the judge, and that usage does not drop. |
+| 7. Fix and verify | Top problem clusters; change events with release impact; weekly turns still in the top clusters of the baseline | Pick the next fix, and see whether the last one helped. |
+
+**Reading it each morning (about 5 minutes).**
+
+1. Row 1: is everything green? If not, the other numbers for that day are not reliable.
+2. Row 2: any open anomaly? Read the change events before it, then acknowledge it or start work on it.
+3. Row 3: is AQR inside its reference band, and going the right way since the last change?
+4. Rows 4 and 5, only when something moved: which failure type, which topic.
+5. Once a week, with the digest: row 7.
+
+**Rules.**
+
+- **Aggregates only.** The dashboard reads only daily and weekly aggregates, through a read-only account that cannot see per-turn assessments. There is no drill-down to a single turn.
+- **Days, not hours.** Quality numbers are per day or week. Only pipeline health is per run.
+- **Small slices are merged** (§8.5), so no panel shows a number based on fewer turns than the minimum slice size.
+- **Incomplete days and weekends are marked**, so a gap in the log or a quiet Sunday does not look like a drop in quality.
+- **Session grades are not shown.** They are informational and appear only in alerts (§7.6).
+
+### 8.9 Open problems
+
+| Problem | Why it matters | Next step |
+|---|---|---|
+| **The strata are not defined** | Standardized AQR needs the intent families and data-store families before the baseline starts. | Define 10 to 20 strata from the first days of data, then freeze them with the baseline. |
+| **The too-large size limit is not set** | Coverage and the too-large share depend on it. | Set it from the sizes of turns in the first days. |
+| **Slack feedback** | Where Slack emoji reactions are logged, and how they join a turn, is not known yet. Until then the dislike rate covers the web UI only. | Find the source and the join key with the Slack Bolek owner. |
+| **Which Grafana, and who sees it** | The aggregates hold no text, but who may see quality per topic and data store must still be agreed. | Choose the Grafana instance and the viewer group, and agree it with the security team. |

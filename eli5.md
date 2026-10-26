@@ -82,17 +82,19 @@ Every day, the grades are added up:
 - **Answer Quality Rate (AQR)**: the share of checkable answers that were good. This is the number that should go up.
 - **How often each kind of problem happens.**
 - **User reaction**, tracked separately: how often the next message is "ask again", "that's wrong" or "this is useless".
-- **Alarms** if something suddenly gets worse.
+- **Alarms** if something suddenly gets worse, or slowly drifts worse.
 
-All numbers exist per channel (web, Slack, MCP) and for all channels together.
+All numbers exist per channel (web, Slack, MCP) and for all channels together. AQR is also corrected for what people ask: a week with many easy questions must not look like a better Bolek. Groups with fewer than 20 answers on a day are not shown alone, because one bad answer would swing them too much (20 is a setting).
 
 ### 9. Turn numbers into a to-do list
 
 Every week, the problems are grouped by document, data store and kind of failure, and ranked. For example: "Document X caused 12 unsupported answers this week, fix owner: the document owner."
 
-### 10. Slack tells the team
+### 10. Slack tells the team, the dashboard shows the trend
 
-Only Slack, and only messages made from numbers: alerts for serious clusters, daily alarms, and a weekly summary with the worst and the best.
+Slack gets only messages made from numbers: alerts for serious clusters, daily alarms, and a weekly summary with the worst and the best.
+
+A Grafana dashboard is checked every morning, top to bottom: is the pipeline working, is anything unusual, is AQR going up, what kind of problem grew and where, how users react, and did the last fix help. It shows only daily and weekly totals.
 
 An alert about a group of bad answers also shows how their chats went (for example "3 unresolved, 1 resolved, worst one went wrong at question 2"). Every chat grade behind an alert can be looked up.
 
@@ -113,7 +115,7 @@ After release, we compare the real numbers for 5 weekdays before and after. The 
 1. **Store only derived values.** Scores, labels, document links, counts. Never question or answer text, summaries, or identity. We also never store a list linking log entries to chats, so chats can't be rebuilt after 4 hours.
 2. **No person reads conversations.** Everything is automatic, and debugging uses synthetic test traffic.
 3. **Only EU Gemini endpoints** (the `eu` multi-region), and only after blacking out private details.
-4. **Notifications go only to Slack.** A dashboard (probably Grafana) may come later; not decided yet.
+4. **Notifications go only to Slack.** There is also one Grafana dashboard the team checks every morning. It shows only daily and weekly totals, never a single conversation.
 5. **Real questions are never re-asked or copied** into tests.
 
 ## How we know the grader is any good

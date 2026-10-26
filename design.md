@@ -71,7 +71,7 @@ Targets are set after a 4-week baseline. No baseline exists today.
 | D1 | The system may persist **derived values only**: scores, closed-list labels, cited document IDs/URIs, counts, versions. Never question/answer text, summaries or identity. Nothing else is stored beyond what exists today. | User, 2026-10-19 |
 | D2 | **Synthetic evals only.** Real questions are never re-asked or copied. Evals are generated from documents that real traffic retrieves or cites. | User, 2026-10-19 |
 | D3 | Conversation data may be sent to **Gemini on Vertex AI, EU endpoints only** (a EU region or the `eu` multi-region, never `global`), after **PII scrubbing**. | User, 2026-10-19; `eu` multi-region accepted 2026-10-20 |
-| D4 | **Notifications go to Slack only** (alerts, digest). A quality dashboard, likely Grafana, will probably be needed; to be discussed (Q18). | User, 2026-10-19; narrowed to notifications 2026-10-21 |
+| D4 | **Notifications go to Slack only** (alerts, digest). **A Grafana quality dashboard** is part of the design: one page read daily, built only from daily and weekly aggregates through a read-only account with no access to per-turn rows (`design-doc.md` §8.8). | User, 2026-10-19; narrowed to notifications 2026-10-21; dashboard added 2026-10-26 |
 | D5 | **All channels from the start**: web UI, Slack Bolek and MCP are assessed from phase 1, with metrics per channel (`client`). Slack emoji reactions are collected as feedback, like web thumbs. Evaluator traffic stays canary only. SECOPS approval is out of scope of this doc; the design assumes the current storage boundary (D1). | User, 2026-10-21 (replaces "web UI first") |
 | D6 | Analysis is 100% automated. No person reads conversations. | Earlier requirements |
 | D7 | New jobs run as **Cloud Run jobs in `rtbhouse-agentspace`**, not Composer. Composer `rtbh-ai-main-airflow-v3` is being retired and its non-indexer DAGs are planned to move to Cloud Run jobs there (`jira-stage/5-port-remaining-composer-dags.md`). | Verified plan |
@@ -249,11 +249,11 @@ Deterministic codes: `UNGROUNDED_INTERNAL_ANSWER`, `AGENT_OR_TOOL_ERROR`. The ex
 |---|---|
 | Assessed coverage | (`ASSESSED` + `SKIPPED_TOO_LARGE` turns) / eligible turns. Target ≥ 98%. A pipeline health metric, not quality. |
 | Too-large share | `SKIPPED_TOO_LARGE` turns / eligible turns (D13) |
-| Verifiable turn | Non-knowledge intent, or knowledge intent with ≥ 1 reference. Knowledge turns without references are not verifiable (D10). |
+| Verifiable turn | Non-knowledge intent, or knowledge intent with evidence: its own references or those of an earlier turn in the same segment (D23). Knowledge turns with neither are not verifiable (D10). |
 | Good answer | verifiable AND `relevance ≥ 4` AND (`groundedness ≥ 4` OR intent not knowledge) AND no identified `HIGH` severity failure. Does not use the next turn (D14). |
 | **AQR** | good answers / assessed verifiable turns, mix-standardized (§8.8) |
 | Failure rate (per code) | turns with that identified primary failure / assessed turns. A lower bound (D9). |
-| Grounded share | knowledge-intent turns with ≥ 1 reference / knowledge-intent turns. The rest are the not-verifiable share. |
+| Grounded share | knowledge-intent turns with ≥ 1 reference of their own / knowledge-intent turns. The not-verifiable share (no evidence at all, D23) is reported next to it with the evidence mix (own, earlier turn, none). |
 | Unsupported-claim rate | grounded turns with ≥ 1 unsupported segment / grounded turns |
 | Negative reaction rate | turns whose next turn is `REPHRASE`, `CORRECTION` or `FRUSTRATION` / turns with a next turn. Separate from AQR (D14). |
 | Dislike rate | dislikes / turns (informational, ~0.1%) |
@@ -379,6 +379,8 @@ Feedback is joined in derived space, so it does not race the window. The aggrega
 | Release report | When a post-window completes | Pre/post difference with CI per metric, offline gate result |
 
 Channel for quality messages: to be decided (Q9).
+
+**Dashboard (D4, 2026-10-26).** One Grafana page, read every morning, reading only `quality_daily`, `problem_clusters_weekly`, `doc_stats_weekly`, `release_impact`, `change_events` and `pipeline_runs` through a read-only account (no `turn_assessments`, no drill-down to a turn). Rows: pipeline health; open anomalies; AQR standardized and raw with the reference band, not-verifiable share and evidence mix; failure rates and `HIGH` counts; AQR by topic × week and intent mix; reactions, dislikes, volume, active users; top clusters, change events with release impact, burn-down. Slices under `min_slice_size` are merged; incomplete days and weekends are marked; session grades are not shown. Metrics during a rubric bridge use the old version until the bridge ends. Details: `design-doc.md` §8.
 
 ### 7.5 Traffic-weighted synthetic evals
 
@@ -535,7 +537,9 @@ AQR_std(t) = Σ_s w_s · AQR_s(t)
   s   = stratum (intent family × data-store family), ~10-20 strata
   w_s = share of stratum s in the reference period (first 4 baseline weeks),
         frozen until a deliberate rebase (logged in change_events)
-  strata with n_s(t) < 30 are pooled into their family
+  strata with n_s(t) < min_slice_size are pooled into their family
+  min_slice_size = 20 turns, a setting (user, 2026-10-26); the same
+  minimum applies to every slice shown (channel, intent, topic, store)
 ```
 
 Department breakdown (phase 2): the assessor maps the principal to `base_function` via `people.hr_dump` in memory and writes department counters to an hourly counters table with 7-day retention. The daily rollup publishes a department only if it had at least 5 distinct active users that day; otherwise it is merged into `OTHER`. Department is never stored on a per-turn row.
@@ -783,7 +787,7 @@ Aggregate tables have no expiry. Synthetic datasets and runs live in the evaluat
 | Q15 | How to tell Slack Bolek from MCP among `query.text` rows (both are API clients; both run under user principals) | Phase 0: inspect request fields of the API rows; avoid relying on `agent_usage_analytics_*` (§10.3) |
 | Q16 | Where Slack emoji reactions are stored and how they join to a turn. `bolek_slack` (in `agent_usage_analytics_*`) has query, email and session, no answer text; reactions not verified | Phase 0: Slack Bolek owner |
 | Q17 | Do Slack and MCP turns carry a usable `session_id`? **Answered 2026-10-21** (§4.3): yes, but nearly every API turn is its own session, so a Slack thread is not one session. Open: which key groups Slack turns (the bot's own session ID?) | Slack Bolek owner |
-| Q18 | Quality dashboard (likely Grafana) next to Slack notifications (D4): scope, audience, which derived tables it reads | Team, later |
+| Q18 | Quality dashboard next to Slack notifications (D4): scope, audience, which derived tables it reads. **Answered in part 2026-10-26**: Grafana, one page in 7 rows (health, anomalies, quality, failures, where, users, fix and verify), aggregates only (`design-doc.md` §8.8). Open: which Grafana instance and which viewer group | Team, SECOPS |
 | Q19 | Add a "context-grounded" class to D10: a knowledge turn without references whose earlier turn in the same session has references, judged against those references (24% of web turns in one sample; not verifiable would drop from ~64% to ~39%)? **Answered 2026-10-23** (D23): yes, as evidence from earlier turns of the same segment | done |
 | Q20 | Resumed segments: use the earlier segment's text while it is still in the window (the usual case), and derived labels only when it is gone? Then `NOT_GRADABLE` (D19) applies only when text is really gone. Recalibrate the idle threshold on that share | Team |
 | Q21 | Stage-1 context: up to 2 prior turns (§8.3) or the whole session capped at 60k characters (~$2 more per weekday, better `relation_to_previous` and contradiction checks on long sessions)? | Team |
