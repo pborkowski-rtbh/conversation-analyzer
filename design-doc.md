@@ -1,4 +1,4 @@
-# Bolek Quality Loop: Design Document
+# Conversation Analyzer: Design Document
 
 | | |
 |---|---|
