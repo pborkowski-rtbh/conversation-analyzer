@@ -92,7 +92,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Judge test suite** | A few hundred fixed synthetic cases, each with the form a perfect judge would fill in. A change to the judge is kept only if it brings the judge's distance from those forms down (§11). |
 | **Intent** | The type of question: `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER`. `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING` and `DATA_QUESTION` are **knowledge intents**: question types whose answer may have to come from our documents. A turn with a knowledge intent is a **knowledge turn**. Whether a given question really needs internal knowledge is checked per turn (§6.6). Which fields are assessed depends on the intent. |
 | **Key claim** | A claim in an answer that the user would act on: a number, name, date, rule, step, place or link. |
-| **Topic** | The knowledge area of a turn (one per data store, plus `OTHER`). Taken from the data stores of its references; the judge decides it only when there are no references. |
+| **Topic** | The knowledge area of a turn (one per data store, plus `OTHER`). Taken from the data store of its references; when they come from several data stores, the judge picks one of those. The judge decides it freely only when there are no references. |
 | **Failure type** | A code from a closed list, in five families: retrieval, corpus, generation, question, system. A turn can have several; one is its **primary failure**, the one that says who should fix it. Retrieval and corpus codes are assigned only in stage 2. |
 | **Identified problem** | A failure that is either deterministic (it follows from the data and the form's yes / no checks, for example a question that needs internal knowledge answered with no evidence in the log) or backed by something concrete the judge can point to, such as a passage that contradicts a claim (§6.5). Only identified problems are recorded, so failure rates are lower bounds. |
 | **Verifiable turn** | A turn whose answer can be fully assessed: any turn that is not a knowledge turn, or a knowledge turn with evidence in the log (references of its own or of an earlier turn in the same session segment). Other knowledge turns are **not verifiable**: they are reported separately and never counted as good, even after the evidence check. |
@@ -119,7 +119,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Baseline** | The first 4 weeks after assessment goes live. All numeric targets except coverage, and the AQR weights, are set from it. |
 | **Anomaly** | A day on which a metric is unusually far from its recent values, either as a sudden jump or as a slow drift. Found by the daily anomaly check and open until someone acknowledges it. |
 | **Reference value** | What the anomaly check compares a day with: the metric's rate over recent complete days of the same kind (§8.7). Those days are the **reference period**, and the reference value plus or minus 3 noise levels is the **reference band**. |
-| **Problem cluster** | Identified failures grouped by primary failure, data store and document (or by failure and topic when there is no document), ranked weekly by volume and severity. |
+| **Problem cluster** | Identified failures grouped by primary failure, data store and document (or by failure and topic when there is no single document), ranked weekly by volume and severity. |
 | **Alert** | A Slack message sent when something needs attention now: a cluster of `HIGH` severity failures after an assessment run, a daily anomaly, or a pipeline health problem (§9.2). A cluster alert carries the session grades of its turns, and each one can be looked up later by the alert's ID. |
 | **Digest** | The weekly Slack summary, every Monday: AQR trend, top problem clusters with owners, best documents and topics, unusual items, release results. |
 | **Dashboard** | One Grafana page the team reads every morning: pipeline health, open anomalies, AQR and the other metrics over time, and the problem clusters. It shows aggregates only: daily and weekly, and per assessment run for pipeline health. |
@@ -395,7 +395,7 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 | Group | Field | Values |
 |---|---|---|
 | **What was asked** | Intent | `FACT_LOOKUP`, `HOW_TO`, `TROUBLESHOOTING`, `PEOPLE_LOOKUP`, `DATA_QUESTION`, `GENERAL_TASK`, `CHITCHAT`, `OTHER` |
-| | Topic | One per data store, plus `OTHER`. Taken from the references; set by the judge only when there are none. The form records which. |
+| | Topic | One per data store, plus `OTHER`. Taken from the data store of the references; when they come from several, the judge picks one of those. Set by the judge freely only when there are no references. The form records whether the topic came from the references or from the judge alone. |
 | | Relation to the previous turn | `FIRST`, `FOLLOW_UP`, `REPHRASE`, `CORRECTION`, `FRUSTRATION`, `NEW_TOPIC`. This becomes the previous turn's reaction. |
 | **How good the answer is** | Relevance | 1 to 5: does it answer this question? |
 | | Completeness | 1 to 5: does it cover every part of the question? |
@@ -538,6 +538,7 @@ Stage 1 assigns the generation codes except `REASONING_ERROR`, and the question 
 - **Only identified problems.** A code is recorded only when it is deterministic (follows from the data and the yes / no checks, like the two marked above) or the judge can point to what confirms it (§6.5). If the judge is unsure, the code is not recorded, and a turn with no recorded code gets `NONE`. Failure rates are therefore lower bounds.
 - **`HIGH` means contradicted.** `HIGH` severity is set only together with `CONTRADICTED_CLAIM`, on a knowledge intent. A claim that is only unsupported, or about which nothing was found, is at most `MEDIUM`. A `HIGH` always flags the turn.
 - **Stage 1 never guesses causes.** It says *what* went wrong, not *why*: retrieval and corpus codes are left to stage 2.
+- **One primary failure, by a fixed order.** When stage 1 records several codes, the primary failure is the first of them in this order: `AGENT_OR_TOOL_ERROR`, `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM`, `UNGROUNDED_INTERNAL_ANSWER`, `MISUNDERSTOOD_QUERY`, `INCOMPLETE_ANSWER`, `AMBIGUOUS_QUESTION`, `OUT_OF_SCOPE`, `PRESENTATION_ISSUE`. A turn with a stage 2 result takes its primary failure from stage 2 instead (§7.5).
 - **Turns that are not verifiable** can be assessed only in part: they get no groundedness score, only deterministic codes and `CONTRADICTED_CLAIM` from the evidence check.
 - **Confidence changes nothing.** No rule, threshold or weight uses it.
 
@@ -594,8 +595,6 @@ Each assessment records the rubric version, the version of the closed lists (fai
 | **Are the evidence check's searches written to the log, with their query?** | The log keeps question text for 30 days. A query that held words from the answer would keep answer text past the window. That is why the query is the scrubbed question only. | One synthetic search shows whether these searches reach the log. If they don't, or if a separate search setup keeps them out, the query may also use short phrases from the answer, which finds better documents. |
 | **Does the evidence check catch enough errors, without false `HIGH`s?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. The check uses Bolek's search, so it can share Bolek's blind spots. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are caught and how many correct answers are wrongly marked `HIGH`. If too many are missed, search in a way that does not share Bolek's blind spots: with the answer's key claims, or with a separate keyword search over the document text. |
 | **How many turns need the evidence check?** | It sets the cost. | Measure the share of knowledge intents among turns without evidence in the first week. |
-| **How stage 1 picks the primary failure** | A turn can get several codes, and failure rates and problem clusters use only the primary one. Stage 2 has a rule for it (§7.5); stage 1 does not yet. | Write the rule into the rubric and check it on the judge test suite. |
-| **Which topic when the references come from several data stores** | A turn has one topic, but its references can belong to several data stores. | Choose a rule before the baseline starts. |
 | **Does PII scrubbing work on Polish text?** | A name or ID it misses reaches the judge. It stays on an EU endpoint and is never stored, but it should not happen. | Before launch, measure on synthetic Polish and English text with planted personal data. |
 
 ## 7. Stage 2: finding out why
@@ -896,7 +895,7 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 - **Noise level:** the larger of two: what pure chance gives for that day's number of turns, and how much the days in the reference period really varied. The second is usually larger, because one person asking many questions makes days less alike than chance alone.
 - **Reference band:** the reference value plus or minus 3 noise levels. A day outside it is a sudden jump.
 - **Skipped:** days with fewer than 100 turns, and incomplete days.
-- **An anomaly stays open until someone acknowledges it.** The reference period then restarts from the day of the acknowledgement, so a lasting change raises one alert, not one every day. Until 14 complete days of the same kind exist again, that metric is not checked on that channel.
+- **An anomaly stays open until someone acknowledges it** with the Acknowledge button on its Slack alert. Who acknowledged it, and when, is recorded. The reference period then restarts from the day of the acknowledgement, so a lasting change raises one alert, not one every day. Until 14 complete days of the same kind exist again, that metric is not checked on that channel.
 - **Each anomaly lists the change events of the 48 hours before it**, marked "likely caused by". An anomaly without one is marked "unexplained".
 
 **What it can see.** On all web UI turns, a daily check notices a change in AQR of about 3 to 4 percentage points, and a weekly view about 1.5 to 2 points. For Slack Bolek and MCP, only changes of more than about 10 points show on a single day. Smaller effects of a release are judged by the release gate (§10).
@@ -970,7 +969,6 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 | **Slack Bolek and MCP can't be told apart yet** | Both call Bolek the same way, and the log does not yet show which one sent a turn. Until a rule is found, they are reported together as one channel. | Inspect the request fields of these turns to find a rule. |
 | **Slack feedback (optional)** | Where Slack emoji are recorded, and how they are matched to a turn, is not known. Until a way is found, the dislike rate covers the web UI only. | Added only if the Slack Bolek owner finds a way to collect them. |
 | **False alarms** | At the starting limits, about 50 daily checks give up to about 10 false alarms a month. That many would cost the team's trust in alerts. | Measure the false alarm rate during the baseline, then raise the limits or check fewer series, for example failure rates only for all channels together. |
-| **How an anomaly is acknowledged** | An open anomaly keeps its metric's reference period frozen until someone acknowledges it, so acknowledging must be easy and recorded. | Choose between a Slack action and a manual record. |
 
 ## 9. From numbers to action
 
@@ -986,7 +984,7 @@ flowchart LR
     D --> E["Digest and<br/>dashboard"]
 ```
 
-- **A problem cluster** holds the failures with the same primary failure and the same document: for turns that went through stage 2, the document to fix (§7.4); for other turns, the cited document. When there is no document, as for a knowledge gap, the topic is used instead.
+- **A problem cluster** holds the failures with the same primary failure and the same document: for turns that went through stage 2, the document to fix (§7.4); for other turns, the cited document. When there is no single document, because the turn cites none or several, or as for a knowledge gap, the topic is used instead.
 - **Ranking:** by the cluster's turns of the week, each weighted by its severity. The starting weights are 3 for `HIGH`, 2 for `MEDIUM` and 1 for `LOW`; they are tuned after the baseline. Each cluster also shows its trend against the 4 weeks before.
 - **Owner:** follows from the failure type (§6.7): the team for prompt, model, search and indexer problems and for communication to users, a document owner for outdated or conflicting documents, a corpus owner for missing knowledge.
 
@@ -999,6 +997,8 @@ Example entry: *"HR House, document X: outdated source in 12 turns this week, up
 | Alert on Slack | After an assessment run; once a day for anomalies | `HIGH` failures found in the run, grouped like problem clusters (§9.1); an anomaly (§8.7); or a pipeline health problem: coverage below 98%, a turn waiting longer than 3 hours, a failed assessment run, or a gap in the log (§8.2). Cluster alerts carry the session grades of their turns as context (§7.7). |
 | Digest on Slack | Weekly, on Monday | AQR trend, the top clusters with owners and trends, the best documents and topics, unusual items (fast-growing topics, growth of the `OTHER` topic, documents suddenly cited much more), release results. |
 | Dashboard | Every morning | The metrics, anomalies and problem clusters above, over time, without session grades (§8.8). |
+
+Quality alerts and the digest go to a new Slack channel used only for them, which the team reads. Pipeline health alerts go to the team's existing Slack alerts channel.
 
 All of it is built from derived values only, and alerts give no time finer than the hour.
 
@@ -1014,9 +1014,7 @@ Over time, the number of turns still in the baseline's top clusters shows whethe
 
 | Problem | Why it matters | Next step |
 |---|---|---|
-| **Which document a cluster uses when a turn cites several** | A turn without a stage 2 result has no document to fix, only its cited documents. When there are several, the rule above does not say which one the turn is clustered under. | Decide before the first digest. |
 | **How many `HIGH` failures make an alert** | Too low a bar floods Slack and teaches the team to ignore alerts; too high a bar hides the worst answers. | Set the bar with the first weeks of data. |
-| **The Slack channel for quality messages** | Alerts and the digest need a Slack channel, and someone who reads it. | The team chooses one. Pipeline health alerts go to the team's existing Slack alerts channel. |
 
 ## 10. Verification
 
@@ -1128,7 +1126,8 @@ The canary checks what the suite can't: the real path from Bolek's answer throug
 - **Agreement:** canary turns are assessed like real turns, and the results are compared with the evaluator's own scores, which use the expected answers. The agreement per field is tracked over time.
 - **Planted errors:** known errors are put into canary answers, such as a swapped number, a dropped step or a wrong name, with and without references. This measures how many of them stage 1 catches (the form when the answer has references, the evidence check with Bolek's real search when it has none), and how many correct answers it wrongly marks `HIGH` (§6.12).
 - **Knowledge gap miss rate:** each canary question comes with the document that holds its answer. The search that stage 2 uses is run for every canary question, and how often it fails to find that document is the miss rate reported with `KNOWLEDGE_GAP` (§7.8).
-- **Limits:** the evaluator is run by hand today, so a daily canary needs a scheduled run. Its questions are single turns in English, so sessions are tested only by the judge test suite.
+- **Schedule:** the evaluator runs once a day on a schedule, so the real path is checked every day.
+- **Limits:** its questions are single turns in English, so sessions are tested only by the judge test suite.
 
 ### 11.5 Checks on real traffic
 
@@ -1141,4 +1140,3 @@ The canary checks what the suite can't: the real path from Bolek's answer throug
 | Problem | Why it matters | Next step |
 |---|---|---|
 | **Writing the expected forms** | A few hundred cases, each checked by an engineer, is several days of work, and the suite must exist before launch. | Draft with a language model from the scenario list, check in batches, start with the stage 1 cases. |
-| **No daily canary** | Without a scheduled evaluator run, the real path is checked only when someone runs it. | Schedule a daily evaluator run. |
