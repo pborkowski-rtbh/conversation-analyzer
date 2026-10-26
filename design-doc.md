@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-23. Sections 1-8 written; further sections to follow. |
+| Status | Draft, 2026-10-23. Sections 1-10 written; further sections to follow. |
 
 ## 1. Goal
 
@@ -827,3 +827,73 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 | **The too-large size limit is not set** | Coverage and the too-large share depend on it. | Set it from the sizes of turns in the first days. |
 | **Slack feedback** | Where Slack emoji reactions are logged, and how they join a turn, is not known yet. Until then the dislike rate covers the web UI only. | Find the source and the join key with the Slack Bolek owner. |
 | **Which Grafana, and who sees it** | The aggregates hold no text, but who may see quality per topic and data store must still be agreed. | Choose the Grafana instance and the viewer group, and agree it with the security team. |
+
+## 9. From numbers to action
+
+Metrics say whether quality moves. This section says how the team learns **what to fix and who fixes it**: identified failures become a short weekly list of concrete problems, each with an owner, and urgent problems reach the team the same day.
+
+### 9.1 The weekly fix list
+
+```mermaid
+flowchart LR
+    A["Identified failures<br/>of the week"] --> B["Problem clusters<br/>same failure, same document"]
+    B --> C["Ranked by<br/>turns × severity"]
+    C --> D["Top clusters,<br/>each with an owner"]
+    D --> E["Digest and<br/>dashboard"]
+```
+
+- **A problem cluster** holds the failures with the same primary failure and the same document: the document to fix where stage 2 named one (§7.4), otherwise the cited document. When there is no document, as for a knowledge gap, the topic is used instead.
+- **Ranking:** each cluster's turns of the week, weighted by their severity, and compared with the 4 weeks before. The starting weights are 3 for `HIGH`, 2 for `MEDIUM` and 1 for `LOW`; they are tuned after the baseline.
+- **Owner:** follows from the failure type (§6.6): the team for prompt, model, search and indexer problems, a document owner for outdated or conflicting documents, a corpus owner for missing knowledge.
+
+Example entry: *"HR House, document X: 12 contradicted claims this week, up from 3. Owner: the document owner."*
+
+### 9.2 How the team hears about it
+
+| Where | When | What |
+|---|---|---|
+| Alert on Slack | Right away | A cluster of `HIGH` failures after an assessment run, an anomaly (§8.7), or a pipeline health problem. Cluster alerts carry the session grades of their turns as context (§7.6). |
+| Digest on Slack | Weekly | AQR trend, the top clusters with owners and trends, the best documents and topics, release results. |
+| Dashboard | Every morning | Everything above, over time (§8.8). |
+
+All of it is built from derived values only.
+
+### 9.3 When a fix counts as done
+
+1. The fix is recorded as a change event and linked to the clusters it should fix.
+2. Before release, it must pass the release gate: better on synthetic questions about the cluster's document, and not worse on everything else (§10).
+3. After release, the cluster is **closed** when its weekly turns stay below a quarter of their level before the fix for 2 weeks in a row. Until then it stays on the list.
+
+Over time, the number of turns still in the baseline's top clusters shows whether the loop is working at all.
+
+## 10. Verification
+
+Every change has to be proven twice: before release on synthetic questions, and after release on the live numbers (§4.3). Real questions are never used for this.
+
+### 10.1 Synthetic questions
+
+The evaluator generates questions from our documents, each with the document it should be answered from.
+
+| Set | Size | Built from | Purpose |
+|---|---|---|---|
+| **Anchor set** | 300 to 500 questions | Documents of every data store, in proportion to how often real traffic cites or retrieves them (at least 20 per data store). Fixed for a quarter. | Must not get worse. |
+| **Focus set** | 10 to 20 questions per active problem cluster | The cluster's document. A knowledge gap gets one once the missing document is added. | Must get better. |
+
+Before a question is used, it is checked automatically: it can be answered from its document, it is not a duplicate, and it contains nothing from the people directory. When the anchor set is replaced each quarter, the old and new sets run side by side for 2 weeks so the results stay comparable.
+
+### 10.2 Release gate
+
+1. The candidate runs on a test engine, and the current version answers the same questions. Every run is repeated twice.
+2. **Pass:** not worse on the anchor set, and better on the focus sets of the clusters the change targets.
+3. A difference counts only if it is larger than the spread between two runs of the same version.
+
+A change that fails goes back to the team.
+
+### 10.3 Release impact
+
+After release, standardized AQR and the failure rates of the 5 complete weekdays before the change are compared with the 5 after it.
+
+- **Verdict:** improved, regressed, no detectable change, or *confounded* when another change falls in the same days.
+- **What it can see:** about 3 percentage points on all web UI turns, about 6 points for a data store with 15% of the traffic. Smaller effects are left to the release gate.
+- **Same rubric on both sides.** If the rubric or the judge model changed in between, the comparison waits for the parallel run (§6.10).
+- **A regression** is investigated or rolled back. Every verdict goes into the digest and onto the dashboard.

@@ -565,14 +565,13 @@ For a change at time `c`:
 Sensitivity, at ~5,500 web turns per 5-weekday window and an illustrative AQR of 0.70 (real value unknown until the baseline): SE of the difference ≈ `sqrt(2·0.21/5500)` ≈ 0.87 pp, so MDE (α = 0.05, power 0.8) ≈ 2.8 × 0.87 ≈ **2.4 pp**, about 3 pp with a design effect of 1.5. For a data store with a 15% share, MDE ≈ 6 pp. Small, store-specific changes need the offline gate rather than online pre/post.
 
 ### 8.11 Prioritization (what to fix)
-A cluster key is `(primary_failure, data_store, doc_uri)`, or `(primary_failure, topic)` when there is no document (for example `KNOWLEDGE_GAP`). Weekly:
+A cluster key is `(primary_failure, data_store, doc_uri)`, where `doc_uri` is stage 2's "document to fix" when it exists, otherwise the cited document; `(primary_failure, topic)` when there is no document (for example `KNOWLEDGE_GAP`). Weekly (revised 2026-10-26, `design-doc.md` §9):
 
 ```text
-impact_k = turns_k(week) × severity_weight(primary_failure)
+impact_k = Σ over the cluster's turns of severity_weight(turn severity)
   (confidence is not used, D15)
-  severity_weight: HIGH-capable failures (CONTRADICTED_CLAIM, UNSUPPORTED_CLAIM, OUTDATED_SOURCE,
-                   CONFLICTING_SOURCES, REASONING_ERROR) = 3, retrieval/corpus = 2,
-                   presentation/question = 1   (proposal, tune after baseline)
+  severity_weight: HIGH = 3, MEDIUM = 2, LOW = 1   (starting values, tune after baseline;
+                   HIGH exists only with CONTRADICTED_CLAIM, D23)
 trend_k  = turns_k(week) vs mean of previous 4 weeks
 owner_k  = from the taxonomy table (§5.2)
 ```
