@@ -1316,7 +1316,9 @@ The assessor has to recognise the same turn in later runs, and it has to attach 
 | **Turn key** | A keyed hash of the answer's resource name, which contains the session ID and the answer ID | The resource name is erased together with the answer, so the same applies. |
 
 - We never store the log's own IDs for a turn, not even as a hash. Those IDs stay in the log for 30 days. Anyone with the key could hash them again and use the result to link a turn's question to its session.
-- Feedback is matched to its turn by session key and position. A feedback record keeps the session ID and the question's position in the session for 30 days. The assessor computes the session key from it and finds the turn at that position. This also works for feedback that arrives after the window. If the turn is less than 3h30 old, a dislike also counts as a late trigger.
+- Feedback is matched to its turn by turn ID while the turn is in the window. The feedback record and the turn's record in the log carry the same turn ID, so the assessor matches them in memory. The ID is never stored.
+- After the window, our stored turn has nothing that ID could match, so the assessor falls back to session key and position. A feedback record keeps the session ID and the question's position in the session for 30 days. The assessor computes the session key from it and takes the turn at that position. This fallback is switched on only after a test on synthetic chats shows that the feedback's numbering matches our positions (§12.17). Until then, feedback that arrives after the window is only counted.
+- If the turn is less than 3h30 old, a dislike also counts as a late trigger.
 - For each turn we store its segment number, its position in the segment and its position in the session.
 
 ### 12.6 One assessment run
@@ -1413,6 +1415,7 @@ flowchart LR
 **How we know it works**
 
 - We measure it on the canary. Every canary question comes with the document that holds its answer, and the index should return that document in its top 10. The index finds different documents than Bolek's search does, so it can also catch documents that Bolek's search missed.
+- There is no minimum hit rate before launch. We measure the rate on the canary in the first weeks and then set the rate the index has to keep (§12.17).
 - If a document's embedding fails, that document is missing from the index until the next full reindex. The check may then miss an error, but it won't record a false one. If the whole index breaks, the canary's daily hit rate drops.
 
 ### 12.8 Alerts, digest and acknowledgement
@@ -1483,7 +1486,7 @@ flowchart TB
 
 ### 12.10 Data model
 
-All datasets are in the EU, the same location as `analytics`. Per-turn tables are partitioned by day.
+All datasets are in the EU, the same location as `analytics`. Per-turn tables are partitioned by day and kept for 1 year. Aggregates are kept without a limit.
 
 | Dataset | Table | One row per | Written by |
 |---|---|---|---|
@@ -1608,6 +1611,15 @@ The evaluator is being rebuilt in AIENGLAB-519. The new version uses promptfoo, 
 | **Release gate** (§10.2) | The evaluator, for every change | `quality-daily` and `quality-weekly` read its verdicts from `aiel_evals` and show them on the dashboard and in the digest. |
 | Anchor and focus sets (§10.1) | `quality-weekly` picks the documents, and the evaluator writes the questions | The list of documents is passed through the `quality_eval_documents` table. |
 
+We need four things from the evaluator, and we agree them with its owner in milestone 0:
+
+- a daily run on the production engine, for the canary;
+- the expected document of each question in `aiel_evals`;
+- gate results that name the change they test;
+- generating questions from `quality_eval_documents`.
+
+The last one isn't planned in 519's current phase. Milestone 7 waits for 519's next phase.
+
 ### 12.12 Reliability
 
 - Runs never overlap. The assessor's 9-minute time limit is shorter than the 10 minutes between runs. A failed run is not retried, because the next one starts 10 minutes later anyway. Writes are keyed, so even if a run were repeated, it would replace rows rather than duplicate them.
@@ -1617,6 +1629,7 @@ The evaluator is being rebuilt in AIENGLAB-519. The new version uses promptfoo, 
 - Token use is recorded per run and per model. A daily limit, which is a setting, protects against a bug that loops, and the monitor alerts when the limit is passed.
 - On a weekday, about 20 turns arrive every 10 minutes. We haven't measured the peak yet. One job making about 8 judge calls at a time should be enough. If it isn't, the assessor can be split into several Cloud Run tasks by session key, so that each session is still handled by a single task.
 - The PII scrubber's language models need about 2 to 3 GB of memory, so the assessor gets 4 GB and 2 CPUs.
+- If Cloud Scheduler itself stops, nothing alerts, because the monitor is started by the same scheduler as the assessor. We accept this. The dashboard shows pipeline health per run (§8.8), so missing runs show up in the morning check. A stop overnight can lose turns.
 
 ### 12.13 Keeping text out
 
@@ -1624,7 +1637,7 @@ The leak guard (§6.10) protects what we store. Logs, error reports and outside 
 
 - **Logs.** Cloud Run sends everything a job prints to Cloud Logging, and this project copies all its logs to a GCS bucket that keeps them for 7 years. So our jobs log only through one wrapper, which accepts run IDs, counts, codes and error classes and nothing else. A test plants text in a run and fails if any of it shows up in the logs.
 - **Sentry.** Errors are reported only as error classes, with no messages, local variables or request bodies.
-- **Vertex AI.** Request logging stays switched off. Before launch, we check once whether the cloud audit logs of our calls to Vertex AI, Secret Manager and GCS contain any content (§12.17).
+- **Vertex AI.** Request logging stays switched off. Before launch, we run each job once on synthetic data and check whether the cloud audit logs of its calls to Vertex AI, Secret Manager and GCS contain any content. If some do, those entries of our service accounts are excluded from the 7-year log copy, as agreed with SECOPS.
 - **PII scrubbing.** We use Presidio, an open-source library, with spaCy's English and Polish language models and our own recognisers for company e-mail addresses, employee IDs, phone numbers and Polish ID numbers. It runs inside the assessor, so unscrubbed conversation text is never sent to another service. Documents are not scrubbed; they only get the placeholders found in the conversation (§6.3). The scrubber sits behind one interface. If its Polish recall turns out too low in the test from §6.12, we can replace it with Google's Cloud DLP API without changing anything else.
 - **Slack.** Messages are built from templates filled with derived values (§12.8).
 
@@ -1668,7 +1681,7 @@ flowchart LR
 
 | # | Milestone | What it includes | Done when | Engineer-weeks |
 |---|---|---|---|---|
-| 0 | Checks first | The checks among the open problems below, the Polish PII test set, a first index hit rate on the evaluator's questions, and approval of the Slack app | Each check is answered, or the design is changed | 1 |
+| 0 | Checks first | The feedback numbering check (§12.17), the audit log check (§12.13), the Polish PII test set, a first index hit rate on the evaluator's questions, approval of the Slack app, and the agreement with AIENGLAB-519 (§12.11) | Each check is answered, or the design is changed | 1 |
 | 1 | Foundations | The repository and image; Terraform for all datasets, views, service accounts, secrets, jobs and schedules; the logging wrapper, Sentry, the leak guard and its tests | An empty assessor run writes its run record | 1 |
 | 2 | Stage 1 in shadow | Reading the window; keys, sessions and segments; PII scrubbing; stage 1; too-large and missed turns; feedback; the pace check; the monitor with pipeline health alerts | Coverage stays at 98% or more for 5 weekdays | 3 |
 | 3 | Documents and stage 2 | Chunking and vectors in the indexers' shared sink, and one full reindex to fill the index; the evidence check, stage 2, session grades and late triggers | The index hit rate and the share of flagged turns are measured | 2 to 3 |
@@ -1683,9 +1696,5 @@ In total, this is about 14 to 16 engineer-weeks. Assessment goes live, and the 4
 
 | Problem | Why it matters | Next step |
 |---|---|---|
-| **Does the question index in a feedback record match the turn's position in the session?** | We match feedback to turns by that position (§12.5). | Check it on synthetic chats in milestone 0. If they don't match, attach feedback only inside the window, using the turn ID that both records carry. That ID is used in memory only and never stored. Feedback that arrives later is then only counted. |
-| **How long do we keep per-turn rows?** | We need them to recompute metrics and to measure release impact. The longer we keep them, the more derived data about people's questions we hold. | Proposal: keep per-turn tables for 90 days, and keep aggregates without a limit. |
-| **Is the document index good enough?** | A weak index misses contradictions and produces too many `KNOWLEDGE_GAP` findings. | Before launch, set the hit rate it has to reach on the canary. If it falls short, try a different chunk size, or add a keyword search alongside the vector search. |
-| **What do we need from AIENGLAB-519?** | The canary, the release gate and the anchor and focus sets depend on the evaluator. | Agree on four things with the evaluator's owner: a daily run on the production engine; the expected document for each question in `aiel_evals`; gate results that name the change they test; and generating questions from `quality_eval_documents`, which 519's current phase doesn't plan. |
-| **Do the cloud audit logs contain any content?** | This project keeps all its logs for 7 years. | Run each job once on synthetic data and read the audit log entries of its Vertex AI, Secret Manager and GCS calls. |
-| **Nothing alerts if Cloud Scheduler itself stops** | The monitor is started by the same scheduler as the assessor. | The dashboard shows pipeline health per run (§8.8), so missing runs are visible in the morning check. |
+| **Does the question index in a feedback record match the turn's position in the session?** | Feedback that arrives after the window is matched to its turn by that position (§12.5). | Check it on synthetic chats in milestone 0. Until it is confirmed, feedback that arrives after the window is only counted. |
+| **What hit rate must the document index keep?** | A weak index misses contradictions and produces too many `KNOWLEDGE_GAP` findings. | Measure the rate on the canary in the first weeks after launch, then set it. If it is too low, try a different chunk size, or add a keyword search alongside the vector search. |
