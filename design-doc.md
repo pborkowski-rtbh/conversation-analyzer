@@ -84,7 +84,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Stage 1** | The assessment every eligible turn gets unless it is too large, normally 5 to 15 minutes after the turn, including the evidence check where needed. |
 | **Evidence** | The documents an answer is compared with: the turn's own references, the references of earlier turns in the same session segment, or documents found by the evidence check. A claim is wrong only when evidence says something different. |
 | **Evidence check** | A step of stage 1 for knowledge turns that have no evidence in the log: the judge searches our documents itself, reads up to 3 of them, and looks for one that contradicts the answer. The documents it reads are marked **found**, as opposed to cited. |
-| **Document index** | This system's own search over our documents: vectors of document chunks in BigQuery, built from the full text our indexers keep. The evidence check and stage 2 search it to find documents; Bolek's search is not used (§12.7). |
+| **Document index** | This system's own search over our documents: vectors of document chunks in BigQuery, written by our indexers whenever they index a document. The evidence check and stage 2 search it to find documents; Bolek's search is not used (§12.7). |
 | **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full text of the cited documents and searches our documents itself, and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
 | **Flagged turn** | A turn that goes to stage 2: relevance or groundedness 2 or lower, `HIGH` severity, a dislike, or a next turn labelled `REPHRASE` or `CORRECTION`. |
 | **Late trigger** | A signal that flags a turn after its stage 1 assessment, up to 3h30 after the turn: a dislike, or a next turn labelled `REPHRASE` or `CORRECTION`. |
@@ -567,7 +567,7 @@ flowchart LR
 
 **Boundaries**
 
-- **It checks the answer against our documents, never against Bolek's answers.** It shares nothing with Bolek: it searches its own index of our documents, built from the text our indexers keep (§12.7).
+- **It checks the answer against our documents, never against Bolek's answers.** It shares nothing with Bolek: it searches its own index of our documents, which our indexers write when they index a document (§12.7).
 - **Its own search, its own blind spots.** When the index can't find the right document for a question, the error is missed, but nothing false is recorded. Its misses differ from Bolek's search, so it can find documents that Bolek's search missed. The check helps most where Bolek did not search at all, which was the case for 29% of the web UI answers without references in one sample.
 - **Not every document can be read.** Our indexers keep the full text of the documents of every data store except Google Drive (about 6% of citations), and the people directory is never read.
 - **Safe by design.** The search runs inside this system, not through Gemini Enterprise, so it never appears in the log or counts in any metric. Only document IDs and codes are stored, through the leak guard.
@@ -1165,34 +1165,55 @@ flowchart TB
     SYS -.->|"failures, no text"| SENTRY["Sentry"]
 ```
 
-**The assessment path.** Two jobs, the only ones that see text.
+**The assessment path.** Only the assessor and our indexers, which already handle our documents, see text.
+
+When our indexers index a document, they also write its vectors to the document index, next to its full text in the content bucket:
 
 ```mermaid
 flowchart LR
-    LOG[("The log")] --> A["quality-assessor<br/>every 10 min"]
-    BUCKET[("Content bucket")] --> I["quality-doc-index<br/>hourly"]
-    I --> DOC[("bolek_quality_doc_index<br/>document vectors")]
-    DOC --> A
-    BUCKET --> A
-    A --> T[("bolek_quality_turns<br/>derived values per turn")]
+    SRC["Document sources<br/>Confluence, HR House, ..."] -->|"new and changed<br/>documents"| IDX["Our indexers<br/>delta runs"]
+    IDX -->|"documents"| DS[("Bolek's data stores")]
+    IDX -->|"full text, encrypted"| BUCKET[("Content bucket")]
+    IDX -->|"vectors and IDs,<br/>no text"| DOC[("Document index<br/>bolek_quality_doc_index")]
+```
+
+Every 10 minutes, `quality-assessor` assesses the turns in the window. It uses the index to find documents and the bucket to read them:
+
+```mermaid
+flowchart LR
+    LOG[("The log")] -->|"turns in the window"| A["quality-assessor<br/>every 10 min"]
+    DOC[("Document index")] -->|"which documents<br/>match a question"| A
+    BUCKET[("Content bucket")] -->|"full text of up to<br/>3 documents"| A
+    A -->|"derived values only"| T[("bolek_quality_turns")]
 ```
 
 **The reporting path.** Three jobs that share one identity and never see text.
 
 ```mermaid
 flowchart LR
-    T[("bolek_quality_turns")] --> R["quality-monitor<br/>quality-daily<br/>quality-weekly"]
-    V[("bolek_quality_log_views<br/>counts from the log")] --> R
-    E[("aiel_evals")] --> R
-    GH["GitHub"] --> R
-    R --> M[("bolek_quality_metrics<br/>aggregates")]
-    R --> S["Slack"]
-    M --> G["Grafana"]
+    subgraph IN["Inputs"]
+        T[("Per-turn results<br/>bolek_quality_turns")]
+        V[("Counts from the log<br/>bolek_quality_log_views")]
+        E[("Evaluator results<br/>aiel_evals")]
+        GH["GitHub"]
+    end
+    R["Reporting jobs<br/>monitor, daily, weekly"]
+    subgraph OUT["Outputs"]
+        M[("Aggregates<br/>bolek_quality_metrics")]
+        S["Slack"]
+    end
+    T -->|"scores, labels, flags"| R
+    V -->|"turn and feedback counts,<br/>engine changes"| R
+    E -->|"canary and gate results"| R
+    GH -->|"prompt and setting changes"| R
+    R -->|"metrics, anomalies,<br/>clusters"| M
+    R -->|"alerts, digest"| S
+    M -->|"read only"| G["Grafana<br/>dashboard"]
 ```
 
 Two jobs sit outside both paths: `quality-judge-suite` runs the judge test suite on synthetic cases, and `quality-record` records changes by hand (§12.3).
 
-The design rests on this split. **One job, the assessor, sees what users asked and what Bolek answered**, and only in memory, inside the window. A second job sees document text, to build the document index. Every other part works on derived values or aggregates.
+The design rests on this split. **One job, the assessor, sees what users asked and what Bolek answered**, and only in memory, inside the window. Our indexers, which already handle document text, also write the document index. Every other part works on derived values or aggregates.
 
 ### 12.2 Building blocks
 
@@ -1205,6 +1226,7 @@ The design rests on this split. **One job, the assessor, sees what users asked a
 | Artifact Registry | The container image | Indexers |
 | Vertex AI, EU | The judge: `gemini-3.8-flash` and `gemini-4-argon` on the `eu` multi-region. A text-embedding model that handles Polish and English, in an EU region, for the document index. | Yes |
 | Content bucket (GCS) | Full text of our documents, written by our indexers, encrypted | MCP server |
+| Our indexers | Also write the document index, through the sink they all share (§12.7) | Cloud Run jobs in this project |
 | Sentry | Job failures, without text | Indexers |
 | Slack app | Posting alerts and the digest, reading ✅ reactions on alerts | New app in the existing workspace |
 | Grafana | The dashboard (§8.8) | The team's existing Grafana |
@@ -1221,7 +1243,6 @@ Nothing else is added. Two things that might be expected are left out on purpose
 | Job | Starts | What it does | Time limit | Identity |
 |---|---|---|---|---|
 | `quality-assessor` | Every 10 minutes | Everything that needs the text of turns: reads the window, groups turns into sessions, PII scrubbing, stage 1, the evidence check, stage 2, session grades. Also: feedback, late triggers, the canary, the second-model check, the pace check, retrieval counts. | 9 minutes | `quality-assessor` |
-| `quality-doc-index` | Hourly | Keeps the document index in step with the content bucket (§12.7) | 50 minutes | `quality-doc-index` |
 | `quality-monitor` | Every 10 minutes, 5 minutes after the assessor | Pipeline health of the last run; log completeness once an hour; `HIGH` cluster alerts; reads ✅ reactions | 5 minutes | `quality-reporter` |
 | `quality-daily` | 05:00 UTC | Change events, daily metrics, the anomaly check, release impact, anomaly alerts (§12.9) | 30 minutes | `quality-reporter` |
 | `quality-weekly` | Monday 06:00 UTC | Problem clusters, document stats, closing fixed clusters, documents for the anchor and focus sets, the digest | 30 minutes | `quality-reporter` |
@@ -1229,6 +1250,7 @@ Nothing else is added. Two things that might be expected are left out on purpose
 | `quality-record` | By hand, with arguments | Records a change event that no source collects automatically, such as a document fix or a rebase of the AQR weights | 5 minutes | `quality-reporter` |
 
 - All jobs run the same container image, built from one repository. The command and its arguments decide what a job does.
+- The document index has no job of its own: our indexers write it (§12.7).
 - As for the indexers, Cloud Scheduler runs in UTC and never retries a start: a retried start would run the job twice.
 - **Days are UTC days.** A day's numbers can change until its last answers are erased, at the latest about 04:22 UTC the next day (§8.1). So the daily job runs at 05:00 UTC, before the team's morning.
 
@@ -1236,9 +1258,9 @@ Nothing else is added. Two things that might be expected are left out on purpose
 
 ```mermaid
 flowchart TB
-    subgraph Z1["Text, in memory, during a run only"]
-        A["quality-assessor<br/>questions, answers, identity, documents"]
-        I["quality-doc-index<br/>documents only"]
+    subgraph Z1["Sees text"]
+        A["quality-assessor<br/>questions, answers, identity, documents,<br/>in memory during a run"]
+        I["Our indexers<br/>documents only"]
     end
     subgraph Z2["Derived values per turn"]
         R["quality-monitor, quality-daily,<br/>quality-weekly, quality-record"]
@@ -1263,7 +1285,7 @@ Each job runs under its own service account, with only the access it needs:
 | Identity | Reads | Writes | Calls |
 |---|---|---|---|
 | `quality-assessor` | The table `analytics.audit_logs` only, not the rest of `analytics`; `bolek_quality_turns`; `bolek_quality_doc_index`; the content bucket; `aiel_evals` | `bolek_quality_turns` | Vertex AI; Secret Manager: the key and the content secrets |
-| `quality-doc-index` | The content bucket | `bolek_quality_doc_index` | Vertex AI, embeddings only; Secret Manager: the content secrets |
+| `content-indexers`, our indexers' existing account | As today | As today, plus `bolek_quality_doc_index` | As today, plus the embedding model on Vertex AI |
 | `quality-reporter` | `bolek_quality_turns`; `bolek_quality_log_views`; `analytics.ge_metrics`; `aiel_evals`; the executions of the indexer jobs | `bolek_quality_metrics`; the alert tables | Slack; GitHub, read only |
 | `quality-judge-suite` | Only the suite, which is in the image | `bolek_quality_metrics.judge_suite_runs` | Vertex AI |
 | Grafana's account | `bolek_quality_metrics` | | |
@@ -1344,34 +1366,38 @@ sequenceDiagram
 
 ### 12.7 The document index
 
-The evidence check and stage 2 need to find documents about a question. Bolek's own search can't be used for this: our data stores filter results by the reader's access rights, and a service account, which has no Google Workspace identity, gets no results from them. So the system has its own search, built from the same document text that the indexers keep in the content bucket.
+The evidence check and stage 2 need to find documents about a question. Bolek's own search can't be used for this: our data stores filter results by the reader's access rights, and a service account, which has no Google Workspace identity, gets no results from them. So the system has its own search, written by our indexers from the same text they put into the content bucket.
 
 ```mermaid
 flowchart LR
-    A["Content bucket<br/>one folder per data store"] --> B{"New, changed<br/>or removed?"}
-    B -->|"unchanged"| Z["Skipped"]
-    B -->|"removed"| R["Its rows deleted"]
-    B -->|"new or changed"| C["Decrypted<br/>with the MCP server's reader"]
-    C --> D["Cut into chunks<br/>of about 2,000 characters"]
-    D --> E["Embedded<br/>Vertex AI, EU"]
-    E --> F[("bolek_quality_doc_index<br/>document ID, chunk number, vector")]
+    A["A document the indexer<br/>writes in this run"] --> B{"Its text<br/>changed?"}
+    B -->|"no"| Z["Vectors kept"]
+    B -->|"yes"| C["Cut into chunks<br/>at headings"]
+    C --> D["Embedded<br/>Vertex AI, EU"]
+    D --> E[("Document index<br/>document ID, chunk number, vector")]
+    R["A document removed<br/>at its source"] -->|"rows deleted, with the<br/>bucket's cleanup"| E
 ```
 
-- **Building it.** The hourly job compares each object's version in the bucket with the index and processes only what changed. It stores document IDs, links, chunk numbers and vectors. The text itself is never written to BigQuery. The people directory's folder is skipped.
+- **Where it is written.** All our indexers write through one shared sink, which already puts each document into its data store and its full text into the content bucket. The sink gets one more step: it writes the document's vectors to BigQuery. The indexers run as delta runs, so each run embeds only the few documents that changed.
+- **Chunking.** Gemini Enterprise cuts documents into chunks inside the data store, and those chunks can be reached only through its search, which a service account can't use. So the sink cuts the text it writes to the bucket itself. It splits at markdown headings, then splits any section over about 2,000 characters at paragraph breaks, with a small overlap. Every chunk starts with the document's title. The chunks don't need to match Gemini Enterprise's: the index only has to find the right document, whose full text is then read from the bucket.
+- **What is stored.** Per chunk: document ID, link, data store, chunk number, vector, a hash of the document's text and the embedding model. The text itself is never written to BigQuery.
+- **One table per data store,** written only by that data store's indexer. A run appends the chunks of the documents it wrote, and deletes the rows of replaced and removed documents in one statement at the end of the run. That is where the sink already cleans up the bucket, and it uses the same rule: nothing is deleted after a partial run. The assessor searches all the tables together.
+- **It never gets in the way of indexing.** If embedding fails, the document still goes into its data store and the bucket, and the failure is reported like any other indexer failure. The scheduled full reindex repairs it: it embeds every document whose text hash has no current vectors and skips the rest. One full reindex also builds the index the first time.
+- **The people directory** is left out: its indexer does not run this step.
 - **Searching it.** The assessor embeds the scrubbed question, runs BigQuery `VECTOR_SEARCH` for the closest chunks, groups them by document and keeps the top 10 documents. It then reads the full text of up to 3 of them from the bucket. Stage 2 searches with at least two phrasings (§7.5): the question and the problem claim.
 - **Size.** About 7,800 documents in 12 data stores, without the people directory, which is about 30,000 to 50,000 chunks. That is small enough to search without a special vector index.
-- **What it covers.** The same documents whose full text can be read: every data store our indexers fill, except the people directory. Google Drive has no text in the bucket. The BigQuery docs are covered once their text is written there (§6.9).
+- **What it covers.** The same documents whose full text can be read: every data store our Cloud Run indexers fill, except the people directory. Google Drive has no text in the bucket and no vectors. The BigQuery docs are covered once their indexer writes their text (§6.9). A data store still filled by an older indexer has no vectors until it moves to the Cloud Run indexers.
 - **Where the text is.** The indexers are moving to new data stores and a new bucket. Which bucket holds a data store's text is configuration, decided by the data stores the production engine uses.
 - **Why it is safe.** These searches never reach Gemini Enterprise, so they never appear in the log or count in any metric.
 - **How good it is** is measured on the canary: each canary question comes with the document that holds its answer, and the index should return that document in its top 10. Its misses differ from Bolek's search, so it can find documents that Bolek's search missed.
-- **When it fails.** If a sync fails, the index gets older, not wrong. The monitor alerts when it is more than a day old.
+- **When it fails.** A document whose embedding failed is missing from the index until the next full reindex, so the check can miss it, but nothing false is recorded. A broken index shows on the canary: the daily hit rate drops.
 
 ### 12.8 Alerts, digest and acknowledgement
 
 | Message | Sent by | When | Slack channel |
 |---|---|---|---|
 | `HIGH` cluster alert | `quality-monitor` | 5 minutes after an assessment run that found new `HIGH` failures over the bar (§9.4) | Quality channel |
-| Pipeline health | `quality-monitor` | Coverage below 98%, a turn waiting over 3 hours, no assessment run for 25 minutes, a failed run, a gap in the log, the window under 3h45, the daily token limit passed, a document index older than a day | The team's existing alerts channel |
+| Pipeline health | `quality-monitor` | Coverage below 98%, a turn waiting over 3 hours, no assessment run for 25 minutes, a failed run, a gap in the log, the window under 3h45, the daily token limit passed | The team's existing alerts channel |
 | Anomaly | `quality-daily` | After the anomaly check | Quality channel |
 | Digest | `quality-weekly` | Monday | Quality channel |
 
@@ -1456,7 +1482,7 @@ All datasets are in the EU, where `analytics` is. Per-turn tables are partitione
 | | `judge_quality`, `judge_suite_runs` | Day and measure: canary agreement, planted errors caught, index hit rate, second-model disagreement; one row per suite run | Daily; judge suite |
 | | `eval_documents` | Set and document: documents to generate anchor and focus questions from | Weekly |
 | `bolek_quality_log_views` | `turn_counts_hourly`, `feedback_counts_daily`, `engine_changes` | Authorized views over the log: counts and change records only | (views) |
-| `bolek_quality_doc_index` | `documents`, `chunks` | Document; chunk with its vector | Document index job |
+| `bolek_quality_doc_index` | `chunks_<data store>` | Chunk of a document: document ID, link, chunk number, vector, text hash, embedding model | That data store's indexer |
 
 **How the per-turn tables connect.** Only the main columns are shown. `PK` marks the columns that identify a row; `FK` marks a column that points to another table.
 
@@ -1539,7 +1565,7 @@ erDiagram
     }
 ```
 
-The two document index tables stand on their own: `documents` has one row per document, and `chunks` one row per chunk with its vector (§12.7).
+The document index tables stand on their own: one table per data store, one row per chunk with its vector (§12.7).
 
 **Every table has one writer.** Two jobs never change the same table, so BigQuery's limits on parallel changes to one table never matter, and each table has one job to look at when something is wrong.
 
@@ -1620,7 +1646,7 @@ flowchart LR
 | 0 | Checks first | The open problems below that need a check, the Polish PII test set, a first index hit rate on the evaluator's questions, the Slack app approved | Each check answered, or the design changed | 1 |
 | 1 | Foundations | Repository, image, Terraform for all datasets, views, accounts, secrets, jobs and schedules; the logging wrapper, Sentry, the leak guard and its tests | An empty assessor run writes its run record | 1 |
 | 2 | Stage 1 in shadow | Reading the window, keys, sessions and segments, PII scrubbing, stage 1, too-large and missed turns, feedback, the pace check; the monitor with pipeline health alerts | Coverage of 98% or more for 5 weekdays | 3 |
-| 3 | Documents and stage 2 | The document index, the evidence check, stage 2, session grades, late triggers | Index hit rate and flagged share measured | 2 to 3 |
+| 3 | Documents and stage 2 | Chunking and vectors in the indexers' shared sink, one full reindex to fill the index; the evidence check, stage 2, session grades, late triggers | Index hit rate and flagged share measured | 2 to 3 |
 | 4 | Judge trust | The judge test suite and its job, rubric tuning, the canary, planted errors, the second-model check | The tuned judge passes §11.3; the canary runs every day | 2 to 3, mostly writing expected forms |
 | 5 | Metrics and dashboard | `quality-daily`: completeness, change events, metrics; the Grafana page | The team reads the dashboard every morning | 2 |
 | 6 | Alerts, clusters, digest | `quality-weekly`, `HIGH` alerts, anomaly alerts and ✅ acknowledgement, release impact | The first digest is sent; anomaly checks start when the baseline ends (§8.6) | 2 |
