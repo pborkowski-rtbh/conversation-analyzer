@@ -1298,7 +1298,7 @@ Each job has its own service account, with only the access it needs:
 | `quality-assessor` | Only the `audit_logs` table in `analytics`; `bolek_quality_turns`; `bolek_quality_doc_index`; the content bucket; `aiel_evals` | `bolek_quality_turns` | Vertex AI. In Secret Manager: the hashing key and the content secrets. |
 | `content-indexers`, our indexers' existing account | Same as today | Same as today, plus `bolek_quality_doc_index` | Same as today, plus the embedding model on Vertex AI |
 | `quality-reporter` | `bolek_quality_turns`; `bolek_quality_log_views`; `analytics.ge_metrics`; `aiel_evals`; the run history of the indexer jobs | `bolek_quality_metrics` and the alert tables | Slack. GitHub, read only. |
-| `quality-judge-suite` | Nothing outside its image, which contains the suite | `bolek_quality_metrics.judge_suite_runs` | Vertex AI |
+| `quality-judge-suite` | Nothing outside its image, which contains the suite | `bolek_quality_metrics.quality_judge_suite_runs` | Vertex AI |
 | Grafana's account | `bolek_quality_metrics` | | |
 | The team | `bolek_quality_turns`, `bolek_quality_metrics` | | |
 
@@ -1487,46 +1487,46 @@ All datasets are in the EU, the same location as `analytics`. Per-turn tables ar
 
 | Dataset | Table | One row per | Written by |
 |---|---|---|---|
-| `bolek_quality_turns` | `turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
-| | `stage1_results` | Turn and judge version: the form (§6.4), fingerprint, versions (§6.11) | Assessor |
-| | `stage2_results` | Flagged turn and judge version: the stage 2 form (§7.4), with up to 3 problem claims | Assessor |
-| | `segments` | Session segment: its session facts, and whether it is open or closed | Assessor |
-| | `session_grades` | Graded segment (§7.7) | Assessor |
-| | `canary_results` | Canary turn, as answered or with a planted error: its forms, a hash of the question, the planted error, whether it was caught, whether the index found the expected document | Assessor |
-| | `judge_checks` | Day and field: second-model disagreements (§11.5) | Assessor |
-| | `retrieval_counts` | Day and document: how often Bolek's searches returned it | Assessor |
-| | `judge_versions` | Judge version: what it consists of, when it started, its parallel run | Assessor |
-| | `runs` | Assessment run: turns read, assessed, too large, missed, and failed by error class; oldest waiting turn; window margin; throttled calls; tokens used | Assessor |
-| | `alerts`, `alert_sessions` | `HIGH` cluster or pipeline health alert; alert and session segment, for lookups by alert ID. Anomaly alerts are stored with their anomaly. | `quality-monitor` |
-| `bolek_quality_metrics` | `metrics_daily` | Day, channel, metric and slice | Daily |
-| | `anomalies`, `acknowledgements` | Anomaly; acknowledgement | Daily; monitor |
-| | `pipeline_health` | Assessment run, and hour of the log | Monitor |
-| | `problem_clusters`, `document_stats` | Week and cluster; week and document | Weekly |
-| | `release_impact` | Change and metric (§10.3) | Daily |
-| | `change_events` | Change event | Daily, `quality-record` |
-| | `judge_quality`, `judge_suite_runs` | Day and measure (canary agreement, planted errors caught, index hit rate, second-model disagreement); suite run | Daily; judge suite |
-| | `eval_documents` | Set and document: documents to generate anchor and focus questions from | Weekly |
-| `bolek_quality_log_views` | `turn_counts_hourly`, `feedback_counts_daily`, `engine_changes` | Authorized views over the log that return only counts and change records | (views) |
-| `bolek_quality_doc_index` | `chunks_<data store>` | Chunk of a document: document ID, link, chunk number, vector, text hash, embedding model | That data store's indexer |
+| `bolek_quality_turns` | `quality_turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
+| | `quality_stage1_results` | Turn and judge version: the form (§6.4), fingerprint, versions (§6.11) | Assessor |
+| | `quality_stage2_results` | Flagged turn and judge version: the stage 2 form (§7.4), with up to 3 problem claims | Assessor |
+| | `quality_segments` | Session segment: its session facts, and whether it is open or closed | Assessor |
+| | `quality_session_grades` | Graded segment (§7.7) | Assessor |
+| | `quality_canary_results` | Canary turn, as answered or with a planted error: its forms, a hash of the question, the planted error, whether it was caught, whether the index found the expected document | Assessor |
+| | `quality_judge_checks` | Day and field: second-model disagreements (§11.5) | Assessor |
+| | `quality_retrieval_counts` | Day and document: how often Bolek's searches returned it | Assessor |
+| | `quality_judge_versions` | Judge version: what it consists of, when it started, its parallel run | Assessor |
+| | `quality_runs` | Assessment run: turns read, assessed, too large, missed, and failed by error class; oldest waiting turn; window margin; throttled calls; tokens used | Assessor |
+| | `quality_alerts`, `quality_alert_sessions` | `HIGH` cluster or pipeline health alert; alert and session segment, for lookups by alert ID. Anomaly alerts are stored with their anomaly. | `quality-monitor` |
+| `bolek_quality_metrics` | `quality_metrics_daily` | Day, channel, metric and slice | Daily |
+| | `quality_anomalies`, `quality_acknowledgements` | Anomaly; acknowledgement | Daily; monitor |
+| | `quality_pipeline_health` | Assessment run, and hour of the log | Monitor |
+| | `quality_problem_clusters`, `quality_document_stats` | Week and cluster; week and document | Weekly |
+| | `quality_release_impact` | Change and metric (§10.3) | Daily |
+| | `quality_change_events` | Change event | Daily, `quality-record` |
+| | `quality_judge_quality`, `quality_judge_suite_runs` | Day and measure (canary agreement, planted errors caught, index hit rate, second-model disagreement); suite run | Daily; judge suite |
+| | `quality_eval_documents` | Set and document: documents to generate anchor and focus questions from | Weekly |
+| `bolek_quality_log_views` | `quality_turn_counts_hourly`, `quality_feedback_counts_daily`, `quality_engine_changes` | Authorized views over the log that return only counts and change records | (views) |
+| `bolek_quality_doc_index` | `quality_chunks_<data store>` | Chunk of a document: document ID, link, chunk number, vector, text hash, embedding model | That data store's indexer |
 
 **How the per-turn tables connect.** The diagram shows only the main columns. `PK` marks the columns that identify a row, and `FK` marks columns that point to another table.
 
 ```mermaid
 erDiagram
-    segments ||--|{ turns : "contains"
-    turns ||--o{ stage1_results : "assessed in"
-    turns ||--o{ stage2_results : "diagnosed in"
-    segments ||--o| session_grades : "graded in"
-    judge_versions ||--o{ stage1_results : "made"
-    judge_versions ||--o{ stage2_results : "made"
+    quality_segments ||--|{ quality_turns : "contains"
+    quality_turns ||--o{ quality_stage1_results : "assessed in"
+    quality_turns ||--o{ quality_stage2_results : "diagnosed in"
+    quality_segments ||--o| quality_session_grades : "graded in"
+    quality_judge_versions ||--o{ quality_stage1_results : "made"
+    quality_judge_versions ||--o{ quality_stage2_results : "made"
 
-    segments {
+    quality_segments {
         string session_key PK
         int segment_no PK
         string state "open or closed"
         bool resumed
     }
-    turns {
+    quality_turns {
         string turn_key PK
         string session_key FK
         int segment_no FK
@@ -1534,7 +1534,7 @@ erDiagram
         string channel
         string status "assessed, too large, missed, failed"
     }
-    stage1_results {
+    quality_stage1_results {
         string turn_key PK, FK
         string judge_version PK, FK
         int relevance
@@ -1542,20 +1542,20 @@ erDiagram
         string primary_failure
         string severity
     }
-    stage2_results {
+    quality_stage2_results {
         string turn_key PK, FK
         string judge_version PK, FK
         string primary_failure
         string document_to_fix
         array claims "up to 3"
     }
-    session_grades {
+    quality_session_grades {
         string session_key PK, FK
         int segment_no PK, FK
         string grade_state "provisional, final, not gradable"
         string outcome
     }
-    judge_versions {
+    quality_judge_versions {
         string judge_version PK
         string model
         date parallel_run_until
@@ -1569,21 +1569,21 @@ erDiagram
 
 ```mermaid
 erDiagram
-    alerts ||--o{ alert_sessions : "lists"
-    session_grades ||--o{ alert_sessions : "shown in"
+    quality_alerts ||--o{ quality_alert_sessions : "lists"
+    quality_session_grades ||--o{ quality_alert_sessions : "shown in"
 
-    alerts {
+    quality_alerts {
         string alert_id PK
         string kind "HIGH cluster or pipeline health"
         date day
         int hour
     }
-    alert_sessions {
+    quality_alert_sessions {
         string alert_id PK, FK
         string session_key PK, FK
         int segment_no PK, FK
     }
-    session_grades {
+    quality_session_grades {
         string session_key PK
         int segment_no PK
         string outcome
@@ -1600,13 +1600,13 @@ The evaluator is being rebuilt in AIENGLAB-519. The new version uses promptfoo, 
 
 | Part | Who runs it | How it works |
 |---|---|---|
-| **Canary** (§11.4) | The evaluator, once a day, on the production engine | Its questions land in the log like real ones. The assessor recognises them by the evaluator's prompt prefix and accounts, assesses them like real turns, and writes the results to `canary_results`. They never count in the metrics. |
+| **Canary** (§11.4) | The evaluator, once a day, on the production engine | Its questions land in the log like real ones. The assessor recognises them by the evaluator's prompt prefix and accounts, assesses them like real turns, and writes the results to `quality_canary_results`. They never count in the metrics. |
 | Planted errors | The assessor | It makes changed copies of canary answers, for example with a number swapped, a step removed or a name changed, and assesses those too. This is allowed because canary turns are synthetic. |
 | Agreement with the evaluator | `quality-daily` | It matches canary results to the evaluator's scores in `aiel_evals` by a hash of the question text. |
 | Knowledge gap miss rate (§7.8) | The assessor | It searches the document index with each canary question and checks whether the expected document is in the top 10. |
-| **Judge test suite** (§11.1) | `quality-judge-suite`, for every change to the judge | The test cases are files in the repository. The job runs the suite 3 times and stores the distances in `judge_suite_runs`. The rule in §11.3 decides whether the change is kept. |
+| **Judge test suite** (§11.1) | `quality-judge-suite`, for every change to the judge | The test cases are files in the repository. The job runs the suite 3 times and stores the distances in `quality_judge_suite_runs`. The rule in §11.3 decides whether the change is kept. |
 | **Release gate** (§10.2) | The evaluator, for every change | `quality-daily` and `quality-weekly` read its verdicts from `aiel_evals` and show them on the dashboard and in the digest. |
-| Anchor and focus sets (§10.1) | `quality-weekly` picks the documents, and the evaluator writes the questions | The list of documents is passed through the `eval_documents` table. |
+| Anchor and focus sets (§10.1) | `quality-weekly` picks the documents, and the evaluator writes the questions | The list of documents is passed through the `quality_eval_documents` table. |
 
 ### 12.12 Reliability
 
@@ -1636,17 +1636,17 @@ The leak guard (§6.10) protects what we store. Logs, error reports and outside 
 
 ### 12.15 Cost
 
-These are estimates, based on the input sizes we measured in the window and on today's list prices. We will compare them with the real token counts in `runs` during the first weeks.
+These are estimates, based on the input sizes we measured in the window and on today's list prices. We will compare them with the real token counts in `quality_runs` during the first weeks.
 
 | Item | Per month |
 |---|---|
-| Stage 1 on all channels, with earlier turns as context | About $200, and about $400 from 2027, when `gemini-3.8-flash` prices double |
+| Stage 1 on all channels, with earlier turns as context | About 200 USD, and about 400 USD from 2027, when `gemini-3.8-flash` prices double |
 | Evidence check | At most about as much as stage 1 (§6.9). How many turns need it is measured in the first week (§6.12). |
 | Stage 2 and session grades on `gemini-4-argon` | Up to about 10M input tokens per weekday. The price isn't known yet. |
 | Second-model check on 5% of turns | Small |
 | Embeddings for the document index | A few dollars for the first fill, then cents a day |
-| BigQuery: reading the window every 10 minutes, searching the index, computing the daily metrics | About $10 to $20 |
-| Cloud Run, Cloud Scheduler, Secret Manager, Artifact Registry | About $20 to $40 |
+| BigQuery: reading the window every 10 minutes, searching the index, computing the daily metrics | About 10 to 20 USD |
+| Cloud Run, Cloud Scheduler, Secret Manager, Artifact Registry | About 20 to 40 USD |
 
 ### 12.16 Build plan
 
@@ -1686,6 +1686,6 @@ In total, this is about 14 to 16 engineer-weeks. Assessment goes live, and the 4
 | **Does the question index in a feedback record match the turn's position in the session?** | We match feedback to turns by that position (§12.5). | Check it on synthetic chats in milestone 0. If they don't match, attach feedback only inside the window, using the turn ID that both records carry. That ID is used in memory only and never stored. Feedback that arrives later is then only counted. |
 | **How long do we keep per-turn rows?** | We need them to recompute metrics and to measure release impact. The longer we keep them, the more derived data about people's questions we hold. | Proposal: keep per-turn tables for 90 days, and keep aggregates without a limit. |
 | **Is the document index good enough?** | A weak index misses contradictions and produces too many `KNOWLEDGE_GAP` findings. | Before launch, set the hit rate it has to reach on the canary. If it falls short, try a different chunk size, or add a keyword search alongside the vector search. |
-| **What do we need from AIENGLAB-519?** | The canary, the release gate and the anchor and focus sets depend on the evaluator. | Agree on four things with the evaluator's owner: a daily run on the production engine; the expected document for each question in `aiel_evals`; gate results that name the change they test; and generating questions from `eval_documents`, which 519's current phase doesn't plan. |
+| **What do we need from AIENGLAB-519?** | The canary, the release gate and the anchor and focus sets depend on the evaluator. | Agree on four things with the evaluator's owner: a daily run on the production engine; the expected document for each question in `aiel_evals`; gate results that name the change they test; and generating questions from `quality_eval_documents`, which 519's current phase doesn't plan. |
 | **Do the cloud audit logs contain any content?** | This project keeps all its logs for 7 years. | Run each job once on synthetic data and read the audit log entries of its Vertex AI, Secret Manager and GCS calls. |
 | **Nothing alerts if Cloud Scheduler itself stops** | The monitor is started by the same scheduler as the assessor. | The dashboard shows pipeline health per run (§8.8), so missing runs are visible in the morning check. |
