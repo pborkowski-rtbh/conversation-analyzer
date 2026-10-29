@@ -21,7 +21,7 @@ _SLACK_USER = re.compile(r"^[UWB][A-Z0-9]{2,24}$")
 _SLACK_CHANNEL = re.compile(r"^(#[a-z0-9_-]{1,80}|[CGD][A-Z0-9]{2,24})$")
 _SHA = re.compile(r"^[0-9a-f]{7,40}$")
 _EXECUTION = re.compile(r"^[a-z][a-z0-9-]{0,99}$")
-_SCENARIO = re.compile(r"^[a-z0-9_]{1,40}:[A-Z0-9_]{1,40}$")
+_SCENARIO = re.compile(r"^[a-z0-9_]{1,40}:[A-Za-z0-9_]{1,40}$")
 # Free text: anything with a space or longer than these patterns already rejects; the URL check below is separate.
 
 

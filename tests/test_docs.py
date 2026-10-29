@@ -37,6 +37,7 @@ def test_search_sql_uses_vector_search_in_bigquery(monkeypatch):
     sql = search_sql([[0.1, 0.2]], top_chunks=50)
     assert "VECTOR_SEARCH(" in sql and "top_k => 50" in sql and "distance_type => 'COSINE'" in sql
     assert "quality_chunks_rtb_crj_confluence" in sql and "associates" not in sql
+    assert "WHERE embedding_model = @model" in sql
 
 
 @pytest.fixture(scope="module")
@@ -85,6 +86,13 @@ def test_search_finds_the_document_and_caches(indexed):
     assert indexed.searches == searches + 1  # one search for the one new text
     assert indexed.search("business trip approval")[0].doc_id == scenario.TRIP.doc_id
     assert indexed.search_many([]) == []
+
+
+def test_search_skips_chunks_of_another_embedding_model(indexed):
+    class RealModel(FakeEmbedder):
+        model = "text-multilingual-embedding-002"
+
+    assert DocumentIndex(embedder=RealModel()).search("How many days of on-demand leave per year?") == []
 
 
 def test_lookup_uri_and_data_stores(indexed):

@@ -141,11 +141,19 @@ eval_documents:
   anchor_min_per_data_store: 20
   focus_questions_per_cluster: 15
 
+# --- Judge test suite (§11.1-11.3) ---
+suite:
+  max_usd_per_run: 15.0                 # spend guard: a run stops once its estimated cost passes this
+  prices_usd_per_million:               # [input, output]: Vertex regional (eu) online prices, billing catalog 2026-10
+    gemini-3.8-flash: [1.65, 8.25]
+    gemini-4-argon: [4.40, 22.00]
+    default: [5.00, 30.00]
+
 # --- GitHub sources of change events (§12.9) ---
 github:
   repositories: [RTBHouse-OEET/aiel-infrastructure]
-  paths: [modules/agentspace]
-  cluster_ref_pattern: "cluster:([0-9a-f]{12})"
+  paths: {modules/agentspace: PROMPT}       # path → change kind of the commits that touch it
+  cluster_ref_pattern: "\\b(cluster-[0-9a-f]{16})\\b"   # a commit message names the cluster IDs it fixes (§9.3)
 indexer_jobs:
   project: rtbhouse-agentspace
   location: europe-west4

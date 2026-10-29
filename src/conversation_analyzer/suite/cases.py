@@ -51,7 +51,7 @@ class CaseReference(BaseModel):
 
 class CaseSpan(BaseModel):
     text: str
-    refs: list[int] = Field(default_factory=list)
+    refs: list[int] = Field(default_factory=list)  # 0-based indices into the turn's references, as in the log
 
 
 class Stage1Labels(BaseModel):
@@ -149,14 +149,20 @@ class SuiteCase(BaseModel):
         for i, s in enumerate(self.turn.spans):
             start = max(self.turn.answer.find(s.text), 0)
             spans.append(Span(i, start, start + len(s.text), s.text, tuple(s.refs)))
-        earlier_refs = [r for t in self.earlier for r in self.references(corpus, t)]
+        if self.previous_text_available:
+            earlier = [EarlierTurn(i + 1, 1, t.question, t.answer) for i, t in enumerate(self.earlier)]
+            earlier_refs = [r for t in self.earlier for r in self.references(corpus, t)]
+        else:  # an earlier segment whose text is erased: the judge sees only its labels (§5.3)
+            labels = [(t.stage1 or Stage1Labels()).model_dump() for t in self.earlier]
+            earlier = [EarlierTurn(i + 1, 1, None, None, labels[i]) for i in range(len(self.earlier))]
+            earlier_refs = []
         return JudgeCase(
             question=self.turn.question,
             answer=self.turn.answer,
             references=self.references(corpus, self.turn),
             spans=spans,
             answer_state=self.turn.state,
-            earlier=[EarlierTurn(i + 1, 1, t.question, t.answer) for i, t in enumerate(self.earlier)],
+            earlier=earlier,
             earlier_references=earlier_refs,
             has_previous_turn=bool(self.earlier),
             previous_text_available=bool(self.earlier) and self.previous_text_available,

@@ -68,7 +68,7 @@ trips:
 trips_2023:
   doc_id: knowhow_post_311
   data_store: rtb-crj-knowhow
-  uri: https://rtbhouse.bloomfire.com/posts/311
+  uri: https://knowhow.rtbhouse.com/posts/311
   title: Travel FAQ (2023)
   text: |
     # Travel FAQ (2023)
@@ -92,16 +92,26 @@ vpn:
 vpn_kh:
   doc_id: knowhow_post_204
   data_store: rtb-crj-knowhow
-  uri: https://rtbhouse.bloomfire.com/posts/204
+  uri: https://knowhow.rtbhouse.com/posts/204
   title: VPN setup
   text: |
     # VPN setup
 
     Install GlobalProtect and enter the portal address vpn.rtbhouse.com. Confirm the sign-in with Okta Verify.
+laptop_hdqa:
+  doc_id: sites_google_com_rtbhouse_com_hdqa_laptop
+  data_store: rtb-crj-helpdesk-qa
+  uri: https://sites.google.com/rtbhouse.com/hdqa/laptop
+  title: New laptop
+  text: |
+    # New laptop
+
+    Order a new laptop with a Hardware request in Jira Service Desk. IT prepares it within 10 working days after your
+    manager approves the request.
 laptop:
   doc_id: knowhow_post_150
   data_store: rtb-crj-knowhow
-  uri: https://rtbhouse.bloomfire.com/posts/150
+  uri: https://knowhow.rtbhouse.com/posts/150
   title: Getting a new laptop
   text: |
     # Getting a new laptop
@@ -133,7 +143,7 @@ campaigns_api:
 bq_impressions:
   doc_id: bq_doc_analytics_impressions_daily
   data_store: rtb-crj-bq-documentation
-  uri: https://rtb-bq-docs.rtbhouse.biz/analytics/impressions_daily
+  uri: https://console.cloud.google.com/bigquery?d=analytics&t=impressions_daily
   title: analytics.impressions_daily
   text: |
     # analytics.impressions_daily
@@ -149,10 +159,37 @@ bq_impressions:
 
     ## Retention
     Data is kept for 400 days.
+bq_clicks:
+  doc_id: bq_doc_analytics_clicks_hourly
+  data_store: rtb-crj-bq-documentation
+  uri: https://console.cloud.google.com/bigquery?d=analytics&t=clicks_hourly
+  title: analytics.clicks_hourly
+  text: |
+    # analytics.clicks_hourly
+
+    Hourly clicks per campaign. Partitioned by `hour`.
+
+    ## Columns
+    - hour TIMESTAMP (UTC)
+    - campaign_id STRING
+    - clicks INT64
+    - conversions INT64
+
+    A click is counted once per user and campaign within 30 seconds.
+ctr:
+  doc_id: biztech_ctr_metric
+  data_store: rtb-crj-biztech
+  uri: https://biztech.rtbhouse.com/wiki/ctr
+  title: CTR
+  text: |
+    # CTR
+
+    CTR (click-through rate) = clicks / impressions, shown in percent.
+    The Panel computes CTR per day in the advertiser's time zone.
 attribution:
   doc_id: biztech_attribution_window
   data_store: rtb-crj-biztech
-  uri: https://biztech.rtbhouse.biz/wiki/attribution-window
+  uri: https://biztech.rtbhouse.com/wiki/attribution-window
   title: Attribution window
   text: |
     # Attribution window
@@ -162,13 +199,23 @@ attribution:
 office:
   doc_id: inhouse_office_warsaw
   data_store: rtb-crj-inhouse
-  uri: https://inhouse.rtbhouse.biz/office/warsaw
+  uri: https://inhouse.rtbhouse.net/office/warsaw
   title: Warsaw office
   text: |
     # Warsaw office
 
     The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
     Book a parking space in Parkanizer the day before. Guests sign in at the reception on the ground floor.
+office_kh:
+  doc_id: knowhow_post_412
+  data_store: rtb-crj-knowhow
+  uri: https://knowhow.rtbhouse.com/posts/412
+  title: Warsaw office FAQ
+  text: |
+    # Warsaw office FAQ
+
+    The Warsaw office at Złota 61 is open from 8:00 to 18:00 on working days. Outside these hours the building is
+    closed.
 passwords_pl:
   doc_id: docrepo_34_7
   data_store: rtb-crj-doc-repo
@@ -192,7 +239,7 @@ floor_prices:
 budget_hint:
   doc_id: app_hint_budget_tab
   data_store: rtb-crj-app-hints
-  uri: https://panel.rtbhouse.com/hints/budget-tab
+  uri: https://api.apps-tools.rtbhouse.biz/hints/budget-tab
   title: Budget tab
   text: |
     # Budget tab
@@ -201,7 +248,7 @@ budget_hint:
 about_bolek:
   doc_id: about_bolek_sources
   data_store: rtb-crj-about-bolek
-  uri: https://sites.google.com/rtbhouse.com/bolek/sources
+  uri: https://about.bolek.rtbhouse.net/sources
   title: What Bolek knows
   text: |
     # What Bolek knows

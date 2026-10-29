@@ -663,6 +663,9 @@ SUITE_RUNS = Table(
         ver("stage2_model"),
         i("passes"),
         i("n_cases"),
+        b("partial"),  # a run of some cases only (--limit, --part): never a baseline, never sets reliability
+        i("failed_calls"),
+        f("estimated_usd"),
         f("tuning_distance"),
         f("held_out_distance"),
         i("false_high"),

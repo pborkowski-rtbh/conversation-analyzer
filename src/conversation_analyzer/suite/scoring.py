@@ -66,16 +66,18 @@ def severity_distance(expected: str | None, actual: str | None) -> tuple[float, 
 
 
 def stage1_distance(expected: dict[str, Any], actual: dict[str, Any], weights: dict[str, float]) -> Distance:
+    """The stage 1 form against the expected one; an empty `actual` (a failed call) misses every expected value."""
     w = weights
     d = Distance()
-    d.add(F.INTENT, float(expected["intent"] != actual["intent"]), w["intent"])
+    d.add(F.INTENT, float(expected["intent"] != actual.get("intent")), w["intent"])
     for name in _NULLABLE:
         if (expected.get(name) is None) != (actual.get(name) is None):
             d.add(F.FILLED_FIELDS, 1.0, w["filled_fields"])
     for name, f in _CHECKS.items():
         e, a = expected.get(name), actual.get(name)
-        if e is not None and a is not None:
-            d.add(f, float(e != a), w["check"])
+        if name in _NULLABLE and (e is None or a is None):
+            continue  # a missing or extra value is counted as a filled field
+        d.add(f, float(e != a), w["check"])
     for name, f in _SCORES.items():
         e, a = expected.get(name), actual.get(name)
         if e is not None and a is not None:
@@ -84,10 +86,10 @@ def stage1_distance(expected: dict[str, Any], actual: dict[str, Any], weights: d
     e_spans, a_spans = expected.get("unsupported_spans"), actual.get("unsupported_spans")
     if total and e_spans is not None and a_spans is not None:
         d.add(F.SPAN_COUNTS, min(abs(e_spans - a_spans) / total, 1.0), w["span_counts"])
-    e_codes, a_codes = set(expected["failure_types"]), set(actual["failure_types"])
+    e_codes, a_codes = set(expected["failure_types"]), set(actual.get("failure_types") or [])
     union = e_codes | a_codes
     d.add(F.FAILURE_TYPES, len(e_codes ^ a_codes) / len(union) if union else 0.0, w["failure_types"])
-    d.add(F.PRIMARY_FAILURE, float(expected["primary_failure"] != actual["primary_failure"]), w["primary_failure"])
+    d.add(F.PRIMARY_FAILURE, float(expected["primary_failure"] != actual.get("primary_failure")), w["primary_failure"])
     if expected.get("severity") is not None or actual.get("severity") is not None:
         value, false_high, missed_high = severity_distance(expected.get("severity"), actual.get("severity"))
         d.add(F.SEVERITY, value, w["severity"])
@@ -105,16 +107,14 @@ def add_evidence(d: Distance, expected: dict[str, Any] | None, actual: bool | No
 def add_stage2(
     d: Distance, expected: dict[str, Any] | None, actual: dict[str, Any] | None, weights: dict[str, float]
 ) -> None:
+    """`expected` has the primary failure and the accepted `fix_options`; `actual` None: stage 2 never ran or failed."""
     if expected is None:
         return
-    if actual is None:  # stage 2 failed: every expected value is missed
-        d.add(F.STAGE2_CAUSE, 1.0, weights["stage2_cause"])
-        d.add(F.DOCUMENT_TO_FIX, float(expected.get("document_to_fix") is not None), weights["document_to_fix"])
-        return
-    d.add(F.STAGE2_CAUSE, float(expected["primary_failure"] != actual["primary_failure"]), weights["stage2_cause"])
+    actual = actual or {}
+    d.add(F.STAGE2_CAUSE, float(expected["primary_failure"] != actual.get("primary_failure")), weights["stage2_cause"])
     d.add(
         F.DOCUMENT_TO_FIX,
-        float(expected.get("document_to_fix") != actual.get("document_to_fix")),
+        float(actual.get("document_to_fix") not in expected["fix_options"]),
         weights["document_to_fix"],
     )
 

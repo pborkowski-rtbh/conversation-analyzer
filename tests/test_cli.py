@@ -80,10 +80,40 @@ def test_jobs_dispatch_to_their_modules(monkeypatch, args, module, func, expecte
 
 def test_judge_suite_options(monkeypatch):
     seen = []
-    fake_module(monkeypatch, "conversation_analyzer.suite.runner", run=lambda **k: seen.append(k))
-    result = CliRunner().invoke(cli.main, ["quality-judge-suite", "--passes", "1", "--part", "tuning", "--limit", "5"])
+    report = {
+        "suite_run_id": "suite-00112233",
+        "decision": "KEEP",
+        "n_cases": 5,
+        "passes": 1,
+        "tuning_distance": 1.5,
+        "held_out_distance": None,
+        "false_high": 0,
+        "failed_calls": 0,
+        "estimated_usd": 0.1,
+    }
+
+    def run(**k):
+        seen.append(k)
+        return report
+
+    fake_module(monkeypatch, "conversation_analyzer.suite.runner", run=run)
+    args = ["quality-judge-suite", "--passes", "1", "--part", "tuning", "--limit", "5", "--judge-version", "v2"]
+    result = CliRunner().invoke(cli.main, args)
     assert result.exit_code == 0, result.output
-    assert seen == [{"passes": 1, "part": "tuning", "limit": 5, "baseline": None}]
+    assert seen == [{"passes": 1, "part": "tuning", "limit": 5, "baseline": None, "judge_version": "v2"}]
+    assert "suite_run_id=suite-00112233 decision=KEEP" in result.output
+
+
+def test_judge_suite_check_reports_coverage(monkeypatch):
+    from conversation_analyzer.suite import cases
+
+    result = CliRunner().invoke(cli.main, ["quality-judge-suite", "--check"])
+    assert result.exit_code == 0, result.output
+    assert "intent:FACT_LOOKUP" in result.output and "SHORT" not in result.output
+    suite = cases.load_suite()
+    monkeypatch.setattr(cases, "load_suite", lambda: suite.model_copy(update={"cases": suite.cases[:3]}))
+    result = CliRunner().invoke(cli.main, ["quality-judge-suite", "--check"])
+    assert result.exit_code == 1 and "SHORT" in result.output and "below their minimum" in result.output
 
 
 def test_db_init(monkeypatch):

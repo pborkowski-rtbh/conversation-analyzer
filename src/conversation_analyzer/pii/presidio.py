@@ -141,7 +141,10 @@ def _recognizers(language: str) -> list:
         PatternRecognizer(
             "PHONE_NUMBER",
             supported_language=language,
-            patterns=[Pattern("pl_phone", r"(?<!\d)(?:\+48[ -]?)?\d{3}[ -]\d{3}[ -]\d{3}(?!\d)", 0.6)],
+            patterns=[
+                Pattern("pl_mobile", r"(?<!\d)(?:\+48[ -]?)?\d{3}[ -]\d{3}[ -]\d{3}(?!\d)", 0.6),
+                Pattern("pl_landline", r"(?<![\d(])(?:\+48[ -]?)?\(?\d{2}\)?[ -]\d{3}[ -]\d{2}[ -]\d{2}(?!\d)", 0.6),
+            ],
         ),
         PlPeselRecognizer(supported_language=language),
         PlNipRecognizer(language),

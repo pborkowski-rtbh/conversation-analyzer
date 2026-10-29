@@ -1,0 +1,2530 @@
+# Knowledge questions from the corpus facts: right and wrong answers with their own references, with none (the
+# evidence check), near misses, and questions that need no company knowledge. Drafted against the judge_versions/v1
+# rubric; reviewed: false until an engineer has checked the expected forms (§11.1). Every 5th case is in the held-out
+# part.
+- id: leave_ondemand-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    spans:
+    - text: You can take up to 4 days of on-demand leave per year.
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: leave_ondemand-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    spans:
+    - text: You can take up to 6 days of on-demand leave per year.
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: leave_ondemand-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: leave
+- id: annual_request-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I request annual leave?
+    answer: Request annual leave in Workday at least 3 working days in advance.
+    references:
+    - doc: leave
+      snippet: Request annual leave in Workday at least 3 working days in advance.
+    spans:
+    - text: Request annual leave in Workday at least 3 working days in advance.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: annual_request-contradicted
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How do I request annual leave?
+    answer: Request annual leave in Workday at least 10 working days in advance.
+    references:
+    - doc: leave
+      snippet: Request annual leave in Workday at least 3 working days in advance.
+    spans:
+    - text: Request annual leave in Workday at least 10 working days in advance.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: annual_request-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I request annual leave?
+    answer: Request annual leave in Workday at least 3 working days in advance.
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: annual_days-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of annual leave do I get with 12 years of seniority?
+    answer: With 12 years of seniority you have 26 days of annual leave per year.
+    references:
+    - doc: leave
+      snippet: Employees with less than 10 years of seniority have 20 days of annual leave per year; from 10 years on, 26
+        days.
+    spans:
+    - text: With 12 years of seniority you have 26 days of annual leave per year.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: annual_days-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of annual leave do I get with 12 years of seniority?
+    answer: With 12 years of seniority you have 20 days of annual leave per year.
+    references:
+    - doc: leave
+      snippet: Employees with less than 10 years of seniority have 20 days of annual leave per year; from 10 years on, 26
+        days.
+    spans:
+    - text: With 12 years of seniority you have 20 days of annual leave per year.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: annual_days-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of annual leave do I get with 12 years of seniority?
+    answer: With 12 years of seniority you have 20 days of annual leave per year.
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: carry_over-ok
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Until when can I use my unused annual leave days?
+    answer: Unused days can be taken until 30 September of the next year.
+    references:
+    - doc: leave
+      snippet: Unused days can be taken until 30 September of the next year.
+    spans:
+    - text: Unused days can be taken until 30 September of the next year.
+      refs: [0]
+  documents: [leave, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: carry_over-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Until when can I use my unused annual leave days?
+    answer: Unused days can be taken until 31 March of the next year.
+    references:
+    - doc: leave
+      snippet: Unused days can be taken until 30 September of the next year.
+    spans:
+    - text: Unused days can be taken until 31 March of the next year.
+      refs: [0]
+  documents: [leave, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: carry_over-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Until when can I use my unused annual leave days?
+    answer: Unused days can be taken until 30 September of the next year.
+  documents: [leave, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: sick_leave-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What do I have to do when I'm sick and can't come to work?
+    answer: Inform your manager on the first day of absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
+    references:
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+    spans:
+    - text: Inform your manager on the first day of absence.
+      refs: [0]
+    - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
+      refs: [0]
+  documents: [leave, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: sick_leave-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What do I have to do when I'm sick and can't come to work?
+    answer: Inform HR within 3 days of your absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
+    references:
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+    spans:
+    - text: Inform HR within 3 days of your absence.
+      refs: [0]
+    - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
+      refs: [0]
+  documents: [leave, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: sick_leave-no-refs-wrong
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: What do I have to do when I'm sick and can't come to work?
+    answer: Inform HR within 3 days of your absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
+  documents: [leave, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: leave
+- id: trips_approval-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Who has to approve my business trip to New York?
+    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+    references:
+    - doc: trips
+      snippet: Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+    spans:
+    - text: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+      refs: [0]
+  documents: [trips, trips_2023]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: trips_approval-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Who has to approve my business trip to New York?
+    answer: 'Only your manager: a business trip needs your manager''s approval and no other.'
+    references:
+    - doc: trips
+      snippet: Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+    spans:
+    - text: 'Only your manager: a business trip needs your manager''s approval and no other.'
+      refs: [0]
+  documents: [trips, trips_2023]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: trips_approval-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Who has to approve my business trip to New York?
+    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+  documents: [trips, trips_2023]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: trips_booking-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    spans:
+    - text: Book the hotel through Travel Tool, like every part of a business trip.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: trips_booking-contradicted
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How do I book a hotel for a business trip?
+    answer: Book the hotel yourself on any booking site and add the invoice to your expenses.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    spans:
+    - text: Book the hotel yourself on any booking site and add the invoice to your expenses.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: trips_booking-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I book a hotel for a business trip?
+    answer: Book the hotel yourself on any booking site and add the invoice to your expenses.
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: trips_expenses-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    spans:
+    - text: Settle your expenses in Travel Tool within 14 days after the trip.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: trips_expenses-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 60 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    spans:
+    - text: Settle your expenses in Travel Tool within 60 days after the trip.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: trips_expenses-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: vpn_gateway-ok
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: GlobalProtect says "Gateway not responding". What should I do?
+    answer: Switch the gateway to Europe-2 and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    references:
+    - doc: vpn
+      snippet: If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect. If it still
+        fails, open a ticket in the IT Helpdesk queue in OTRS.
+    spans:
+    - text: Switch the gateway to Europe-2 and reconnect.
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: vpn_gateway-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: GlobalProtect says "Gateway not responding". What should I do?
+    answer: Switch the gateway to US-East and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    references:
+    - doc: vpn
+      snippet: If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect. If it still
+        fails, open a ticket in the IT Helpdesk queue in OTRS.
+    spans:
+    - text: Switch the gateway to US-East and reconnect.
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: vpn_gateway-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: GlobalProtect says "Gateway not responding". What should I do?
+    answer: Switch the gateway to US-East and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: vpn
+- id: vpn_loop-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: My VPN sign-in keeps looping. How do I fix it?
+    answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
+      queue in OTRS.'
+    references:
+    - doc: vpn
+      snippet: 'If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket
+        in the IT Helpdesk queue in OTRS.'
+    spans:
+    - text: 'Reset GlobalProtect: Settings > Troubleshooting > Reset.'
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: vpn_loop-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: My VPN sign-in keeps looping. How do I fix it?
+    answer: Reinstall GlobalProtect and restart your laptop twice. If it still fails, open a ticket in the IT Helpdesk queue
+      in OTRS.
+    references:
+    - doc: vpn
+      snippet: 'If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket
+        in the IT Helpdesk queue in OTRS.'
+    spans:
+    - text: Reinstall GlobalProtect and restart your laptop twice.
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: vpn_loop-no-refs-right
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: My VPN sign-in keeps looping. How do I fix it?
+    answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
+      queue in OTRS.'
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: laptop_steps-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I get a new laptop?
+    answer: |-
+      1. Open a Hardware request in Jira Service Desk.
+      2. Your manager approves the request.
+      3. IT prepares the laptop within 5 working days.
+      4. Pick it up at the IT desk on the 3rd floor.
+    references:
+    - doc: laptop
+      snippet: |-
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+    spans:
+    - text: 1. Open a Hardware request in Jira Service Desk.
+      refs: [0]
+    - text: 2. Your manager approves the request.
+      refs: [0]
+    - text: 3. IT prepares the laptop within 5 working days.
+      refs: [0]
+    - text: 4. Pick it up at the IT desk on the 3rd floor.
+      refs: [0]
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: laptop_steps-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I get a new laptop?
+    answer: |-
+      1. Open a Hardware request in Jira Service Desk.
+      2. Your manager approves the request.
+      3. IT prepares the laptop within 5 working days.
+      4. Pick it up at the reception on the ground floor.
+    references:
+    - doc: laptop
+      snippet: |-
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+    spans:
+    - text: 1. Open a Hardware request in Jira Service Desk.
+      refs: [0]
+    - text: 2. Your manager approves the request.
+      refs: [0]
+    - text: 3. IT prepares the laptop within 5 working days.
+      refs: [0]
+    - text: 4. Pick it up at the reception on the ground floor.
+      refs: [0]
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: laptop_steps-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I get a new laptop?
+    answer: |-
+      1. Open a Hardware request in Jira Service Desk.
+      2. Your manager approves the request.
+      3. IT prepares the laptop within 5 working days.
+      4. Pick it up at the reception on the ground floor.
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: laptop_return-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 10 working days.
+    references:
+    - doc: laptop
+      snippet: Return the old laptop to the IT desk within 10 working days.
+    spans:
+    - text: Return the old laptop to the IT desk within 10 working days.
+      refs: [0]
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: laptop_return-contradicted
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 30 working days.
+    references:
+    - doc: laptop
+      snippet: Return the old laptop to the IT desk within 10 working days.
+    spans:
+    - text: Return the old laptop to the IT desk within 30 working days.
+      refs: [0]
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: laptop_return-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 10 working days.
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: campaigns_page-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I get all campaigns of an advertiser from the API when there are more than 100?
+    answer: GET /v5/advertisers/{hash}/campaigns returns at most 100 campaigns per page. Use the `page` parameter to get the
+      next page.
+    references:
+    - doc: campaigns_api
+      snippet: Returns at most 100 campaigns per page. Use the `page` parameter to get the next page.
+    spans:
+    - text: GET /v5/advertisers/{hash}/campaigns returns at most 100 campaigns per page.
+      refs: [0]
+    - text: Use the `page` parameter to get the next page.
+      refs: [0]
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: campaigns_page-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I get all campaigns of an advertiser from the API when there are more than 100?
+    answer: GET /v5/advertisers/{hash}/campaigns returns at most 100 campaigns per page. Use the `offset` parameter to get
+      the next page.
+    references:
+    - doc: campaigns_api
+      snippet: Returns at most 100 campaigns per page. Use the `page` parameter to get the next page.
+    spans:
+    - text: GET /v5/advertisers/{hash}/campaigns returns at most 100 campaigns per page.
+      refs: [0]
+    - text: Use the `offset` parameter to get the next page.
+      refs: [0]
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: campaigns_page-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I get all campaigns of an advertiser from the API when there are more than 100?
+    answer: GET /v5/advertisers/{hash}/campaigns returns at most 100 campaigns per page. Use the `offset` parameter to get
+      the next page.
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: campaigns_api
+- id: rate_limit-ok
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: The Campaigns API keeps returning HTTP 429. What should I do?
+    answer: HTTP 429 means you exceeded the limit of 10 requests per second per token. Wait for the number of seconds in the
+      `Retry-After` header, then retry.
+    references:
+    - doc: campaigns_api
+      snippet: '10 requests per second per token. HTTP 429 means the limit was exceeded: wait for the number of seconds in
+        the `Retry-After` header, then retry.'
+    spans:
+    - text: HTTP 429 means you exceeded the limit of 10 requests per second per token.
+      refs: [0]
+    - text: Wait for the number of seconds in the `Retry-After` header, then retry.
+      refs: [0]
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: rate_limit-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: The Campaigns API keeps returning HTTP 429. What should I do?
+    answer: HTTP 429 means you exceeded the limit of 100 requests per second per token. Wait for the number of seconds in
+      the `Retry-After` header, then retry.
+    references:
+    - doc: campaigns_api
+      snippet: '10 requests per second per token. HTTP 429 means the limit was exceeded: wait for the number of seconds in
+        the `Retry-After` header, then retry.'
+    spans:
+    - text: HTTP 429 means you exceeded the limit of 100 requests per second per token.
+      refs: [0]
+    - text: Wait for the number of seconds in the `Retry-After` header, then retry.
+      refs: [0]
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: rate_limit-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: The Campaigns API keeps returning HTTP 429. What should I do?
+    answer: HTTP 429 means you exceeded the limit of 10 requests per second per token. Wait for the number of seconds in the
+      `Retry-After` header, then retry.
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: bq_partition-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I query analytics.impressions_daily without scanning the whole table?
+    answer: 'The table is partitioned by `day`: filter on `day` in every query.'
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    spans:
+    - text: 'The table is partitioned by `day`: filter on `day` in every query.'
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: bq_partition-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I query analytics.impressions_daily without scanning the whole table?
+    answer: 'The table is partitioned by `advertiser_hash`: filter on `advertiser_hash` in every query.'
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    spans:
+    - text: 'The table is partitioned by `advertiser_hash`: filter on `advertiser_hash` in every query.'
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: bq_partition-no-refs-wrong
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How do I query analytics.impressions_daily without scanning the whole table?
+    answer: 'The table is partitioned by `advertiser_hash`: filter on `advertiser_hash` in every query.'
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: bq_retention-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 400 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 400 days.
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: bq_retention-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 90 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 90 days.
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: bq_retention-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 400 days.
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: bq_spend-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Which column of analytics.impressions_daily holds the spend?
+    answer: The spend is in `spend_usd` (NUMERIC).
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+    spans:
+    - text: The spend is in `spend_usd` (NUMERIC).
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: bq_spend-contradicted
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Which column of analytics.impressions_daily holds the spend?
+    answer: The spend is in `cost_eur` (FLOAT64).
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+    spans:
+    - text: The spend is in `cost_eur` (FLOAT64).
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: bq_spend-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Which column of analytics.impressions_daily holds the spend?
+    answer: The spend is in `cost_eur` (FLOAT64).
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: bq_impressions
+- id: clicks_partition-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Which column is analytics.clicks_hourly partitioned by?
+    answer: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
+    references:
+    - doc: bq_clicks
+      snippet: |-
+        Hourly clicks per campaign. Partitioned by `hour`.
+
+        ## Columns
+        - hour TIMESTAMP (UTC)
+    spans:
+    - text: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
+      refs: [0]
+  documents: [bq_clicks, bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: clicks_partition-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Which column is analytics.clicks_hourly partitioned by?
+    answer: analytics.clicks_hourly is partitioned by `campaign_id`.
+    references:
+    - doc: bq_clicks
+      snippet: |-
+        Hourly clicks per campaign. Partitioned by `hour`.
+
+        ## Columns
+        - hour TIMESTAMP (UTC)
+    spans:
+    - text: analytics.clicks_hourly is partitioned by `campaign_id`.
+      refs: [0]
+  documents: [bq_clicks, bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: clicks_partition-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Which column is analytics.clicks_hourly partitioned by?
+    answer: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
+  documents: [bq_clicks, bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: click_dedup-ok
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How are repeated clicks counted in analytics.clicks_hourly?
+    answer: A click is counted once per user and campaign within 30 seconds.
+    references:
+    - doc: bq_clicks
+      snippet: A click is counted once per user and campaign within 30 seconds.
+    spans:
+    - text: A click is counted once per user and campaign within 30 seconds.
+      refs: [0]
+  documents: [bq_clicks, ctr]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: click_dedup-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How are repeated clicks counted in analytics.clicks_hourly?
+    answer: A click is counted once per user and campaign within 24 hours.
+    references:
+    - doc: bq_clicks
+      snippet: A click is counted once per user and campaign within 30 seconds.
+    spans:
+    - text: A click is counted once per user and campaign within 24 hours.
+      refs: [0]
+  documents: [bq_clicks, ctr]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: click_dedup-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How are repeated clicks counted in analytics.clicks_hourly?
+    answer: A click is counted once per user and campaign within 24 hours.
+  documents: [bq_clicks, ctr]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: ctr-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How is CTR computed in the Panel?
+    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in the advertiser's time zone.
+    references:
+    - doc: ctr
+      snippet: |-
+        CTR (click-through rate) = clicks / impressions, shown in percent.
+        The Panel computes CTR per day in the advertiser's time zone.
+    spans:
+    - text: CTR = clicks / impressions, shown in percent.
+      refs: [0]
+    - text: The Panel computes it per day in the advertiser's time zone.
+      refs: [0]
+  documents: [ctr, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: ctr-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How is CTR computed in the Panel?
+    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in UTC.
+    references:
+    - doc: ctr
+      snippet: |-
+        CTR (click-through rate) = clicks / impressions, shown in percent.
+        The Panel computes CTR per day in the advertiser's time zone.
+    spans:
+    - text: CTR = clicks / impressions, shown in percent.
+      refs: [0]
+    - text: The Panel computes it per day in UTC.
+      refs: [0]
+  documents: [ctr, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: ctr-no-refs-right
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How is CTR computed in the Panel?
+    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in the advertiser's time zone.
+  documents: [ctr, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: attribution-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What is the default post-view attribution window?
+    answer: The default post-view window is 1 day.
+    references:
+    - doc: attribution
+      snippet: The default post-click window is 30 days and the default post-view window is 1 day.
+    spans:
+    - text: The default post-view window is 1 day.
+      refs: [0]
+  documents: [attribution, ctr]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: attribution-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What is the default post-view attribution window?
+    answer: The default post-view window is 7 days.
+    references:
+    - doc: attribution
+      snippet: The default post-click window is 30 days and the default post-view window is 1 day.
+    spans:
+    - text: The default post-view window is 7 days.
+      refs: [0]
+  documents: [attribution, ctr]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: attribution-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What is the default post-view attribution window?
+    answer: The default post-view window is 7 days.
+  documents: [attribution, ctr]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: attribution
+- id: office_hours-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    spans:
+    - text: The Warsaw office is open from 7:00 to 20:00 on working days.
+      refs: [0]
+  documents: [office, budget_hint]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: office_hours-contradicted
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 9:00 to 17:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    spans:
+    - text: The Warsaw office is open from 9:00 to 17:00 on working days.
+      refs: [0]
+  documents: [office, budget_hint]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: office_hours-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days.
+  documents: [office, budget_hint]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: parking-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I book a parking space at the Warsaw office?
+    answer: Book a parking space in Parkanizer the day before.
+    references:
+    - doc: office
+      snippet: Book a parking space in Parkanizer the day before.
+    spans:
+    - text: Book a parking space in Parkanizer the day before.
+      refs: [0]
+  documents: [office, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: parking-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I book a parking space at the Warsaw office?
+    answer: Book a parking space at the reception on the same morning.
+    references:
+    - doc: office
+      snippet: Book a parking space in Parkanizer the day before.
+    spans:
+    - text: Book a parking space at the reception on the same morning.
+      refs: [0]
+  documents: [office, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: parking-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I book a parking space at the Warsaw office?
+    answer: Book a parking space at the reception on the same morning.
+  documents: [office, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: floor_prices-ok
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How do I change a floor price, and when does the change take effect?
+    answer: Change it in the Floor Manager tool; changes are applied within 15 minutes. A change of more than 30% needs approval
+      from the traffic team lead.
+    references:
+    - doc: floor_prices
+      snippet: |-
+        Change floor prices in the Floor Manager tool. Changes are applied within 15 minutes.
+        A change of more than 30% needs approval from the traffic team lead.
+    spans:
+    - text: Change it in the Floor Manager tool; changes are applied within 15 minutes.
+      refs: [0]
+    - text: A change of more than 30% needs approval from the traffic team lead.
+      refs: [0]
+  documents: [floor_prices, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: floor_prices-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I change a floor price, and when does the change take effect?
+    answer: Change it in the Floor Manager tool; changes are applied the next day. A change of more than 30% needs approval
+      from the traffic team lead.
+    references:
+    - doc: floor_prices
+      snippet: |-
+        Change floor prices in the Floor Manager tool. Changes are applied within 15 minutes.
+        A change of more than 30% needs approval from the traffic team lead.
+    spans:
+    - text: Change it in the Floor Manager tool; changes are applied the next day.
+      refs: [0]
+    - text: A change of more than 30% needs approval from the traffic team lead.
+      refs: [0]
+  documents: [floor_prices, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: floor_prices-no-refs-right
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I change a floor price, and when does the change take effect?
+    answer: Change it in the Floor Manager tool; changes are applied within 15 minutes. A change of more than 30% needs approval
+      from the traffic team lead.
+  documents: [floor_prices, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: budget_tab-ok
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What does the Budget tab in the Panel show?
+    answer: It shows the daily budget pacing and a forecast of the spend at the end of the month.
+    references:
+    - doc: budget_hint
+      snippet: The Budget tab in the Panel shows the daily budget pacing and a forecast of the spend at the end of the month.
+    spans:
+    - text: It shows the daily budget pacing and a forecast of the spend at the end of the month.
+      refs: [0]
+  documents: [budget_hint, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: budget_tab-contradicted
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What does the Budget tab in the Panel show?
+    answer: It shows the daily budget pacing and the spend of the last 12 months.
+    references:
+    - doc: budget_hint
+      snippet: The Budget tab in the Panel shows the daily budget pacing and a forecast of the spend at the end of the month.
+    spans:
+    - text: It shows the daily budget pacing and the spend of the last 12 months.
+      refs: [0]
+  documents: [budget_hint, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: budget_tab-no-refs-wrong
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: What does the Budget tab in the Panel show?
+    answer: It shows the daily budget pacing and the spend of the last 12 months.
+  documents: [budget_hint, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: budget_hint
+- id: password_length-ok
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile znaków musi mieć hasło?
+    answer: Hasło musi mieć co najmniej 12 znaków.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: Hasło musi mieć co najmniej 12 znaków.
+      refs: [0]
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: password_length-contradicted
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile znaków musi mieć hasło?
+    answer: Hasło musi mieć co najmniej 8 znaków.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: Hasło musi mieć co najmniej 8 znaków.
+      refs: [0]
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: password_length-no-refs-right
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile znaków musi mieć hasło?
+    answer: Hasło musi mieć co najmniej 12 znaków.
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: password_rotation-ok
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak często trzeba zmieniać hasło?
+    answer: Hasło zmieniamy co 90 dni.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: Hasło zmieniamy co 90 dni.
+      refs: [0]
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: password_rotation-contradicted
+  part: HELD_OUT
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak często trzeba zmieniać hasło?
+    answer: Hasło zmieniamy co 30 dni.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: Hasło zmieniamy co 30 dni.
+      refs: [0]
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: password_rotation-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak często trzeba zmieniać hasło?
+    answer: Hasło zmieniamy co 30 dni.
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+- id: leave_pl_ondemand-ok
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile dni urlopu na żądanie mi przysługuje?
+    answer: Przysługują Ci maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    references:
+    - doc: leave_pl
+      snippet: Przysługują maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    spans:
+    - text: Przysługują Ci maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+      refs: [0]
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: leave_pl_ondemand-contradicted
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile dni urlopu na żądanie mi przysługuje?
+    answer: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    references:
+    - doc: leave_pl
+      snippet: Przysługują maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    spans:
+    - text: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+      refs: [0]
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+- id: leave_pl_ondemand-no-refs-right
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile dni urlopu na żądanie mi przysługuje?
+    answer: Przysługują Ci maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: leave_pl_request-ok
+  part: HELD_OUT
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak zgłosić urlop na żądanie?
+    answer: Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
+    references:
+    - doc: leave_pl
+      snippet: Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
+    spans:
+    - text: Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
+      refs: [0]
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: leave_pl_request-contradicted
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak zgłosić urlop na żądanie?
+    answer: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
+    references:
+    - doc: leave_pl
+      snippet: Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
+    spans:
+    - text: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
+      refs: [0]
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONTRADICTED_CLAIM
+      cause: NONE
+      document_to_fix: null
+- id: leave_pl_request-no-refs-wrong
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak zgłosić urlop na żądanie?
+    answer: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    evidence_check:
+      contradiction_found: true
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: leave_pl
+- id: leave_ondemand-near-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave. Unused on-demand
+      days are paid out at the end of the year.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    spans:
+    - text: You can take up to 4 days of on-demand leave per year.
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+    - text: Unused on-demand days are paid out at the end of the year.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 3
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+- id: trips_booking-near-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip. Hotels up to 150 EUR per night are approved
+      automatically.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    spans:
+    - text: Book the hotel through Travel Tool, like every part of a business trip.
+      refs: [0]
+    - text: Hotels up to 150 EUR per night are approved automatically.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 3
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+- id: vpn_loop-near-miss
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: My VPN sign-in keeps looping. How do I fix it?
+    answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
+      queue in OTRS. The loop is caused by an expired Okta session, which lasts 12 hours.'
+    references:
+    - doc: vpn
+      snippet: 'If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket
+        in the IT Helpdesk queue in OTRS.'
+    spans:
+    - text: 'Reset GlobalProtect: Settings > Troubleshooting > Reset.'
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+    - text: The loop is caused by an expired Okta session, which lasts 12 hours.
+      refs: [0]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 3
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+- id: bq_retention-near-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 400 days. Older data is archived in analytics_archive.impressions_daily.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 400 days.
+      refs: [0]
+    - text: Older data is archived in analytics_archive.impressions_daily.
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 3
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+- id: office_hours-near-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days. On Fridays it closes at 18:00.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    spans:
+    - text: The Warsaw office is open from 7:00 to 20:00 on working days.
+      refs: [0]
+    - text: On Fridays it closes at 18:00.
+      refs: [0]
+  documents: [office, budget_hint]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 3
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+- id: password_rotation-near-miss
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak często trzeba zmieniać hasło?
+    answer: Hasło zmieniamy co 90 dni. Przypomnienie przychodzi mailem 7 dni wcześniej.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: Hasło zmieniamy co 90 dni.
+      refs: [0]
+    - text: Przypomnienie przychodzi mailem 7 dni wcześniej.
+      refs: [0]
+  documents: [passwords_pl, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 3
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+- id: general-1
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I write a SQL join of two tables on a shared id column?
+    answer: |-
+      Use JOIN ... ON with the shared column:
+
+      ```sql
+      SELECT *
+      FROM a
+      JOIN b ON a.id = b.id;
+      ```
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: false
+      failure_types: [NONE]
+      primary_failure: NONE
+    evidence_check:
+      contradiction_found: false
+- id: general-2
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How do I undo my last commit in git but keep the changes?
+    answer: 'Run `git reset --soft HEAD~1`: the commit is removed and its changes stay staged.'
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: false
+      failure_types: [NONE]
+      primary_failure: NONE
+    evidence_check:
+      contradiction_found: false
+- id: general-3
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What does the HTTP status code 404 mean?
+    answer: '404 Not Found: the server has no resource at the requested URL.'
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: false
+      failure_types: [NONE]
+      primary_failure: NONE
+    evidence_check:
+      contradiction_found: false
+- id: general-4
+  part: TUNING
+  reviewed: false
+  turn:
+    question: 'Python says "ModuleNotFoundError: No module named ''requests''". How do I fix it?'
+    answer: 'The package is not installed in the environment you run: install it with `pip install requests`.'
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: false
+      failure_types: [NONE]
+      primary_failure: NONE
+    evidence_check:
+      contradiction_found: false
+- id: general-5
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What is the difference between COUNT(*) and COUNT(column) in SQL?
+    answer: COUNT(*) counts all rows; COUNT(column) counts only rows where that column is not NULL.
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: false
+      failure_types: [NONE]
+      primary_failure: NONE
+    evidence_check:
+      contradiction_found: false

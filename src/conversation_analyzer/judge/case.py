@@ -111,6 +111,15 @@ def _context_block(case: JudgeCase) -> str:
     return "\n\n".join(reversed(blocks)) or "(none)"
 
 
+def _shown_numbers(case: JudgeCase, span: Span) -> list[int]:
+    """The log's 0-based reference indices as the numbers the judge sees (from 1, people directory left out)."""
+    numbers: dict[int, int] = {}
+    for i, r in enumerate(case.references):
+        if not r.people_directory:
+            numbers[i] = len(numbers) + 1
+    return [numbers[i] for i in span.reference_indices if i in numbers]
+
+
 def render_turn(case: JudgeCase, with_context: bool = True) -> str:
     """The turn in a fixed layout; the current turn is always under '## CURRENT TURN'."""
     parts = []
@@ -126,7 +135,7 @@ def render_turn(case: JudgeCase, with_context: bool = True) -> str:
         if case.previous_text_available
         else "previous turn text erased"
     )
-    spans = "\n".join(f'[S{s.index}] "{s.text}" -> references {list(s.reference_indices)}' for s in case.spans)
+    spans = "\n".join(f'[S{s.index}] "{s.text}" -> references {_shown_numbers(case, s)}' for s in case.spans)
     parts.append(
         "## CURRENT TURN\n"
         f"Relation context: {prev}\n"

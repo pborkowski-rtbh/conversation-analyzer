@@ -76,8 +76,8 @@ def wipe(*tables) -> None:
     from conversation_analyzer.bq.external import EXTERNAL_TABLES
     from conversation_analyzer.bq.schema import TABLES
 
-    for table in tables or (*TABLES, *EXTERNAL_TABLES):
-        execute(f"DELETE FROM {tbl(table)} WHERE TRUE")
+    # One script, not one job per table: every job slows the emulator down for the rest of the session.
+    execute("; ".join(f"DELETE FROM {tbl(t)} WHERE TRUE" for t in tables or (*TABLES, *EXTERNAL_TABLES)))
 
 
 @pytest.fixture

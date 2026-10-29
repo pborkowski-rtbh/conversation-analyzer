@@ -67,11 +67,31 @@ def quality_weekly(week: str | None) -> None:
 @click.option("--part", type=click.Choice(["all", "tuning", "held_out"]), default="all", show_default=True)
 @click.option("--limit", default=0, help="Run only the first N cases (0 = all).")
 @click.option("--baseline", default=None, help="Suite run ID to compare with; default the last kept run.")
-def quality_judge_suite(passes: int, part: str, limit: int, baseline: str | None) -> None:
+@click.option("--judge-version", default=None, help="Directory in judge_versions/ to test; default the current one.")
+@click.option("--check", is_flag=True, help="Only check the cases against the scenario minimums (§11.1); no judge.")
+def quality_judge_suite(
+    passes: int, part: str, limit: int, baseline: str | None, judge_version: str | None, check: bool
+) -> None:
     """Run the judge test suite and decide whether a judge change is kept (§11.1-11.3)."""
+    if check:
+        from conversation_analyzer.suite.cases import load_suite
+
+        suite = load_suite()
+        for scenario, (n, minimum) in suite.coverage().items():
+            click.echo(f"{scenario:40} {n:4} / {minimum}{'  SHORT' if n < minimum else ''}")
+        held_out = sum(c.part == "HELD_OUT" for c in suite.cases)
+        click.echo(f"{suite.version}: {len(suite.cases)} cases, {held_out} held out")
+        if suite.short():
+            raise click.ClickException(f"{len(suite.short())} scenario values are below their minimum")
+        return
     from conversation_analyzer.suite.runner import run
 
-    _job("quality-judge-suite", lambda: run(passes=passes, part=part, limit=limit, baseline=baseline))
+    def suite_run() -> None:
+        report = run(passes=passes, part=part, limit=limit, baseline=baseline, judge_version=judge_version)
+        keys = ("suite_run_id", "decision", "n_cases", "passes", "tuning_distance", "held_out_distance")
+        click.echo(" ".join(f"{k}={report[k]}" for k in (*keys, "false_high", "failed_calls", "estimated_usd")))
+
+    _job("quality-judge-suite", suite_run)
 
 
 @main.command("quality-record")

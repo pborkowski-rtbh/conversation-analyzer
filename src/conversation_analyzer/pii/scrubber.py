@@ -46,7 +46,7 @@ def stem(word: str) -> str:
     """Strip a Polish ending, and the fleeting e of Marek/Marka or Paweł/Pawła, so all forms share one stem."""
     w = word.lower()
     for suffix in _SUFFIXES:
-        if w.endswith(suffix) and len(w) - len(suffix) >= 3:
+        if w.endswith(suffix) and len(w) - len(suffix) >= 2:  # Ewa, Ewy, Ewie, Ewą: "ew"
             w = w[: -len(suffix)]
             break
     return _FLEETING_E.sub(r"\1", w) if len(w) >= 4 else w
@@ -82,17 +82,23 @@ class PiiMap:
         self._by_key: dict[tuple[str, tuple[str, ...]], str] = {}
         self._counters: Counter[str] = Counter()
         self._persons: dict[tuple[str, ...], str] = {}
+        self._aliases: dict[tuple[str, ...], str | None] = {}  # None: a first name or surname two persons share
         self._exact: dict[str, str] = {}
         self._digits: dict[str, str] = {}
+
+    def _person(self, key: tuple[str, ...]) -> str | None:
+        return self._persons.get(key) or (self._aliases.get(key) if len(key) == 1 else None)
 
     def placeholder(self, entity_type: str, surface: str, lemma: str | None = None) -> str:
         if entity_type == "PERSON":
             key = name_key(lemma or surface)
-            if key not in self._persons:
-                self._persons[key] = self._new("PERSON")
-                if len(key) > 1:  # the surname alone, later or in a document, gets the same placeholder
-                    self._persons.setdefault(key[-1:], self._persons[key])
-            return self._persons[key]
+            ph = self._person(key)
+            if ph is None:
+                ph = self._persons[key] = self._new("PERSON")
+                # The first name or the surname alone, later or in a document, gets the same placeholder.
+                for part in {key[:1], key[-1:]} if len(key) > 1 else ():
+                    self._aliases[part] = ph if self._aliases.get(part, ph) == ph else None
+            return ph
         digits = _digits(surface)
         if entity_type == "PHONE_NUMBER" and len(digits) == 11 and digits.startswith("48"):
             digits = digits[2:]  # +48 601 234 567 and 601-234-567 are the same number
@@ -127,16 +133,15 @@ class PiiMap:
         return text
 
     def _replace_names(self, seq: str) -> str:
-        words = _WORD.findall(seq)
-        stems = [stem(w) for w in words]
-        # Longest known name inside this sequence of capitalized words wins.
+        words = list(_WORD.finditer(seq))
+        stems = [stem(m.group(0)) for m in words]
+        # Longest known name inside this sequence of capitalized words wins; the text around it is kept as it is.
         for size in range(len(words), 0, -1):
             for i in range(len(words) - size + 1):
-                ph = self._persons.get(tuple(stems[i : i + size]))
+                ph = self._person(tuple(stems[i : i + size]))
                 if ph:
-                    before = self._replace_names(" ".join(words[:i])) if i else ""
-                    after = self._replace_names(" ".join(words[i + size :])) if i + size < len(words) else ""
-                    return " ".join(x for x in (before, ph, after) if x)
+                    start, end = words[i].start(), words[i + size - 1].end()
+                    return self._replace_names(seq[:start]) + ph + self._replace_names(seq[end:])
         return seq
 
 
@@ -151,7 +156,8 @@ def scrub(text: str, pii: PiiMap, analyzer: Analyzer | None = None) -> str:
         out.append(pii.placeholder(e.entity_type, text[e.start : e.end], e.lemma))
         pos = e.end
     out.append(text[pos:])
-    return "".join(out)
+    # Values already known in the session are replaced also where the analyzer missed them (a surname alone).
+    return pii.apply("".join(out))
 
 
 def _non_overlapping(entities: list[Entity]) -> list[Entity]:

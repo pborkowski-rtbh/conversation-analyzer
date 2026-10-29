@@ -153,9 +153,19 @@ class EvalDocuments(BaseModel):
     focus_questions_per_cluster: int
 
 
+class Suite(BaseModel):
+    max_usd_per_run: float
+    prices_usd_per_million: dict[str, tuple[float, float]]
+
+    def usd(self, model: str, input_tokens: int, output_tokens: int) -> float:
+        """Estimated cost of tokens on a model; unknown models use the `default` prices."""
+        inp, out = self.prices_usd_per_million.get(model) or self.prices_usd_per_million["default"]
+        return (input_tokens * inp + output_tokens * out) / 1_000_000
+
+
 class GitHub(BaseModel):
     repositories: list[str]
-    paths: list[str]
+    paths: dict[str, str]  # path in the repositories to the change kind of commits touching it
     cluster_ref_pattern: str
 
 
@@ -232,6 +242,7 @@ class Settings(BaseModel):
     clusters: Clusters
     digest: Digest
     eval_documents: EvalDocuments
+    suite: Suite
     github: GitHub
     indexer_jobs: IndexerJobs
     engine_change_methods: list[str]

@@ -1,0 +1,2373 @@
+# Edge cases: wrong language, personal details in the question, very long context. Drafted against the
+# judge_versions/v1 rubric; reviewed: false until an engineer has checked the expected forms (§11.1). Every 5th case
+# is in the held-out part.
+- id: password_length-wrong-language
+  part: TUNING
+  reviewed: false
+  language: pl
+  tags: [wrong_language]
+  turn:
+    question: Ile znaków musi mieć hasło?
+    answer: The password must have at least 12 characters.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: The password must have at least 12 characters.
+      refs: [0]
+  documents: [passwords_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 1
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      language_matches: false
+      failure_types: [PRESENTATION_ISSUE]
+      primary_failure: PRESENTATION_ISSUE
+      severity: LOW
+- id: leave_pl_request-wrong-language
+  part: TUNING
+  reviewed: false
+  language: pl
+  tags: [wrong_language]
+  turn:
+    question: Jak zgłosić urlop na żądanie?
+    answer: Request it in Workday no later than the start of the working day of your absence.
+    references:
+    - doc: leave_pl
+      snippet: Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
+    spans:
+    - text: Request it in Workday no later than the start of the working day of your absence.
+      refs: [0]
+  documents: [leave_pl]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 1
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      language_matches: false
+      failure_types: [PRESENTATION_ISSUE]
+      primary_failure: PRESENTATION_ISSUE
+      severity: LOW
+- id: leave_ondemand-wrong-language
+  part: TUNING
+  reviewed: false
+  tags: [wrong_language]
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: Możesz wziąć maksymalnie 4 dni urlopu na żądanie w roku.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    spans:
+    - text: Możesz wziąć maksymalnie 4 dni urlopu na żądanie w roku.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 1
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      language_matches: false
+      failure_types: [PRESENTATION_ISSUE]
+      primary_failure: PRESENTATION_ISSUE
+      severity: LOW
+- id: sick_leave-private-details
+  part: TUNING
+  reviewed: false
+  tags: [private_details]
+  turn:
+    question: I'm Jan Kowalski (jan.kowalski@rtbhouse.com). I was sick yesterday, what do I need to do?
+    answer: Inform your manager on the first day of absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
+    references:
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+    spans:
+    - text: Inform your manager on the first day of absence.
+      refs: [0]
+    - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: leave_ondemand-private-details
+  part: HELD_OUT
+  reviewed: false
+  tags: [private_details]
+  turn:
+    question: My manager Piotr Zieliński says I have 6 on-demand days. Is that right?
+    answer: 'No: you can take up to 4 days of on-demand leave per year. They are taken from your annual leave.'
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    spans:
+    - text: 'No: you can take up to 4 days of on-demand leave per year.'
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: trips_booking-private-details
+  part: TUNING
+  reviewed: false
+  tags: [private_details]
+  turn:
+    question: Anna Nowak asked me to book her hotel in Berlin. How do I do it?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    spans:
+    - text: Book the hotel through Travel Tool, like every part of a business trip.
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: vpn_loop-private-details
+  part: TUNING
+  reviewed: false
+  tags: [private_details]
+  turn:
+    question: My VPN sign-in loops on laptop RTB-4471, phone +48 601 234 567. How do I fix it?
+    answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
+      queue in OTRS.'
+    references:
+    - doc: vpn
+      snippet: 'If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket
+        in the IT Helpdesk queue in OTRS.'
+    spans:
+    - text: 'Reset GlobalProtect: Settings > Troubleshooting > Reset.'
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: long-vpn-log
+  part: TUNING
+  reviewed: false
+  tags: [long_context]
+  earlier:
+  - question: |-
+      Here's my GlobalProtect log, what's wrong?
+      2026-10-28T09:00:00Z INFO gp connection attempt 0 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:01Z INFO gp connection attempt 1 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:02Z INFO gp connection attempt 2 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:03Z INFO gp connection attempt 3 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:04Z INFO gp connection attempt 4 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:05Z INFO gp connection attempt 5 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:06Z INFO gp connection attempt 6 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:07Z INFO gp connection attempt 7 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:08Z INFO gp connection attempt 8 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:09Z INFO gp connection attempt 9 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:10Z INFO gp connection attempt 10 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:11Z INFO gp connection attempt 11 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:12Z INFO gp connection attempt 12 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:13Z INFO gp connection attempt 13 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:14Z INFO gp connection attempt 14 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:15Z INFO gp connection attempt 15 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:16Z INFO gp connection attempt 16 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:17Z INFO gp connection attempt 17 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:18Z INFO gp connection attempt 18 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:19Z INFO gp connection attempt 19 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:20Z INFO gp connection attempt 20 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:21Z INFO gp connection attempt 21 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:22Z INFO gp connection attempt 22 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:23Z INFO gp connection attempt 23 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:24Z INFO gp connection attempt 24 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:25Z INFO gp connection attempt 25 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:26Z INFO gp connection attempt 26 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:27Z INFO gp connection attempt 27 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:28Z INFO gp connection attempt 28 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:29Z INFO gp connection attempt 29 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:30Z INFO gp connection attempt 30 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:31Z INFO gp connection attempt 31 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:32Z INFO gp connection attempt 32 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:33Z INFO gp connection attempt 33 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:34Z INFO gp connection attempt 34 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:35Z INFO gp connection attempt 35 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:36Z INFO gp connection attempt 36 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:37Z INFO gp connection attempt 37 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:38Z INFO gp connection attempt 38 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:39Z INFO gp connection attempt 39 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:40Z INFO gp connection attempt 40 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:41Z INFO gp connection attempt 41 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:42Z INFO gp connection attempt 42 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:43Z INFO gp connection attempt 43 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:44Z INFO gp connection attempt 44 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:45Z INFO gp connection attempt 45 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:46Z INFO gp connection attempt 46 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:47Z INFO gp connection attempt 47 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:48Z INFO gp connection attempt 48 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:49Z INFO gp connection attempt 49 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:50Z INFO gp connection attempt 50 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:51Z INFO gp connection attempt 51 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:52Z INFO gp connection attempt 52 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:53Z INFO gp connection attempt 53 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:54Z INFO gp connection attempt 54 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:55Z INFO gp connection attempt 55 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:56Z INFO gp connection attempt 56 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:57Z INFO gp connection attempt 57 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:58Z INFO gp connection attempt 58 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:59Z INFO gp connection attempt 59 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:00Z INFO gp connection attempt 60 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:01Z INFO gp connection attempt 61 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:02Z INFO gp connection attempt 62 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:03Z INFO gp connection attempt 63 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:04Z INFO gp connection attempt 64 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:05Z INFO gp connection attempt 65 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:06Z INFO gp connection attempt 66 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:07Z INFO gp connection attempt 67 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:08Z INFO gp connection attempt 68 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:09Z INFO gp connection attempt 69 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:10Z INFO gp connection attempt 70 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:11Z INFO gp connection attempt 71 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:12Z INFO gp connection attempt 72 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:13Z INFO gp connection attempt 73 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:14Z INFO gp connection attempt 74 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:15Z INFO gp connection attempt 75 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:16Z INFO gp connection attempt 76 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:17Z INFO gp connection attempt 77 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:18Z INFO gp connection attempt 78 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:19Z INFO gp connection attempt 79 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:20Z INFO gp connection attempt 80 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:21Z INFO gp connection attempt 81 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:22Z INFO gp connection attempt 82 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:23Z INFO gp connection attempt 83 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:24Z INFO gp connection attempt 84 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:25Z INFO gp connection attempt 85 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:26Z INFO gp connection attempt 86 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:27Z INFO gp connection attempt 87 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:28Z INFO gp connection attempt 88 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:29Z INFO gp connection attempt 89 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:30Z INFO gp connection attempt 90 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:31Z INFO gp connection attempt 91 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:32Z INFO gp connection attempt 92 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:33Z INFO gp connection attempt 93 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:34Z INFO gp connection attempt 94 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:35Z INFO gp connection attempt 95 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:36Z INFO gp connection attempt 96 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:37Z INFO gp connection attempt 97 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:38Z INFO gp connection attempt 98 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:39Z INFO gp connection attempt 99 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:40Z INFO gp connection attempt 100 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:41Z INFO gp connection attempt 101 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:42Z INFO gp connection attempt 102 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:43Z INFO gp connection attempt 103 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:44Z INFO gp connection attempt 104 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:45Z INFO gp connection attempt 105 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:46Z INFO gp connection attempt 106 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:47Z INFO gp connection attempt 107 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:48Z INFO gp connection attempt 108 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:49Z INFO gp connection attempt 109 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:50Z INFO gp connection attempt 110 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:51Z INFO gp connection attempt 111 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:52Z INFO gp connection attempt 112 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:53Z INFO gp connection attempt 113 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:54Z INFO gp connection attempt 114 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:55Z INFO gp connection attempt 115 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:56Z INFO gp connection attempt 116 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:57Z INFO gp connection attempt 117 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:58Z INFO gp connection attempt 118 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:59Z INFO gp connection attempt 119 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:00Z INFO gp connection attempt 120 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:01Z INFO gp connection attempt 121 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:02Z INFO gp connection attempt 122 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:03Z INFO gp connection attempt 123 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:04Z INFO gp connection attempt 124 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:05Z INFO gp connection attempt 125 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:06Z INFO gp connection attempt 126 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:07Z INFO gp connection attempt 127 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:08Z INFO gp connection attempt 128 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:09Z INFO gp connection attempt 129 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:10Z INFO gp connection attempt 130 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:11Z INFO gp connection attempt 131 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:12Z INFO gp connection attempt 132 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:13Z INFO gp connection attempt 133 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:14Z INFO gp connection attempt 134 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:15Z INFO gp connection attempt 135 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:16Z INFO gp connection attempt 136 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:17Z INFO gp connection attempt 137 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:18Z INFO gp connection attempt 138 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:19Z INFO gp connection attempt 139 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:20Z INFO gp connection attempt 140 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:21Z INFO gp connection attempt 141 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:22Z INFO gp connection attempt 142 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:23Z INFO gp connection attempt 143 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:24Z INFO gp connection attempt 144 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:25Z INFO gp connection attempt 145 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:26Z INFO gp connection attempt 146 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:27Z INFO gp connection attempt 147 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:28Z INFO gp connection attempt 148 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:29Z INFO gp connection attempt 149 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:30Z INFO gp connection attempt 150 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:31Z INFO gp connection attempt 151 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:32Z INFO gp connection attempt 152 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:33Z INFO gp connection attempt 153 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:34Z INFO gp connection attempt 154 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:35Z INFO gp connection attempt 155 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:36Z INFO gp connection attempt 156 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:37Z INFO gp connection attempt 157 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:38Z INFO gp connection attempt 158 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:39Z INFO gp connection attempt 159 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:40Z INFO gp connection attempt 160 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:41Z INFO gp connection attempt 161 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:42Z INFO gp connection attempt 162 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:43Z INFO gp connection attempt 163 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:44Z INFO gp connection attempt 164 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:45Z INFO gp connection attempt 165 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:46Z INFO gp connection attempt 166 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:47Z INFO gp connection attempt 167 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:48Z INFO gp connection attempt 168 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:49Z INFO gp connection attempt 169 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:50Z INFO gp connection attempt 170 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:51Z INFO gp connection attempt 171 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:52Z INFO gp connection attempt 172 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:53Z INFO gp connection attempt 173 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:54Z INFO gp connection attempt 174 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:55Z INFO gp connection attempt 175 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:56Z INFO gp connection attempt 176 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:57Z INFO gp connection attempt 177 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:58Z INFO gp connection attempt 178 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:59Z INFO gp connection attempt 179 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:00Z INFO gp connection attempt 180 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:01Z INFO gp connection attempt 181 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:02Z INFO gp connection attempt 182 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:03Z INFO gp connection attempt 183 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:04Z INFO gp connection attempt 184 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:05Z INFO gp connection attempt 185 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:06Z INFO gp connection attempt 186 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:07Z INFO gp connection attempt 187 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:08Z INFO gp connection attempt 188 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:09Z INFO gp connection attempt 189 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:10Z INFO gp connection attempt 190 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:11Z INFO gp connection attempt 191 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:12Z INFO gp connection attempt 192 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:13Z INFO gp connection attempt 193 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:14Z INFO gp connection attempt 194 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:15Z INFO gp connection attempt 195 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:16Z INFO gp connection attempt 196 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:17Z INFO gp connection attempt 197 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:18Z INFO gp connection attempt 198 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:19Z INFO gp connection attempt 199 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:20Z INFO gp connection attempt 200 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:21Z INFO gp connection attempt 201 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:22Z INFO gp connection attempt 202 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:23Z INFO gp connection attempt 203 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:24Z INFO gp connection attempt 204 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:25Z INFO gp connection attempt 205 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:26Z INFO gp connection attempt 206 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:27Z INFO gp connection attempt 207 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:28Z INFO gp connection attempt 208 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:29Z INFO gp connection attempt 209 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:30Z INFO gp connection attempt 210 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:31Z INFO gp connection attempt 211 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:32Z INFO gp connection attempt 212 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:33Z INFO gp connection attempt 213 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:34Z INFO gp connection attempt 214 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:35Z INFO gp connection attempt 215 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:36Z INFO gp connection attempt 216 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:37Z INFO gp connection attempt 217 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:38Z INFO gp connection attempt 218 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:39Z INFO gp connection attempt 219 gateway=Europe-1 status=Gateway not responding
+    answer: 'The log shows "Gateway not responding": switch the gateway to Europe-2 and reconnect.'
+    references:
+    - doc: vpn
+      snippet: |-
+        Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+        ## Troubleshooting
+        If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+        If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+        If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: I switched it and it still fails. What now?
+    answer: Open a ticket in the IT Helpdesk queue in OTRS.
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: long-sql
+  part: TUNING
+  reviewed: false
+  tags: [long_context]
+  earlier:
+  - question: |-
+      Why is this query so expensive?
+      ```sql
+      WITH step_0 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_0, SUM(spend_usd) AS spend_0
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_1 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_1, SUM(spend_usd) AS spend_1
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_2 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_2, SUM(spend_usd) AS spend_2
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_3 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_3, SUM(spend_usd) AS spend_3
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_4 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_4, SUM(spend_usd) AS spend_4
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_5 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_5, SUM(spend_usd) AS spend_5
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_6 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_6, SUM(spend_usd) AS spend_6
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_7 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_7, SUM(spend_usd) AS spend_7
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_8 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_8, SUM(spend_usd) AS spend_8
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_9 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_9, SUM(spend_usd) AS spend_9
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_10 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_10, SUM(spend_usd) AS spend_10
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_11 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_11, SUM(spend_usd) AS spend_11
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_12 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_12, SUM(spend_usd) AS spend_12
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_13 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_13, SUM(spend_usd) AS spend_13
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_14 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_14, SUM(spend_usd) AS spend_14
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_15 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_15, SUM(spend_usd) AS spend_15
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_16 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_16, SUM(spend_usd) AS spend_16
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_17 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_17, SUM(spend_usd) AS spend_17
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_18 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_18, SUM(spend_usd) AS spend_18
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_19 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_19, SUM(spend_usd) AS spend_19
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_20 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_20, SUM(spend_usd) AS spend_20
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_21 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_21, SUM(spend_usd) AS spend_21
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_22 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_22, SUM(spend_usd) AS spend_22
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_23 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_23, SUM(spend_usd) AS spend_23
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_24 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_24, SUM(spend_usd) AS spend_24
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_25 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_25, SUM(spend_usd) AS spend_25
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_26 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_26, SUM(spend_usd) AS spend_26
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_27 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_27, SUM(spend_usd) AS spend_27
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_28 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_28, SUM(spend_usd) AS spend_28
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_29 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_29, SUM(spend_usd) AS spend_29
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_30 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_30, SUM(spend_usd) AS spend_30
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_31 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_31, SUM(spend_usd) AS spend_31
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_32 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_32, SUM(spend_usd) AS spend_32
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_33 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_33, SUM(spend_usd) AS spend_33
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_34 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_34, SUM(spend_usd) AS spend_34
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_35 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_35, SUM(spend_usd) AS spend_35
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_36 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_36, SUM(spend_usd) AS spend_36
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_37 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_37, SUM(spend_usd) AS spend_37
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_38 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_38, SUM(spend_usd) AS spend_38
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_39 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_39, SUM(spend_usd) AS spend_39
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_40 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_40, SUM(spend_usd) AS spend_40
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_41 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_41, SUM(spend_usd) AS spend_41
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_42 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_42, SUM(spend_usd) AS spend_42
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_43 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_43, SUM(spend_usd) AS spend_43
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_44 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_44, SUM(spend_usd) AS spend_44
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_45 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_45, SUM(spend_usd) AS spend_45
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_46 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_46, SUM(spend_usd) AS spend_46
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_47 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_47, SUM(spend_usd) AS spend_47
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_48 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_48, SUM(spend_usd) AS spend_48
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_49 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_49, SUM(spend_usd) AS spend_49
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_50 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_50, SUM(spend_usd) AS spend_50
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_51 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_51, SUM(spend_usd) AS spend_51
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_52 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_52, SUM(spend_usd) AS spend_52
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_53 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_53, SUM(spend_usd) AS spend_53
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_54 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_54, SUM(spend_usd) AS spend_54
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_55 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_55, SUM(spend_usd) AS spend_55
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_56 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_56, SUM(spend_usd) AS spend_56
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_57 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_57, SUM(spend_usd) AS spend_57
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_58 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_58, SUM(spend_usd) AS spend_58
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      ),
+      step_59 AS (
+        SELECT advertiser_hash, SUM(impressions) AS impressions_59, SUM(spend_usd) AS spend_59
+        FROM analytics.impressions_daily
+        GROUP BY advertiser_hash
+      )
+      SELECT * FROM step_0
+      ```
+    answer: 'It scans the whole analytics.impressions_daily table: filter on the `day` partition column.'
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+
+        ## Columns
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+
+        ## Retention
+        Data is kept for 400 days.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Which columns does that table have?
+    answer: day, advertiser_hash, impressions, clicks and spend_usd.
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: long-api-log
+  part: HELD_OUT
+  reviewed: false
+  tags: [long_context]
+  earlier:
+  - question: |-
+      My script fails, here is the log:
+      2026-10-28 10:00:00 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:00:01 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:02 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:03 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:00:04 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:00:05 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:00:06 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:00:07 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:00:08 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:00:09 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:10 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:00:11 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:00:12 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:00:13 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:00:14 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:00:15 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:16 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:00:17 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:00:18 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:00:19 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:00:20 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:00:21 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:00:22 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:23 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:24 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:00:25 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:00:26 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:00:27 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:00:28 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:00:29 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:30 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:31 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:00:32 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:00:33 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:00:34 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:00:35 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:00:36 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:00:37 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:38 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:00:39 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:00:40 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:00:41 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:00:42 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:00:43 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:44 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:00:45 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:00:46 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:00:47 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:00:48 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:00:49 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:00:50 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:51 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:52 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:00:53 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:00:54 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:00:55 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:00:56 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:00:57 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:00:58 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:00:59 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:00 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:01:01 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:02 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:03 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:01:04 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:01:05 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:01:06 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:07 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:01:08 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:01:09 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:10 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:01:11 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:01:12 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:01:13 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:14 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:01:15 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:16 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:01:17 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:01:18 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:01:19 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:01:20 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:01:21 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:01:22 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:23 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:24 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:01:25 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:01:26 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:01:27 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:28 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:01:29 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:30 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:31 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:01:32 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:01:33 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:01:34 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:35 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:01:36 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:01:37 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:38 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:01:39 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:01:40 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:01:41 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:42 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:01:43 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:44 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:01:45 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:01:46 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:01:47 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:01:48 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:01:49 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:01:50 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:51 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:52 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:01:53 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:01:54 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:01:55 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:01:56 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:01:57 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:01:58 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:01:59 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:00 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:02:01 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:02 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:03 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:02:04 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:02:05 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:02:06 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:07 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:02:08 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:02:09 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:10 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:02:11 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:02:12 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:02:13 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:14 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:02:15 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:16 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:02:17 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:02:18 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:02:19 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:02:20 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:02:21 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:02:22 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:23 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:24 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:02:25 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:02:26 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:02:27 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:28 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:02:29 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:30 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:31 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:02:32 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:02:33 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:02:34 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:35 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:02:36 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:02:37 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:38 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:02:39 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:02:40 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:02:41 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:42 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:02:43 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:44 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:02:45 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:02:46 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:02:47 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:02:48 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:02:49 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:02:50 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:51 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:52 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:02:53 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:02:54 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:02:55 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:02:56 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:02:57 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:02:58 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:02:59 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:00 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:03:01 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:02 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:03 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:03:04 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:03:05 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:03:06 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:07 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:03:08 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:03:09 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:10 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:03:11 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:03:12 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:03:13 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:14 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:03:15 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:16 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:03:17 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:03:18 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:03:19 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:03:20 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:03:21 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:03:22 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:23 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:24 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:03:25 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:03:26 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:03:27 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:28 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:03:29 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:30 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:31 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:03:32 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:03:33 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:03:34 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:35 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:03:36 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:03:37 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:38 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:03:39 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:03:40 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:03:41 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:42 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:03:43 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:44 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:03:45 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:03:46 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:03:47 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:03:48 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:03:49 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:03:50 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:51 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:52 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:03:53 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:03:54 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:03:55 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:03:56 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:03:57 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:03:58 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:03:59 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:00 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:04:01 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:02 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:03 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:04:04 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:04:05 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:04:06 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:07 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:04:08 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:04:09 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:10 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:04:11 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:04:12 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:04:13 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:14 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:04:15 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:16 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:04:17 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:04:18 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:04:19 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:04:20 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:04:21 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:04:22 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:23 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:24 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:04:25 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:04:26 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:04:27 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:28 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:04:29 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:30 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:31 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:04:32 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:04:33 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:04:34 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:35 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:04:36 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:04:37 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:38 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:04:39 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:04:40 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:04:41 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:42 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:04:43 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:44 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:04:45 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:04:46 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:04:47 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:04:48 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:04:49 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:04:50 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:51 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:52 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:04:53 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:04:54 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:04:55 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:04:56 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:04:57 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:04:58 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:04:59 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:00 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:05:01 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:02 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:03 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:05:04 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:05:05 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:05:06 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:07 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:05:08 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:05:09 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:10 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:05:11 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:05:12 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:05:13 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:14 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:05:15 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:16 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:05:17 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:05:18 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:05:19 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:05:20 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:05:21 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:05:22 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:23 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:24 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:05:25 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:05:26 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:05:27 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:28 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:05:29 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:30 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:31 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:05:32 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:05:33 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:05:34 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:35 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:05:36 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:05:37 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:38 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:05:39 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:05:40 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:05:41 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:42 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:05:43 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:44 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:05:45 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:05:46 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:05:47 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:05:48 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:05:49 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:05:50 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:51 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:52 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:05:53 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:05:54 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:05:55 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:05:56 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:05:57 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:05:58 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:05:59 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:06:00 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:06:01 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:06:02 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:06:03 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:06:04 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:06:05 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:06:06 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:06:07 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:06:08 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:06:09 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:06:10 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:06:11 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:06:12 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 429 Too Many Requests
+      2026-10-28 10:06:13 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:06:14 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:06:15 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:06:16 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 429 Too Many Requests
+      2026-10-28 10:06:17 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:06:18 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:06:19 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:06:20 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 429 Too Many Requests
+      2026-10-28 10:06:21 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:06:22 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:06:23 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:06:24 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 429 Too Many Requests
+      2026-10-28 10:06:25 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+      2026-10-28 10:06:26 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:06:27 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:06:28 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 429 Too Many Requests
+      2026-10-28 10:06:29 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 200 OK
+      2026-10-28 10:06:30 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:06:31 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:06:32 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 429 Too Many Requests
+      2026-10-28 10:06:33 GET /v5/advertisers/a1b2c3/campaigns?page=2 -> 200 OK
+      2026-10-28 10:06:34 GET /v5/advertisers/a1b2c3/campaigns?page=3 -> 200 OK
+      2026-10-28 10:06:35 GET /v5/advertisers/a1b2c3/campaigns?page=4 -> 200 OK
+      2026-10-28 10:06:36 GET /v5/advertisers/a1b2c3/campaigns?page=5 -> 429 Too Many Requests
+      2026-10-28 10:06:37 GET /v5/advertisers/a1b2c3/campaigns?page=6 -> 200 OK
+      2026-10-28 10:06:38 GET /v5/advertisers/a1b2c3/campaigns?page=7 -> 200 OK
+      2026-10-28 10:06:39 GET /v5/advertisers/a1b2c3/campaigns?page=1 -> 200 OK
+    answer: 'Many requests get HTTP 429: you exceed 10 requests per second per token.'
+    references:
+    - doc: campaigns_api
+      snippet: |-
+        Returns at most 100 campaigns per page. Use the `page` parameter to get the next page.
+
+        ## Authentication
+        Send the header `Authorization: Bearer <token>`.
+
+        ## Rate limits
+        10 requests per second per token. HTTP 429 means the limit was exceeded: wait for the number of seconds in the `Retry-After` header, then retry.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How long should I wait before retrying?
+    answer: Wait for the number of seconds in the `Retry-After` header.
+  documents: [campaigns_api]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: long-over-cap
+  part: TUNING
+  reviewed: false
+  tags: [long_context]
+  earlier:
+  - question: |-
+      Please check this log too:
+      2026-10-28T09:00:00Z INFO old connection attempt 0 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:01Z INFO old connection attempt 1 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:02Z INFO old connection attempt 2 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:03Z INFO old connection attempt 3 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:04Z INFO old connection attempt 4 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:05Z INFO old connection attempt 5 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:06Z INFO old connection attempt 6 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:07Z INFO old connection attempt 7 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:08Z INFO old connection attempt 8 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:09Z INFO old connection attempt 9 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:10Z INFO old connection attempt 10 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:11Z INFO old connection attempt 11 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:12Z INFO old connection attempt 12 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:13Z INFO old connection attempt 13 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:14Z INFO old connection attempt 14 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:15Z INFO old connection attempt 15 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:16Z INFO old connection attempt 16 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:17Z INFO old connection attempt 17 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:18Z INFO old connection attempt 18 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:19Z INFO old connection attempt 19 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:20Z INFO old connection attempt 20 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:21Z INFO old connection attempt 21 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:22Z INFO old connection attempt 22 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:23Z INFO old connection attempt 23 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:24Z INFO old connection attempt 24 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:25Z INFO old connection attempt 25 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:26Z INFO old connection attempt 26 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:27Z INFO old connection attempt 27 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:28Z INFO old connection attempt 28 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:29Z INFO old connection attempt 29 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:30Z INFO old connection attempt 30 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:31Z INFO old connection attempt 31 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:32Z INFO old connection attempt 32 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:33Z INFO old connection attempt 33 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:34Z INFO old connection attempt 34 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:35Z INFO old connection attempt 35 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:36Z INFO old connection attempt 36 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:37Z INFO old connection attempt 37 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:38Z INFO old connection attempt 38 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:39Z INFO old connection attempt 39 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:40Z INFO old connection attempt 40 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:41Z INFO old connection attempt 41 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:42Z INFO old connection attempt 42 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:43Z INFO old connection attempt 43 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:44Z INFO old connection attempt 44 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:45Z INFO old connection attempt 45 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:46Z INFO old connection attempt 46 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:47Z INFO old connection attempt 47 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:48Z INFO old connection attempt 48 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:49Z INFO old connection attempt 49 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:50Z INFO old connection attempt 50 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:51Z INFO old connection attempt 51 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:52Z INFO old connection attempt 52 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:53Z INFO old connection attempt 53 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:54Z INFO old connection attempt 54 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:55Z INFO old connection attempt 55 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:56Z INFO old connection attempt 56 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:57Z INFO old connection attempt 57 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:58Z INFO old connection attempt 58 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:59Z INFO old connection attempt 59 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:00Z INFO old connection attempt 60 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:01Z INFO old connection attempt 61 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:02Z INFO old connection attempt 62 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:03Z INFO old connection attempt 63 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:04Z INFO old connection attempt 64 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:05Z INFO old connection attempt 65 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:06Z INFO old connection attempt 66 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:07Z INFO old connection attempt 67 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:08Z INFO old connection attempt 68 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:09Z INFO old connection attempt 69 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:10Z INFO old connection attempt 70 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:11Z INFO old connection attempt 71 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:12Z INFO old connection attempt 72 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:13Z INFO old connection attempt 73 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:14Z INFO old connection attempt 74 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:15Z INFO old connection attempt 75 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:16Z INFO old connection attempt 76 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:17Z INFO old connection attempt 77 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:18Z INFO old connection attempt 78 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:19Z INFO old connection attempt 79 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:20Z INFO old connection attempt 80 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:21Z INFO old connection attempt 81 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:22Z INFO old connection attempt 82 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:23Z INFO old connection attempt 83 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:24Z INFO old connection attempt 84 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:25Z INFO old connection attempt 85 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:26Z INFO old connection attempt 86 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:27Z INFO old connection attempt 87 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:28Z INFO old connection attempt 88 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:29Z INFO old connection attempt 89 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:30Z INFO old connection attempt 90 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:31Z INFO old connection attempt 91 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:32Z INFO old connection attempt 92 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:33Z INFO old connection attempt 93 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:34Z INFO old connection attempt 94 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:35Z INFO old connection attempt 95 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:36Z INFO old connection attempt 96 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:37Z INFO old connection attempt 97 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:38Z INFO old connection attempt 98 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:39Z INFO old connection attempt 99 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:40Z INFO old connection attempt 100 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:41Z INFO old connection attempt 101 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:42Z INFO old connection attempt 102 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:43Z INFO old connection attempt 103 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:44Z INFO old connection attempt 104 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:45Z INFO old connection attempt 105 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:46Z INFO old connection attempt 106 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:47Z INFO old connection attempt 107 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:48Z INFO old connection attempt 108 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:49Z INFO old connection attempt 109 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:50Z INFO old connection attempt 110 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:51Z INFO old connection attempt 111 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:52Z INFO old connection attempt 112 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:53Z INFO old connection attempt 113 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:54Z INFO old connection attempt 114 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:55Z INFO old connection attempt 115 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:56Z INFO old connection attempt 116 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:57Z INFO old connection attempt 117 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:58Z INFO old connection attempt 118 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:59Z INFO old connection attempt 119 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:00Z INFO old connection attempt 120 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:01Z INFO old connection attempt 121 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:02Z INFO old connection attempt 122 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:03Z INFO old connection attempt 123 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:04Z INFO old connection attempt 124 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:05Z INFO old connection attempt 125 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:06Z INFO old connection attempt 126 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:07Z INFO old connection attempt 127 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:08Z INFO old connection attempt 128 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:09Z INFO old connection attempt 129 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:10Z INFO old connection attempt 130 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:11Z INFO old connection attempt 131 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:12Z INFO old connection attempt 132 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:13Z INFO old connection attempt 133 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:14Z INFO old connection attempt 134 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:15Z INFO old connection attempt 135 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:16Z INFO old connection attempt 136 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:17Z INFO old connection attempt 137 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:18Z INFO old connection attempt 138 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:19Z INFO old connection attempt 139 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:20Z INFO old connection attempt 140 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:21Z INFO old connection attempt 141 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:22Z INFO old connection attempt 142 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:23Z INFO old connection attempt 143 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:24Z INFO old connection attempt 144 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:25Z INFO old connection attempt 145 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:26Z INFO old connection attempt 146 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:27Z INFO old connection attempt 147 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:28Z INFO old connection attempt 148 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:29Z INFO old connection attempt 149 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:30Z INFO old connection attempt 150 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:31Z INFO old connection attempt 151 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:32Z INFO old connection attempt 152 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:33Z INFO old connection attempt 153 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:34Z INFO old connection attempt 154 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:35Z INFO old connection attempt 155 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:36Z INFO old connection attempt 156 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:37Z INFO old connection attempt 157 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:38Z INFO old connection attempt 158 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:39Z INFO old connection attempt 159 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:40Z INFO old connection attempt 160 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:41Z INFO old connection attempt 161 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:42Z INFO old connection attempt 162 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:43Z INFO old connection attempt 163 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:44Z INFO old connection attempt 164 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:45Z INFO old connection attempt 165 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:46Z INFO old connection attempt 166 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:47Z INFO old connection attempt 167 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:48Z INFO old connection attempt 168 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:49Z INFO old connection attempt 169 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:50Z INFO old connection attempt 170 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:51Z INFO old connection attempt 171 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:52Z INFO old connection attempt 172 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:53Z INFO old connection attempt 173 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:54Z INFO old connection attempt 174 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:55Z INFO old connection attempt 175 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:56Z INFO old connection attempt 176 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:57Z INFO old connection attempt 177 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:58Z INFO old connection attempt 178 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:59Z INFO old connection attempt 179 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:00Z INFO old connection attempt 180 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:01Z INFO old connection attempt 181 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:02Z INFO old connection attempt 182 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:03Z INFO old connection attempt 183 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:04Z INFO old connection attempt 184 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:05Z INFO old connection attempt 185 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:06Z INFO old connection attempt 186 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:07Z INFO old connection attempt 187 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:08Z INFO old connection attempt 188 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:09Z INFO old connection attempt 189 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:10Z INFO old connection attempt 190 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:11Z INFO old connection attempt 191 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:12Z INFO old connection attempt 192 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:13Z INFO old connection attempt 193 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:14Z INFO old connection attempt 194 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:15Z INFO old connection attempt 195 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:16Z INFO old connection attempt 196 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:17Z INFO old connection attempt 197 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:18Z INFO old connection attempt 198 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:19Z INFO old connection attempt 199 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:20Z INFO old connection attempt 200 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:21Z INFO old connection attempt 201 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:22Z INFO old connection attempt 202 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:23Z INFO old connection attempt 203 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:24Z INFO old connection attempt 204 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:25Z INFO old connection attempt 205 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:26Z INFO old connection attempt 206 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:27Z INFO old connection attempt 207 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:28Z INFO old connection attempt 208 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:29Z INFO old connection attempt 209 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:30Z INFO old connection attempt 210 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:31Z INFO old connection attempt 211 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:32Z INFO old connection attempt 212 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:33Z INFO old connection attempt 213 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:34Z INFO old connection attempt 214 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:35Z INFO old connection attempt 215 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:36Z INFO old connection attempt 216 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:37Z INFO old connection attempt 217 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:38Z INFO old connection attempt 218 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:39Z INFO old connection attempt 219 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:40Z INFO old connection attempt 220 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:41Z INFO old connection attempt 221 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:42Z INFO old connection attempt 222 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:43Z INFO old connection attempt 223 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:44Z INFO old connection attempt 224 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:45Z INFO old connection attempt 225 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:46Z INFO old connection attempt 226 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:47Z INFO old connection attempt 227 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:48Z INFO old connection attempt 228 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:49Z INFO old connection attempt 229 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:50Z INFO old connection attempt 230 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:51Z INFO old connection attempt 231 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:52Z INFO old connection attempt 232 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:53Z INFO old connection attempt 233 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:54Z INFO old connection attempt 234 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:55Z INFO old connection attempt 235 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:56Z INFO old connection attempt 236 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:57Z INFO old connection attempt 237 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:03:58Z INFO old connection attempt 238 gateway=Europe-1 status=timeout
+      2026-10-28T09:03:59Z INFO old connection attempt 239 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:00Z INFO old connection attempt 240 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:01Z INFO old connection attempt 241 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:02Z INFO old connection attempt 242 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:03Z INFO old connection attempt 243 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:04Z INFO old connection attempt 244 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:05Z INFO old connection attempt 245 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:06Z INFO old connection attempt 246 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:07Z INFO old connection attempt 247 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:08Z INFO old connection attempt 248 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:09Z INFO old connection attempt 249 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:10Z INFO old connection attempt 250 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:11Z INFO old connection attempt 251 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:12Z INFO old connection attempt 252 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:13Z INFO old connection attempt 253 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:14Z INFO old connection attempt 254 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:15Z INFO old connection attempt 255 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:16Z INFO old connection attempt 256 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:17Z INFO old connection attempt 257 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:18Z INFO old connection attempt 258 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:19Z INFO old connection attempt 259 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:20Z INFO old connection attempt 260 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:21Z INFO old connection attempt 261 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:22Z INFO old connection attempt 262 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:23Z INFO old connection attempt 263 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:24Z INFO old connection attempt 264 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:25Z INFO old connection attempt 265 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:26Z INFO old connection attempt 266 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:27Z INFO old connection attempt 267 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:28Z INFO old connection attempt 268 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:29Z INFO old connection attempt 269 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:30Z INFO old connection attempt 270 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:31Z INFO old connection attempt 271 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:32Z INFO old connection attempt 272 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:33Z INFO old connection attempt 273 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:34Z INFO old connection attempt 274 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:35Z INFO old connection attempt 275 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:36Z INFO old connection attempt 276 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:37Z INFO old connection attempt 277 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:38Z INFO old connection attempt 278 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:39Z INFO old connection attempt 279 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:40Z INFO old connection attempt 280 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:41Z INFO old connection attempt 281 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:42Z INFO old connection attempt 282 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:43Z INFO old connection attempt 283 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:44Z INFO old connection attempt 284 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:45Z INFO old connection attempt 285 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:46Z INFO old connection attempt 286 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:47Z INFO old connection attempt 287 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:48Z INFO old connection attempt 288 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:49Z INFO old connection attempt 289 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:50Z INFO old connection attempt 290 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:51Z INFO old connection attempt 291 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:52Z INFO old connection attempt 292 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:53Z INFO old connection attempt 293 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:54Z INFO old connection attempt 294 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:55Z INFO old connection attempt 295 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:56Z INFO old connection attempt 296 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:57Z INFO old connection attempt 297 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:04:58Z INFO old connection attempt 298 gateway=Europe-1 status=timeout
+      2026-10-28T09:04:59Z INFO old connection attempt 299 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:00Z INFO old connection attempt 300 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:01Z INFO old connection attempt 301 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:02Z INFO old connection attempt 302 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:03Z INFO old connection attempt 303 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:04Z INFO old connection attempt 304 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:05Z INFO old connection attempt 305 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:06Z INFO old connection attempt 306 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:07Z INFO old connection attempt 307 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:08Z INFO old connection attempt 308 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:09Z INFO old connection attempt 309 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:10Z INFO old connection attempt 310 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:11Z INFO old connection attempt 311 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:12Z INFO old connection attempt 312 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:13Z INFO old connection attempt 313 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:14Z INFO old connection attempt 314 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:15Z INFO old connection attempt 315 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:16Z INFO old connection attempt 316 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:17Z INFO old connection attempt 317 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:18Z INFO old connection attempt 318 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:19Z INFO old connection attempt 319 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:20Z INFO old connection attempt 320 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:21Z INFO old connection attempt 321 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:22Z INFO old connection attempt 322 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:23Z INFO old connection attempt 323 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:24Z INFO old connection attempt 324 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:25Z INFO old connection attempt 325 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:26Z INFO old connection attempt 326 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:27Z INFO old connection attempt 327 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:28Z INFO old connection attempt 328 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:29Z INFO old connection attempt 329 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:30Z INFO old connection attempt 330 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:31Z INFO old connection attempt 331 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:32Z INFO old connection attempt 332 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:33Z INFO old connection attempt 333 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:34Z INFO old connection attempt 334 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:35Z INFO old connection attempt 335 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:36Z INFO old connection attempt 336 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:37Z INFO old connection attempt 337 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:38Z INFO old connection attempt 338 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:39Z INFO old connection attempt 339 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:40Z INFO old connection attempt 340 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:41Z INFO old connection attempt 341 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:42Z INFO old connection attempt 342 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:43Z INFO old connection attempt 343 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:44Z INFO old connection attempt 344 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:45Z INFO old connection attempt 345 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:46Z INFO old connection attempt 346 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:47Z INFO old connection attempt 347 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:48Z INFO old connection attempt 348 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:49Z INFO old connection attempt 349 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:50Z INFO old connection attempt 350 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:51Z INFO old connection attempt 351 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:52Z INFO old connection attempt 352 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:53Z INFO old connection attempt 353 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:54Z INFO old connection attempt 354 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:55Z INFO old connection attempt 355 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:56Z INFO old connection attempt 356 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:57Z INFO old connection attempt 357 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:05:58Z INFO old connection attempt 358 gateway=Europe-1 status=timeout
+      2026-10-28T09:05:59Z INFO old connection attempt 359 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:00Z INFO old connection attempt 360 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:01Z INFO old connection attempt 361 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:02Z INFO old connection attempt 362 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:03Z INFO old connection attempt 363 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:04Z INFO old connection attempt 364 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:05Z INFO old connection attempt 365 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:06Z INFO old connection attempt 366 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:07Z INFO old connection attempt 367 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:08Z INFO old connection attempt 368 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:09Z INFO old connection attempt 369 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:10Z INFO old connection attempt 370 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:11Z INFO old connection attempt 371 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:12Z INFO old connection attempt 372 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:13Z INFO old connection attempt 373 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:14Z INFO old connection attempt 374 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:15Z INFO old connection attempt 375 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:16Z INFO old connection attempt 376 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:17Z INFO old connection attempt 377 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:18Z INFO old connection attempt 378 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:19Z INFO old connection attempt 379 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:20Z INFO old connection attempt 380 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:21Z INFO old connection attempt 381 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:22Z INFO old connection attempt 382 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:23Z INFO old connection attempt 383 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:24Z INFO old connection attempt 384 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:25Z INFO old connection attempt 385 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:26Z INFO old connection attempt 386 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:27Z INFO old connection attempt 387 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:28Z INFO old connection attempt 388 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:29Z INFO old connection attempt 389 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:30Z INFO old connection attempt 390 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:31Z INFO old connection attempt 391 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:32Z INFO old connection attempt 392 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:33Z INFO old connection attempt 393 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:34Z INFO old connection attempt 394 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:35Z INFO old connection attempt 395 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:36Z INFO old connection attempt 396 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:37Z INFO old connection attempt 397 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:38Z INFO old connection attempt 398 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:39Z INFO old connection attempt 399 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:40Z INFO old connection attempt 400 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:41Z INFO old connection attempt 401 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:42Z INFO old connection attempt 402 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:43Z INFO old connection attempt 403 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:44Z INFO old connection attempt 404 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:45Z INFO old connection attempt 405 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:46Z INFO old connection attempt 406 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:47Z INFO old connection attempt 407 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:48Z INFO old connection attempt 408 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:49Z INFO old connection attempt 409 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:50Z INFO old connection attempt 410 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:51Z INFO old connection attempt 411 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:52Z INFO old connection attempt 412 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:53Z INFO old connection attempt 413 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:54Z INFO old connection attempt 414 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:55Z INFO old connection attempt 415 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:56Z INFO old connection attempt 416 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:57Z INFO old connection attempt 417 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:06:58Z INFO old connection attempt 418 gateway=Europe-1 status=timeout
+      2026-10-28T09:06:59Z INFO old connection attempt 419 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:00Z INFO old connection attempt 420 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:01Z INFO old connection attempt 421 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:02Z INFO old connection attempt 422 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:03Z INFO old connection attempt 423 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:04Z INFO old connection attempt 424 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:05Z INFO old connection attempt 425 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:06Z INFO old connection attempt 426 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:07Z INFO old connection attempt 427 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:08Z INFO old connection attempt 428 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:09Z INFO old connection attempt 429 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:10Z INFO old connection attempt 430 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:11Z INFO old connection attempt 431 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:12Z INFO old connection attempt 432 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:13Z INFO old connection attempt 433 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:14Z INFO old connection attempt 434 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:15Z INFO old connection attempt 435 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:16Z INFO old connection attempt 436 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:17Z INFO old connection attempt 437 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:18Z INFO old connection attempt 438 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:19Z INFO old connection attempt 439 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:20Z INFO old connection attempt 440 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:21Z INFO old connection attempt 441 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:22Z INFO old connection attempt 442 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:23Z INFO old connection attempt 443 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:24Z INFO old connection attempt 444 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:25Z INFO old connection attempt 445 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:26Z INFO old connection attempt 446 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:27Z INFO old connection attempt 447 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:28Z INFO old connection attempt 448 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:29Z INFO old connection attempt 449 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:30Z INFO old connection attempt 450 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:31Z INFO old connection attempt 451 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:32Z INFO old connection attempt 452 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:33Z INFO old connection attempt 453 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:34Z INFO old connection attempt 454 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:35Z INFO old connection attempt 455 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:36Z INFO old connection attempt 456 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:37Z INFO old connection attempt 457 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:38Z INFO old connection attempt 458 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:39Z INFO old connection attempt 459 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:40Z INFO old connection attempt 460 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:41Z INFO old connection attempt 461 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:42Z INFO old connection attempt 462 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:43Z INFO old connection attempt 463 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:44Z INFO old connection attempt 464 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:45Z INFO old connection attempt 465 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:46Z INFO old connection attempt 466 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:47Z INFO old connection attempt 467 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:48Z INFO old connection attempt 468 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:49Z INFO old connection attempt 469 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:50Z INFO old connection attempt 470 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:51Z INFO old connection attempt 471 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:52Z INFO old connection attempt 472 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:53Z INFO old connection attempt 473 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:54Z INFO old connection attempt 474 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:55Z INFO old connection attempt 475 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:56Z INFO old connection attempt 476 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:57Z INFO old connection attempt 477 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:07:58Z INFO old connection attempt 478 gateway=Europe-1 status=timeout
+      2026-10-28T09:07:59Z INFO old connection attempt 479 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:00Z INFO old connection attempt 480 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:01Z INFO old connection attempt 481 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:02Z INFO old connection attempt 482 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:03Z INFO old connection attempt 483 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:04Z INFO old connection attempt 484 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:05Z INFO old connection attempt 485 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:06Z INFO old connection attempt 486 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:07Z INFO old connection attempt 487 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:08Z INFO old connection attempt 488 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:09Z INFO old connection attempt 489 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:10Z INFO old connection attempt 490 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:11Z INFO old connection attempt 491 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:12Z INFO old connection attempt 492 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:13Z INFO old connection attempt 493 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:14Z INFO old connection attempt 494 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:15Z INFO old connection attempt 495 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:16Z INFO old connection attempt 496 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:17Z INFO old connection attempt 497 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:18Z INFO old connection attempt 498 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:19Z INFO old connection attempt 499 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:20Z INFO old connection attempt 500 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:21Z INFO old connection attempt 501 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:22Z INFO old connection attempt 502 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:23Z INFO old connection attempt 503 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:24Z INFO old connection attempt 504 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:25Z INFO old connection attempt 505 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:26Z INFO old connection attempt 506 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:27Z INFO old connection attempt 507 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:28Z INFO old connection attempt 508 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:29Z INFO old connection attempt 509 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:30Z INFO old connection attempt 510 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:31Z INFO old connection attempt 511 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:32Z INFO old connection attempt 512 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:33Z INFO old connection attempt 513 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:34Z INFO old connection attempt 514 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:35Z INFO old connection attempt 515 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:36Z INFO old connection attempt 516 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:37Z INFO old connection attempt 517 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:38Z INFO old connection attempt 518 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:39Z INFO old connection attempt 519 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:40Z INFO old connection attempt 520 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:41Z INFO old connection attempt 521 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:42Z INFO old connection attempt 522 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:43Z INFO old connection attempt 523 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:44Z INFO old connection attempt 524 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:45Z INFO old connection attempt 525 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:46Z INFO old connection attempt 526 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:47Z INFO old connection attempt 527 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:48Z INFO old connection attempt 528 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:49Z INFO old connection attempt 529 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:50Z INFO old connection attempt 530 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:51Z INFO old connection attempt 531 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:52Z INFO old connection attempt 532 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:53Z INFO old connection attempt 533 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:54Z INFO old connection attempt 534 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:55Z INFO old connection attempt 535 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:56Z INFO old connection attempt 536 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:57Z INFO old connection attempt 537 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:08:58Z INFO old connection attempt 538 gateway=Europe-1 status=timeout
+      2026-10-28T09:08:59Z INFO old connection attempt 539 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:00Z INFO old connection attempt 540 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:01Z INFO old connection attempt 541 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:02Z INFO old connection attempt 542 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:03Z INFO old connection attempt 543 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:04Z INFO old connection attempt 544 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:05Z INFO old connection attempt 545 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:06Z INFO old connection attempt 546 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:07Z INFO old connection attempt 547 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:08Z INFO old connection attempt 548 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:09Z INFO old connection attempt 549 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:10Z INFO old connection attempt 550 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:11Z INFO old connection attempt 551 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:12Z INFO old connection attempt 552 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:13Z INFO old connection attempt 553 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:14Z INFO old connection attempt 554 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:15Z INFO old connection attempt 555 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:16Z INFO old connection attempt 556 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:17Z INFO old connection attempt 557 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:18Z INFO old connection attempt 558 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:19Z INFO old connection attempt 559 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:20Z INFO old connection attempt 560 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:21Z INFO old connection attempt 561 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:22Z INFO old connection attempt 562 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:23Z INFO old connection attempt 563 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:24Z INFO old connection attempt 564 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:25Z INFO old connection attempt 565 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:26Z INFO old connection attempt 566 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:27Z INFO old connection attempt 567 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:28Z INFO old connection attempt 568 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:29Z INFO old connection attempt 569 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:30Z INFO old connection attempt 570 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:31Z INFO old connection attempt 571 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:32Z INFO old connection attempt 572 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:33Z INFO old connection attempt 573 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:34Z INFO old connection attempt 574 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:35Z INFO old connection attempt 575 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:36Z INFO old connection attempt 576 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:37Z INFO old connection attempt 577 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:38Z INFO old connection attempt 578 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:39Z INFO old connection attempt 579 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:40Z INFO old connection attempt 580 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:41Z INFO old connection attempt 581 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:42Z INFO old connection attempt 582 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:43Z INFO old connection attempt 583 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:44Z INFO old connection attempt 584 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:45Z INFO old connection attempt 585 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:46Z INFO old connection attempt 586 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:47Z INFO old connection attempt 587 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:48Z INFO old connection attempt 588 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:49Z INFO old connection attempt 589 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:50Z INFO old connection attempt 590 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:51Z INFO old connection attempt 591 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:52Z INFO old connection attempt 592 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:53Z INFO old connection attempt 593 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:54Z INFO old connection attempt 594 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:55Z INFO old connection attempt 595 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:56Z INFO old connection attempt 596 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:57Z INFO old connection attempt 597 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:09:58Z INFO old connection attempt 598 gateway=Europe-1 status=timeout
+      2026-10-28T09:09:59Z INFO old connection attempt 599 gateway=Europe-1 status=timeout
+    answer: It shows repeated timeouts.
+    references:
+    - doc: vpn
+      snippet: |-
+        Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+        ## Troubleshooting
+        If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+        If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+        If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: |-
+      And this one?
+      2026-10-28T09:00:00Z INFO new connection attempt 0 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:01Z INFO new connection attempt 1 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:02Z INFO new connection attempt 2 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:03Z INFO new connection attempt 3 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:04Z INFO new connection attempt 4 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:05Z INFO new connection attempt 5 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:06Z INFO new connection attempt 6 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:07Z INFO new connection attempt 7 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:08Z INFO new connection attempt 8 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:09Z INFO new connection attempt 9 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:10Z INFO new connection attempt 10 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:11Z INFO new connection attempt 11 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:12Z INFO new connection attempt 12 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:13Z INFO new connection attempt 13 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:14Z INFO new connection attempt 14 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:15Z INFO new connection attempt 15 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:16Z INFO new connection attempt 16 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:17Z INFO new connection attempt 17 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:18Z INFO new connection attempt 18 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:19Z INFO new connection attempt 19 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:20Z INFO new connection attempt 20 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:21Z INFO new connection attempt 21 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:22Z INFO new connection attempt 22 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:23Z INFO new connection attempt 23 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:24Z INFO new connection attempt 24 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:25Z INFO new connection attempt 25 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:26Z INFO new connection attempt 26 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:27Z INFO new connection attempt 27 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:28Z INFO new connection attempt 28 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:29Z INFO new connection attempt 29 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:30Z INFO new connection attempt 30 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:31Z INFO new connection attempt 31 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:32Z INFO new connection attempt 32 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:33Z INFO new connection attempt 33 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:34Z INFO new connection attempt 34 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:35Z INFO new connection attempt 35 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:36Z INFO new connection attempt 36 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:37Z INFO new connection attempt 37 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:38Z INFO new connection attempt 38 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:39Z INFO new connection attempt 39 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:40Z INFO new connection attempt 40 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:41Z INFO new connection attempt 41 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:42Z INFO new connection attempt 42 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:43Z INFO new connection attempt 43 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:44Z INFO new connection attempt 44 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:45Z INFO new connection attempt 45 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:46Z INFO new connection attempt 46 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:47Z INFO new connection attempt 47 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:48Z INFO new connection attempt 48 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:49Z INFO new connection attempt 49 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:50Z INFO new connection attempt 50 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:51Z INFO new connection attempt 51 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:52Z INFO new connection attempt 52 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:53Z INFO new connection attempt 53 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:54Z INFO new connection attempt 54 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:55Z INFO new connection attempt 55 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:56Z INFO new connection attempt 56 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:57Z INFO new connection attempt 57 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:00:58Z INFO new connection attempt 58 gateway=Europe-1 status=timeout
+      2026-10-28T09:00:59Z INFO new connection attempt 59 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:00Z INFO new connection attempt 60 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:01Z INFO new connection attempt 61 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:02Z INFO new connection attempt 62 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:03Z INFO new connection attempt 63 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:04Z INFO new connection attempt 64 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:05Z INFO new connection attempt 65 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:06Z INFO new connection attempt 66 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:07Z INFO new connection attempt 67 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:08Z INFO new connection attempt 68 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:09Z INFO new connection attempt 69 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:10Z INFO new connection attempt 70 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:11Z INFO new connection attempt 71 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:12Z INFO new connection attempt 72 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:13Z INFO new connection attempt 73 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:14Z INFO new connection attempt 74 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:15Z INFO new connection attempt 75 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:16Z INFO new connection attempt 76 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:17Z INFO new connection attempt 77 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:18Z INFO new connection attempt 78 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:19Z INFO new connection attempt 79 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:20Z INFO new connection attempt 80 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:21Z INFO new connection attempt 81 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:22Z INFO new connection attempt 82 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:23Z INFO new connection attempt 83 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:24Z INFO new connection attempt 84 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:25Z INFO new connection attempt 85 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:26Z INFO new connection attempt 86 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:27Z INFO new connection attempt 87 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:28Z INFO new connection attempt 88 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:29Z INFO new connection attempt 89 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:30Z INFO new connection attempt 90 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:31Z INFO new connection attempt 91 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:32Z INFO new connection attempt 92 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:33Z INFO new connection attempt 93 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:34Z INFO new connection attempt 94 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:35Z INFO new connection attempt 95 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:36Z INFO new connection attempt 96 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:37Z INFO new connection attempt 97 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:38Z INFO new connection attempt 98 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:39Z INFO new connection attempt 99 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:40Z INFO new connection attempt 100 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:41Z INFO new connection attempt 101 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:42Z INFO new connection attempt 102 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:43Z INFO new connection attempt 103 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:44Z INFO new connection attempt 104 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:45Z INFO new connection attempt 105 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:46Z INFO new connection attempt 106 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:47Z INFO new connection attempt 107 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:48Z INFO new connection attempt 108 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:49Z INFO new connection attempt 109 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:50Z INFO new connection attempt 110 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:51Z INFO new connection attempt 111 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:52Z INFO new connection attempt 112 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:53Z INFO new connection attempt 113 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:54Z INFO new connection attempt 114 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:55Z INFO new connection attempt 115 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:56Z INFO new connection attempt 116 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:57Z INFO new connection attempt 117 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:01:58Z INFO new connection attempt 118 gateway=Europe-1 status=timeout
+      2026-10-28T09:01:59Z INFO new connection attempt 119 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:00Z INFO new connection attempt 120 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:01Z INFO new connection attempt 121 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:02Z INFO new connection attempt 122 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:03Z INFO new connection attempt 123 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:04Z INFO new connection attempt 124 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:05Z INFO new connection attempt 125 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:06Z INFO new connection attempt 126 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:07Z INFO new connection attempt 127 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:08Z INFO new connection attempt 128 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:09Z INFO new connection attempt 129 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:10Z INFO new connection attempt 130 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:11Z INFO new connection attempt 131 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:12Z INFO new connection attempt 132 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:13Z INFO new connection attempt 133 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:14Z INFO new connection attempt 134 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:15Z INFO new connection attempt 135 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:16Z INFO new connection attempt 136 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:17Z INFO new connection attempt 137 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:18Z INFO new connection attempt 138 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:19Z INFO new connection attempt 139 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:20Z INFO new connection attempt 140 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:21Z INFO new connection attempt 141 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:22Z INFO new connection attempt 142 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:23Z INFO new connection attempt 143 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:24Z INFO new connection attempt 144 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:25Z INFO new connection attempt 145 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:26Z INFO new connection attempt 146 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:27Z INFO new connection attempt 147 gateway=Europe-1 status=Gateway not responding
+      2026-10-28T09:02:28Z INFO new connection attempt 148 gateway=Europe-1 status=timeout
+      2026-10-28T09:02:29Z INFO new connection attempt 149 gateway=Europe-1 status=timeout
+    answer: 'It shows "Gateway not responding": switch the gateway to Europe-2 and reconnect.'
+    references:
+    - doc: vpn
+      snippet: |-
+        Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+        ## Troubleshooting
+        If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+        If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+        If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: And if it still fails after that?
+    answer: Open a ticket in the IT Helpdesk queue in OTRS.
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: long-pasted-question
+  part: TUNING
+  reviewed: false
+  tags: [long_context]
+  turn:
+    question: |-
+      Here is our team's leave calendar:
+      2026-01-01 | Team member A | on-demand leave
+      2026-01-02 | Team member B | annual leave
+      2026-01-03 | Team member C | annual leave
+      2026-01-04 | Team member D | annual leave
+      2026-01-05 | Team member A | annual leave
+      2026-01-06 | Team member B | on-demand leave
+      2026-01-07 | Team member C | annual leave
+      2026-01-08 | Team member D | annual leave
+      2026-01-09 | Team member A | annual leave
+      2026-01-10 | Team member B | annual leave
+      2026-01-11 | Team member C | on-demand leave
+      2026-01-12 | Team member D | annual leave
+      2026-01-13 | Team member A | annual leave
+      2026-01-14 | Team member B | annual leave
+      2026-01-15 | Team member C | annual leave
+      2026-01-16 | Team member D | on-demand leave
+      2026-01-17 | Team member A | annual leave
+      2026-01-18 | Team member B | annual leave
+      2026-01-19 | Team member C | annual leave
+      2026-01-20 | Team member D | annual leave
+      2026-01-21 | Team member A | on-demand leave
+      2026-01-22 | Team member B | annual leave
+      2026-01-23 | Team member C | annual leave
+      2026-01-24 | Team member D | annual leave
+      2026-01-25 | Team member A | annual leave
+      2026-01-26 | Team member B | on-demand leave
+      2026-01-27 | Team member C | annual leave
+      2026-01-28 | Team member D | annual leave
+      2026-02-01 | Team member A | annual leave
+      2026-02-02 | Team member B | annual leave
+      2026-02-03 | Team member C | on-demand leave
+      2026-02-04 | Team member D | annual leave
+      2026-02-05 | Team member A | annual leave
+      2026-02-06 | Team member B | annual leave
+      2026-02-07 | Team member C | annual leave
+      2026-02-08 | Team member D | on-demand leave
+      2026-02-09 | Team member A | annual leave
+      2026-02-10 | Team member B | annual leave
+      2026-02-11 | Team member C | annual leave
+      2026-02-12 | Team member D | annual leave
+      2026-02-13 | Team member A | on-demand leave
+      2026-02-14 | Team member B | annual leave
+      2026-02-15 | Team member C | annual leave
+      2026-02-16 | Team member D | annual leave
+      2026-02-17 | Team member A | annual leave
+      2026-02-18 | Team member B | on-demand leave
+      2026-02-19 | Team member C | annual leave
+      2026-02-20 | Team member D | annual leave
+      2026-02-21 | Team member A | annual leave
+      2026-02-22 | Team member B | annual leave
+      2026-02-23 | Team member C | on-demand leave
+      2026-02-24 | Team member D | annual leave
+      2026-02-25 | Team member A | annual leave
+      2026-02-26 | Team member B | annual leave
+      2026-02-27 | Team member C | annual leave
+      2026-02-28 | Team member D | on-demand leave
+      2026-03-01 | Team member A | annual leave
+      2026-03-02 | Team member B | annual leave
+      2026-03-03 | Team member C | annual leave
+      2026-03-04 | Team member D | annual leave
+      2026-03-05 | Team member A | on-demand leave
+      2026-03-06 | Team member B | annual leave
+      2026-03-07 | Team member C | annual leave
+      2026-03-08 | Team member D | annual leave
+      2026-03-09 | Team member A | annual leave
+      2026-03-10 | Team member B | on-demand leave
+      2026-03-11 | Team member C | annual leave
+      2026-03-12 | Team member D | annual leave
+      2026-03-13 | Team member A | annual leave
+      2026-03-14 | Team member B | annual leave
+      2026-03-15 | Team member C | on-demand leave
+      2026-03-16 | Team member D | annual leave
+      2026-03-17 | Team member A | annual leave
+      2026-03-18 | Team member B | annual leave
+      2026-03-19 | Team member C | annual leave
+      2026-03-20 | Team member D | on-demand leave
+      2026-03-21 | Team member A | annual leave
+      2026-03-22 | Team member B | annual leave
+      2026-03-23 | Team member C | annual leave
+      2026-03-24 | Team member D | annual leave
+      2026-03-25 | Team member A | on-demand leave
+      2026-03-26 | Team member B | annual leave
+      2026-03-27 | Team member C | annual leave
+      2026-03-28 | Team member D | annual leave
+      2026-04-01 | Team member A | annual leave
+      2026-04-02 | Team member B | on-demand leave
+      2026-04-03 | Team member C | annual leave
+      2026-04-04 | Team member D | annual leave
+      2026-04-05 | Team member A | annual leave
+      2026-04-06 | Team member B | annual leave
+      2026-04-07 | Team member C | on-demand leave
+      2026-04-08 | Team member D | annual leave
+      2026-04-09 | Team member A | annual leave
+      2026-04-10 | Team member B | annual leave
+      2026-04-11 | Team member C | annual leave
+      2026-04-12 | Team member D | on-demand leave
+      2026-04-13 | Team member A | annual leave
+      2026-04-14 | Team member B | annual leave
+      2026-04-15 | Team member C | annual leave
+      2026-04-16 | Team member D | annual leave
+      2026-04-17 | Team member A | on-demand leave
+      2026-04-18 | Team member B | annual leave
+      2026-04-19 | Team member C | annual leave
+      2026-04-20 | Team member D | annual leave
+      2026-04-21 | Team member A | annual leave
+      2026-04-22 | Team member B | on-demand leave
+      2026-04-23 | Team member C | annual leave
+      2026-04-24 | Team member D | annual leave
+      2026-04-25 | Team member A | annual leave
+      2026-04-26 | Team member B | annual leave
+      2026-04-27 | Team member C | on-demand leave
+      2026-04-28 | Team member D | annual leave
+      2026-05-01 | Team member A | annual leave
+      2026-05-02 | Team member B | annual leave
+      2026-05-03 | Team member C | annual leave
+      2026-05-04 | Team member D | on-demand leave
+      2026-05-05 | Team member A | annual leave
+      2026-05-06 | Team member B | annual leave
+      2026-05-07 | Team member C | annual leave
+      2026-05-08 | Team member D | annual leave
+      2026-05-09 | Team member A | on-demand leave
+      2026-05-10 | Team member B | annual leave
+      2026-05-11 | Team member C | annual leave
+      2026-05-12 | Team member D | annual leave
+      2026-05-13 | Team member A | annual leave
+      2026-05-14 | Team member B | on-demand leave
+      2026-05-15 | Team member C | annual leave
+      2026-05-16 | Team member D | annual leave
+      2026-05-17 | Team member A | annual leave
+      2026-05-18 | Team member B | annual leave
+      2026-05-19 | Team member C | on-demand leave
+      2026-05-20 | Team member D | annual leave
+      2026-05-21 | Team member A | annual leave
+      2026-05-22 | Team member B | annual leave
+      2026-05-23 | Team member C | annual leave
+      2026-05-24 | Team member D | on-demand leave
+      2026-05-25 | Team member A | annual leave
+      2026-05-26 | Team member B | annual leave
+      2026-05-27 | Team member C | annual leave
+      2026-05-28 | Team member D | annual leave
+      2026-06-01 | Team member A | on-demand leave
+      2026-06-02 | Team member B | annual leave
+      2026-06-03 | Team member C | annual leave
+      2026-06-04 | Team member D | annual leave
+      2026-06-05 | Team member A | annual leave
+      2026-06-06 | Team member B | on-demand leave
+      2026-06-07 | Team member C | annual leave
+      2026-06-08 | Team member D | annual leave
+      2026-06-09 | Team member A | annual leave
+      2026-06-10 | Team member B | annual leave
+      2026-06-11 | Team member C | on-demand leave
+      2026-06-12 | Team member D | annual leave
+      2026-06-13 | Team member A | annual leave
+      2026-06-14 | Team member B | annual leave
+      2026-06-15 | Team member C | annual leave
+      2026-06-16 | Team member D | on-demand leave
+      2026-06-17 | Team member A | annual leave
+      2026-06-18 | Team member B | annual leave
+      2026-06-19 | Team member C | annual leave
+      2026-06-20 | Team member D | annual leave
+      2026-06-21 | Team member A | on-demand leave
+      2026-06-22 | Team member B | annual leave
+      2026-06-23 | Team member C | annual leave
+      2026-06-24 | Team member D | annual leave
+      2026-06-25 | Team member A | annual leave
+      2026-06-26 | Team member B | on-demand leave
+      2026-06-27 | Team member C | annual leave
+      2026-06-28 | Team member D | annual leave
+      2026-07-01 | Team member A | annual leave
+      2026-07-02 | Team member B | annual leave
+      2026-07-03 | Team member C | on-demand leave
+      2026-07-04 | Team member D | annual leave
+      2026-07-05 | Team member A | annual leave
+      2026-07-06 | Team member B | annual leave
+      2026-07-07 | Team member C | annual leave
+      2026-07-08 | Team member D | on-demand leave
+      2026-07-09 | Team member A | annual leave
+      2026-07-10 | Team member B | annual leave
+      2026-07-11 | Team member C | annual leave
+      2026-07-12 | Team member D | annual leave
+      2026-07-13 | Team member A | on-demand leave
+      2026-07-14 | Team member B | annual leave
+      2026-07-15 | Team member C | annual leave
+      2026-07-16 | Team member D | annual leave
+      2026-07-17 | Team member A | annual leave
+      2026-07-18 | Team member B | on-demand leave
+      2026-07-19 | Team member C | annual leave
+      2026-07-20 | Team member D | annual leave
+      2026-07-21 | Team member A | annual leave
+      2026-07-22 | Team member B | annual leave
+      2026-07-23 | Team member C | on-demand leave
+      2026-07-24 | Team member D | annual leave
+      2026-07-25 | Team member A | annual leave
+      2026-07-26 | Team member B | annual leave
+      2026-07-27 | Team member C | annual leave
+      2026-07-28 | Team member D | on-demand leave
+      2026-08-01 | Team member A | annual leave
+      2026-08-02 | Team member B | annual leave
+      2026-08-03 | Team member C | annual leave
+      2026-08-04 | Team member D | annual leave
+      2026-08-05 | Team member A | on-demand leave
+      2026-08-06 | Team member B | annual leave
+      2026-08-07 | Team member C | annual leave
+      2026-08-08 | Team member D | annual leave
+      2026-08-09 | Team member A | annual leave
+      2026-08-10 | Team member B | on-demand leave
+      2026-08-11 | Team member C | annual leave
+      2026-08-12 | Team member D | annual leave
+      2026-08-13 | Team member A | annual leave
+      2026-08-14 | Team member B | annual leave
+      2026-08-15 | Team member C | on-demand leave
+      2026-08-16 | Team member D | annual leave
+      2026-08-17 | Team member A | annual leave
+      2026-08-18 | Team member B | annual leave
+      2026-08-19 | Team member C | annual leave
+      2026-08-20 | Team member D | on-demand leave
+      2026-08-21 | Team member A | annual leave
+      2026-08-22 | Team member B | annual leave
+      2026-08-23 | Team member C | annual leave
+      2026-08-24 | Team member D | annual leave
+      2026-08-25 | Team member A | on-demand leave
+      2026-08-26 | Team member B | annual leave
+      2026-08-27 | Team member C | annual leave
+      2026-08-28 | Team member D | annual leave
+      2026-09-01 | Team member A | annual leave
+      2026-09-02 | Team member B | on-demand leave
+      2026-09-03 | Team member C | annual leave
+      2026-09-04 | Team member D | annual leave
+      2026-09-05 | Team member A | annual leave
+      2026-09-06 | Team member B | annual leave
+      2026-09-07 | Team member C | on-demand leave
+      2026-09-08 | Team member D | annual leave
+      2026-09-09 | Team member A | annual leave
+      2026-09-10 | Team member B | annual leave
+      2026-09-11 | Team member C | annual leave
+      2026-09-12 | Team member D | on-demand leave
+      2026-09-13 | Team member A | annual leave
+      2026-09-14 | Team member B | annual leave
+      2026-09-15 | Team member C | annual leave
+      2026-09-16 | Team member D | annual leave
+      2026-09-17 | Team member A | on-demand leave
+      2026-09-18 | Team member B | annual leave
+      2026-09-19 | Team member C | annual leave
+      2026-09-20 | Team member D | annual leave
+      2026-09-21 | Team member A | annual leave
+      2026-09-22 | Team member B | on-demand leave
+      2026-09-23 | Team member C | annual leave
+      2026-09-24 | Team member D | annual leave
+      2026-09-25 | Team member A | annual leave
+      2026-09-26 | Team member B | annual leave
+      2026-09-27 | Team member C | on-demand leave
+      2026-09-28 | Team member D | annual leave
+      2026-10-01 | Team member A | annual leave
+      2026-10-02 | Team member B | annual leave
+      2026-10-03 | Team member C | annual leave
+      2026-10-04 | Team member D | on-demand leave
+      2026-10-05 | Team member A | annual leave
+      2026-10-06 | Team member B | annual leave
+      2026-10-07 | Team member C | annual leave
+      2026-10-08 | Team member D | annual leave
+      2026-10-09 | Team member A | on-demand leave
+      2026-10-10 | Team member B | annual leave
+      2026-10-11 | Team member C | annual leave
+      2026-10-12 | Team member D | annual leave
+      2026-10-13 | Team member A | annual leave
+      2026-10-14 | Team member B | on-demand leave
+      2026-10-15 | Team member C | annual leave
+      2026-10-16 | Team member D | annual leave
+      2026-10-17 | Team member A | annual leave
+      2026-10-18 | Team member B | annual leave
+      2026-10-19 | Team member C | on-demand leave
+      2026-10-20 | Team member D | annual leave
+      2026-10-21 | Team member A | annual leave
+      2026-10-22 | Team member B | annual leave
+      2026-10-23 | Team member C | annual leave
+      2026-10-24 | Team member D | on-demand leave
+      2026-10-25 | Team member A | annual leave
+      2026-10-26 | Team member B | annual leave
+      2026-10-27 | Team member C | annual leave
+      2026-10-28 | Team member D | annual leave
+      2026-11-01 | Team member A | on-demand leave
+      2026-11-02 | Team member B | annual leave
+      2026-11-03 | Team member C | annual leave
+      2026-11-04 | Team member D | annual leave
+      2026-11-05 | Team member A | annual leave
+      2026-11-06 | Team member B | on-demand leave
+      2026-11-07 | Team member C | annual leave
+      2026-11-08 | Team member D | annual leave
+      2026-11-09 | Team member A | annual leave
+      2026-11-10 | Team member B | annual leave
+      2026-11-11 | Team member C | on-demand leave
+      2026-11-12 | Team member D | annual leave
+      2026-11-13 | Team member A | annual leave
+      2026-11-14 | Team member B | annual leave
+      2026-11-15 | Team member C | annual leave
+      2026-11-16 | Team member D | on-demand leave
+      2026-11-17 | Team member A | annual leave
+      2026-11-18 | Team member B | annual leave
+      2026-11-19 | Team member C | annual leave
+      2026-11-20 | Team member D | annual leave
+      How many on-demand days can I take per year?
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: |-
+        ## On-demand leave
+        You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+        Request on-demand leave in Workday no later than the start of the working day.
+    spans:
+    - text: You can take up to 4 days of on-demand leave per year.
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE

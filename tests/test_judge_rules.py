@@ -427,6 +427,15 @@ def test_render_turn_context_erased_labels_and_earlier_references():
     assert "EARLIER TURNS" not in render_turn(case, with_context=False)
 
 
+def test_answer_spans_point_at_the_reference_numbers_the_judge_sees():
+    # The log counts references from 0 and includes the people directory; the judge sees them from 1 without it.
+    refs = [ref("associate-1", PEOPLE), ref("d1"), ref("d2")]
+    spans = [Span(0, 0, 5, "Four", (1,)), Span(1, 6, 11, "days.", (0, 2))]
+    text = render_turn(make_case(references=refs, spans=spans))
+    assert '[S0] "Four" -> references [1]' in text and '[S1] "days." -> references [2]' in text
+    assert "[1] data store rtb-crj-confluence (topic CONFLUENCE), title: Title d1" in text
+
+
 def test_render_context_keeps_the_most_recent_turns_within_the_cap(monkeypatch):
     monkeypatch.setattr(get_settings().sizes, "context_chars", 120)
     earlier = [EarlierTurn(i, 1, f"question {i} " * 3, "answer") for i in range(1, 6)]

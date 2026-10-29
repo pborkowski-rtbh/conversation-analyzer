@@ -12,6 +12,8 @@ WEEK ?=
 PASSES ?= 3
 PART ?= all
 LIMIT ?= 0
+JUDGE_VERSION ?=
+SUITE_ARGS = --part $(PART) --limit $(LIMIT) $(if $(JUDGE_VERSION),--judge-version $(JUDGE_VERSION))
 FULL ?=
 EMBED ?= fake
 DATA_STORE ?=
@@ -91,13 +93,13 @@ suite-coverage: ## Check the suite cases against every scenario minimum of §11.
 	$(CA) quality-judge-suite --check
 
 .PHONY: suite
-suite: ## Run the suite with the fake judge (checks the runner, costs nothing)
-	$(CA) quality-judge-suite --passes 1 --part $(PART) --limit $(LIMIT)
+suite: ## Run the suite with the fake judge (checks the runner, costs nothing); PART, LIMIT, JUDGE_VERSION
+	$(CA) quality-judge-suite --passes 1 $(SUITE_ARGS)
 
 .PHONY: suite-live
-suite-live: ## PAID: run the suite on Vertex (gemini-3.8-flash + gemini-4-argon, eu); PASSES, PART, LIMIT
+suite-live: ## PAID: the suite on Vertex (eu); PASSES, PART, LIMIT, JUDGE_VERSION; log the spend in plan.md
 	@read -p "This calls paid Vertex models. Continue? [y/N] " ok && [ "$$ok" = y ]
-	$(ENV) CA_JUDGE_BACKEND=vertex $(UV) run ca quality-judge-suite --passes $(PASSES) --part $(PART) --limit $(LIMIT)
+	$(ENV) CA_JUDGE_BACKEND=vertex $(UV) run ca quality-judge-suite --passes $(PASSES) $(SUITE_ARGS)
 
 .PHONY: pii-eval
 pii-eval: ## Recall of the PII scrubber on the synthetic Polish/English set (§6.12)

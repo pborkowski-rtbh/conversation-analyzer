@@ -1,0 +1,984 @@
+# Flagged turns and their causes (§7.3): chunking, retrieval miss, outdated and conflicting sources, reasoning errors,
+# knowledge gaps. Drafted against the judge_versions/v1 rubric; reviewed: false until an engineer has checked the
+# expected forms (§11.1). Every 5th case is in the held-out part.
+- id: leave_ondemand-chunking
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+    spans:
+    - text: You can take up to 6 days of on-demand leave per year.
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+  documents: [leave, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 2
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
+      document_to_fix: leave
+- id: laptop_return-chunking
+  part: TUNING
+  reviewed: false
+  turn:
+    question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 30 working days.
+    references:
+    - doc: laptop
+      snippet: Open a request in Jira Service Desk with the type Hardware.
+    spans:
+    - text: Return the old laptop to the IT desk within 30 working days.
+      refs: [0]
+  documents: [laptop, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
+      document_to_fix: laptop
+- id: vpn_gateway-chunking
+  part: TUNING
+  reviewed: false
+  turn:
+    question: GlobalProtect says "Gateway not responding". What should I do?
+    answer: Switch the gateway to US-East and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    references:
+    - doc: vpn
+      snippet: Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta
+        Verify.
+    spans:
+    - text: Switch the gateway to US-East and reconnect.
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 2
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
+      document_to_fix: vpn
+- id: bq_retention-chunking
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 90 days.
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 90 days.
+      refs: [0]
+  documents: [bq_impressions, bq_clicks]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
+      document_to_fix: bq_impressions
+- id: attribution-chunking
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: What is the default post-view attribution window?
+    answer: The default post-view window is 7 days.
+    references:
+    - doc: attribution
+      snippet: Advertisers can change both in the Panel under Settings > Attribution.
+    spans:
+    - text: The default post-view window is 7 days.
+      refs: [0]
+  documents: [attribution, ctr]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
+      document_to_fix: attribution
+- id: leave_pl_request-chunking
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jak zgłosić urlop na żądanie?
+    answer: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
+    references:
+    - doc: leave_pl
+      snippet: Pracownik ze stażem krótszym niż 10 lat ma 20 dni urlopu w roku, od 10 lat – 26 dni.
+    spans:
+    - text: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
+      refs: [0]
+  documents: [leave_pl, leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
+      document_to_fix: leave_pl
+- id: trips_expenses-retrieval-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 60 days after the trip.
+    references:
+    - doc: office
+      snippet: Book a parking space in Parkanizer the day before.
+    spans:
+    - text: Settle your expenses in Travel Tool within 60 days after the trip.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: trips
+- id: office_hours-retrieval-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 9:00 to 17:00 on working days.
+    references:
+    - doc: about_bolek
+      snippet: It cannot see your calendar, your mailbox or Slack.
+    spans:
+    - text: The Warsaw office is open from 9:00 to 17:00 on working days.
+      refs: [0]
+  documents: [office, about_bolek]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: office
+- id: password_length-retrieval-miss
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile znaków musi mieć hasło?
+    answer: Hasło musi mieć co najmniej 8 znaków.
+    references:
+    - doc: leave_pl
+      snippet: Pracownik ze stażem krótszym niż 10 lat ma 20 dni urlopu w roku, od 10 lat – 26 dni.
+    spans:
+    - text: Hasło musi mieć co najmniej 8 znaków.
+      refs: [0]
+  documents: [passwords_pl, leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: passwords_pl
+- id: rate_limit-retrieval-miss
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: The Campaigns API keeps returning HTTP 429. What should I do?
+    answer: HTTP 429 means you exceeded the limit of 100 requests per second per token. Wait for the number of seconds in
+      the `Retry-After` header, then retry.
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    spans:
+    - text: HTTP 429 means you exceeded the limit of 100 requests per second per token.
+      refs: [0]
+    - text: Wait for the number of seconds in the `Retry-After` header, then retry.
+      refs: [0]
+  documents: [campaigns_api, bq_impressions]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 2
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: campaigns_api
+- id: floor_prices-retrieval-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How do I change a floor price, and when does the change take effect?
+    answer: Change it in the Floor Manager tool; changes are applied the next day. A change of more than 30% needs approval
+      from the traffic team lead.
+    references:
+    - doc: campaigns_api
+      snippet: 'Send the header `Authorization: Bearer <token>`.'
+    spans:
+    - text: Change it in the Floor Manager tool; changes are applied the next day.
+      refs: [0]
+    - text: A change of more than 30% needs approval from the traffic team lead.
+      refs: [0]
+  documents: [floor_prices, campaigns_api]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 2
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: floor_prices
+- id: click_dedup-retrieval-miss
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How are repeated clicks counted in analytics.clicks_hourly?
+    answer: A click is counted once per user and campaign within 24 hours.
+    references:
+    - doc: ctr
+      snippet: CTR (click-through rate) = clicks / impressions, shown in percent.
+    spans:
+    - text: A click is counted once per user and campaign within 24 hours.
+      refs: [0]
+  documents: [bq_clicks, ctr]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: RETRIEVAL_MISS
+      cause: RETRIEVAL_MISS
+      document_to_fix: bq_clicks
+- id: leave_ondemand-outdated
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 6 days of on-demand leave per year.
+    references:
+    - doc: leave_2024
+      snippet: You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+    spans:
+    - text: You can take up to 6 days of on-demand leave per year.
+      refs: [0]
+  documents: [leave, leave_2024]
+  flag_reasons: [DISLIKE]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    stage2:
+      primary_failure: OUTDATED_SOURCE
+      cause: OUTDATED_SOURCE
+      document_to_fix: leave_2024
+- id: annual_notice-outdated
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How far in advance do I have to request annual leave?
+    answer: Request annual leave at least 7 days in advance.
+    references:
+    - doc: leave_2024
+      snippet: Request annual leave at least 7 days in advance.
+    spans:
+    - text: Request annual leave at least 7 days in advance.
+      refs: [0]
+  documents: [leave, leave_2024]
+  flag_reasons: [NEXT_CORRECTION]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    stage2:
+      primary_failure: OUTDATED_SOURCE
+      cause: OUTDATED_SOURCE
+      document_to_fix: leave_2024
+- id: ondemand_request-outdated
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How do I request on-demand leave?
+    answer: Request it by e-mail to your manager.
+    references:
+    - doc: leave_2024
+      snippet: You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+    spans:
+    - text: Request it by e-mail to your manager.
+      refs: [0]
+  documents: [leave, leave_2024]
+  flag_reasons: [NEXT_REPHRASE]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    stage2:
+      primary_failure: OUTDATED_SOURCE
+      cause: OUTDATED_SOURCE
+      document_to_fix: leave_2024
+- id: trips_expenses-outdated
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses within 30 days after the trip.
+    references:
+    - doc: trips_2023
+      snippet: Settle your expenses within 30 days after the trip.
+    spans:
+    - text: Settle your expenses within 30 days after the trip.
+      refs: [0]
+  documents: [trips, trips_2023]
+  flag_reasons: [DISLIKE]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    stage2:
+      primary_failure: OUTDATED_SOURCE
+      cause: OUTDATED_SOURCE
+      document_to_fix: trips_2023
+- id: leave_pl_ondemand-outdated
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Ile dni urlopu na żądanie mi przysługuje?
+    answer: Przysługuje Ci do 6 dni urlopu na żądanie w roku.
+    references:
+    - doc: leave_2024
+      snippet: You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+    spans:
+    - text: Przysługuje Ci do 6 dni urlopu na żądanie w roku.
+      refs: [0]
+  documents: [leave_pl, leave_2024]
+  flag_reasons: [DISLIKE]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    stage2:
+      primary_failure: OUTDATED_SOURCE
+      cause: OUTDATED_SOURCE
+      document_to_fix: leave_2024
+- id: vpn-portal-conflicting
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Which portal address do I enter in GlobalProtect?
+    answer: Enter the portal address vpn.rtbhouse.com.
+    references:
+    - doc: vpn
+      snippet: Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta
+        Verify.
+    - doc: vpn_kh
+      snippet: Install GlobalProtect and enter the portal address vpn.rtbhouse.com. Confirm the sign-in with Okta Verify.
+    spans:
+    - text: Enter the portal address vpn.rtbhouse.com.
+      refs: [1]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONFLICTING_SOURCES
+      cause: CONFLICTING_SOURCES
+      document_to_fix: [vpn, vpn_kh]
+- id: vpn-portal-pl-conflicting
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Jaki jest adres portalu VPN?
+    answer: Adres portalu to vpn.rtbhouse.com.
+    references:
+    - doc: vpn
+      snippet: Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta
+        Verify.
+    - doc: vpn_kh
+      snippet: Install GlobalProtect and enter the portal address vpn.rtbhouse.com. Confirm the sign-in with Okta Verify.
+    spans:
+    - text: Adres portalu to vpn.rtbhouse.com.
+      refs: [1]
+  documents: [vpn, vpn_kh]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONFLICTING_SOURCES
+      cause: CONFLICTING_SOURCES
+      document_to_fix: [vpn, vpn_kh]
+- id: office-closing-conflicting
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Until what time is the Warsaw office open?
+    answer: The Warsaw office is open until 18:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    - doc: office_kh
+      snippet: The Warsaw office at Złota 61 is open from 8:00 to 18:00 on working days.
+    spans:
+    - text: The Warsaw office is open until 18:00 on working days.
+      refs: [1]
+  documents: [office, office_kh]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONFLICTING_SOURCES
+      cause: CONFLICTING_SOURCES
+      document_to_fix: [office, office_kh]
+- id: office-early-conflicting
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Can I come to the Warsaw office at 7:30 on a Tuesday?
+    answer: No, the office opens at 8:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    - doc: office_kh
+      snippet: The Warsaw office at Złota 61 is open from 8:00 to 18:00 on working days.
+    spans:
+    - text: No, the office opens at 8:00 on working days.
+      refs: [1]
+  documents: [office, office_kh]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONFLICTING_SOURCES
+      cause: CONFLICTING_SOURCES
+      document_to_fix: [office, office_kh]
+- id: laptop-time-conflicting
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long does IT need to prepare a new laptop?
+    answer: IT prepares a new laptop within 10 working days after your manager approves the request.
+    references:
+    - doc: laptop
+      snippet: |-
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+    - doc: laptop_hdqa
+      snippet: IT prepares it within 10 working days after your manager approves the request.
+    spans:
+    - text: IT prepares a new laptop within 10 working days after your manager approves the request.
+      refs: [1]
+  documents: [laptop, laptop_hdqa]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    stage2:
+      primary_failure: CONFLICTING_SOURCES
+      cause: CONFLICTING_SOURCES
+      document_to_fix: [laptop, laptop_hdqa]
+- id: berlin-finance-reasoning
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Does my business trip to Berlin need approval from Finance?
+    answer: 'Yes: every business trip needs approval from Finance.'
+    references:
+    - doc: trips
+      snippet: Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+    spans:
+    - text: 'Yes: every business trip needs approval from Finance.'
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: REASONING_ERROR
+      cause: NONE
+      document_to_fix: null
+- id: floor-small-change-reasoning
+  part: TUNING
+  reviewed: false
+  turn:
+    question: I want to lower a floor price by 10%. Do I need approval for that?
+    answer: Yes, every floor price change needs approval from the traffic team lead.
+    references:
+    - doc: floor_prices
+      snippet: A change of more than 30% needs approval from the traffic team lead.
+    spans:
+    - text: Yes, every floor price change needs approval from the traffic team lead.
+      refs: [0]
+  documents: [floor_prices, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: REASONING_ERROR
+      cause: NONE
+      document_to_fix: null
+- id: taxi-receipt-reasoning
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Do I need to keep the receipt for a 15 EUR taxi ride on a business trip?
+    answer: Yes, keep the receipts of all your expenses.
+    references:
+    - doc: trips
+      snippet: Keep the receipt of every expense above 20 EUR.
+    spans:
+    - text: Yes, keep the receipts of all your expenses.
+      refs: [0]
+  documents: [trips, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: REASONING_ERROR
+      cause: NONE
+      document_to_fix: null
+- id: campaign-limit-reasoning
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Is there a limit on how many campaigns an advertiser can have?
+    answer: Yes, an advertiser can have at most 100 campaigns.
+    references:
+    - doc: campaigns_api
+      snippet: Returns at most 100 campaigns per page. Use the `page` parameter to get the next page.
+    spans:
+    - text: Yes, an advertiser can have at most 100 campaigns.
+      refs: [0]
+  documents: [campaigns_api, office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: REASONING_ERROR
+      cause: NONE
+      document_to_fix: null
+- id: two-campaign-clicks-reasoning
+  part: TUNING
+  reviewed: false
+  turn:
+    question: A user clicks ads of two different campaigns within 10 seconds. How many clicks does analytics.clicks_hourly
+      count?
+    answer: 'One click: clicks within 30 seconds are counted once.'
+    references:
+    - doc: bq_clicks
+      snippet: A click is counted once per user and campaign within 30 seconds.
+    spans:
+    - text: 'One click: clicks within 30 seconds are counted once.'
+      refs: [0]
+  documents: [bq_clicks, office]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 2
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: REASONING_ERROR
+      cause: NONE
+      document_to_fix: null
+- id: meal-allowance-gap
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What is the daily meal allowance on a business trip to London?
+    answer: The daily meal allowance in London is 45 GBP.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip.
+    spans:
+    - text: The daily meal allowance in London is 45 GBP.
+      refs: [0]
+  documents: [trips, trips_2023]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: KNOWLEDGE_GAP
+      cause: KNOWLEDGE_GAP
+      document_to_fix: null
+- id: guest-wifi-gap
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What is the Wi-Fi password for guests at the Warsaw office?
+    answer: The guest Wi-Fi password is RTBguest2026.
+    references:
+    - doc: office
+      snippet: Guests sign in at the reception on the ground floor.
+    spans:
+    - text: The guest Wi-Fi password is RTBguest2026.
+      refs: [0]
+  documents: [office, office_kh]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: KNOWLEDGE_GAP
+      cause: KNOWLEDGE_GAP
+      document_to_fix: null
+- id: monitors-gap
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How many monitors can I order with a new laptop?
+    answer: You can order up to two monitors with a new laptop.
+    references:
+    - doc: laptop
+      snippet: 1. Open a request in Jira Service Desk with the type Hardware.
+    spans:
+    - text: You can order up to two monitors with a new laptop.
+      refs: [0]
+  documents: [laptop, laptop_hdqa]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [UNSUPPORTED_CLAIM]
+      primary_failure: UNSUPPORTED_CLAIM
+      severity: MEDIUM
+    stage2:
+      primary_failure: KNOWLEDGE_GAP
+      cause: KNOWLEDGE_GAP
+      document_to_fix: null
+- id: dress-code-gap
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Is there a dress code at RTB House?
+    answer: Yes, business casual is expected in the office from Monday to Thursday.
+  documents: [office, about_bolek]
+  flag_reasons: [DISLIKE]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+    stage2:
+      primary_failure: KNOWLEDGE_GAP
+      cause: KNOWLEDGE_GAP
+      document_to_fix: null
+- id: christmas-party-gap
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Kiedy jest firmowa Wigilia?
+    answer: Firmowa Wigilia odbędzie się 18 grudnia w biurze na Złotej.
+  documents: [office, leave_pl]
+  flag_reasons: [NEXT_CORRECTION]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      needs_internal_knowledge: true
+      failure_types: [UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+    stage2:
+      primary_failure: KNOWLEDGE_GAP
+      cause: KNOWLEDGE_GAP
+      document_to_fix: null

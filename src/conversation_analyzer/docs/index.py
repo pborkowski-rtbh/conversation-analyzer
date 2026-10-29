@@ -21,8 +21,11 @@ def indexed_tables() -> list[str]:
 
 
 def _chunks_union() -> str:
+    """Chunks of all indexed data stores embedded with the query's model (@model); two models' vectors never meet."""
     cols = "doc_id, uri, data_store, chunk_no, embedding"
-    return " UNION ALL ".join(f"SELECT {cols} FROM {fq('doc_index', t)}" for t in indexed_tables())
+    return " UNION ALL ".join(
+        f"SELECT {cols} FROM {fq('doc_index', t)} WHERE embedding_model = @model" for t in indexed_tables()
+    )
 
 
 def _vector_literal(vec: list[float]) -> str:
@@ -68,7 +71,7 @@ class DocumentIndex:
             return [[] for _ in texts]
         self.searches += 1
         k = get_settings().sizes.search_top_k
-        rows = query(search_sql(self.embedder.embed(texts), top_chunks=k * 5))
+        rows = query(search_sql(self.embedder.embed(texts), top_chunks=k * 5), model=self.embedder.model)
         by_query: dict[int, list[dict[str, Any]]] = {}
         for r in sorted(rows, key=lambda r: (r["qid"], r["distance"])):
             by_query.setdefault(r["qid"], []).append(r)

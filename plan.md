@@ -4,62 +4,34 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-29, end of session 2)
+## Status (2026-10-29, session 3)
 
 - Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
-  2b92f03). Both pushed at the end of session 2.
+  2b92f03).
 - M0, M1, M2 done (incl. `quality-monitor`). M3 done in code: the indexers' doc-index step (submodule) and the
   analyzer side; the local run against real sources (`make index-local`) is written but **not yet executed**.
-- M4 started: `suite/cases.py` (case model + scenario tags + coverage), `suite/scoring.py` (§11.2 distance),
-  `suite_cases/suite.yaml` (weights, minimums), `suite_cases/documents.yaml` (17-document corpus). **Not written yet:**
-  the cases (`suite_cases/cases/*.yaml`), `suite/runner.py`, the `--check` option, tests for suite modules.
-- Tests: 142 unit tests pass (`make test-unit`, 2 s). Every emulator module passes when run on its own
-  (`test_assessor_e2e` 9, `test_assessor_paths` 10, `test_monitor` 6, `test_docs` 9, `test_bq`). Last full coverage
-  measured: 96.7 % (before monitor/suite modules). **Open issue:** a full `make coverage` run stalls inside
-  `tests/test_monitor.py` (after ~122 tests, twice; emulator busy at ~50-90 % CPU). Reproduce with
-  `uv run pytest -q -p no:logging --no-cov -o faulthandler_timeout=300 tests/test_docs.py tests/test_monitor.py`
-  to get the stack (killing `uv` with SIGABRT hits the wrapper, not Python). Suspects: the scenario + assessor run in
-  `test_high_cluster_alerts_after_the_scenario` after the emulator restart by `_fresh_emulator`, or the log view.
-- Indexers: 1361 passed, new `common/doc_index` package at 95 %; committed and pushed (48dc7ad).
+- The full-run stall of session 2 is fixed: it was no deadlock, the emulator slowed down with every job, and `wipe()`
+  ran one DELETE job per table (~50 per test). `wipe()` is now one multi-statement script (0.15 s instead of 4.5 s),
+  the emulator write path runs MERGE + emptying the staging table as one script. Full run: 183 tests in 4 min.
+- M4 judge suite written: 264 cases in `suite_cases/cases/*.yaml` (drafted, `reviewed: false`, 50 held out), every
+  §11.1 minimum met (`make suite-coverage`), `suite/runner.py` (passes, scoring, label recall, keep rule, spend
+  guard, run row + JSON report), `--check`/`--judge-version`. `tests/test_suite.py` runs an oracle judge (fills each
+  form with the expected values) over all cases: distance 0 everywhere, so every expected form is consistent with the
+  deterministic rules. **Live run not yet done.**
+- Index search uses only chunks of the analyzer's embedding model (step 2 done).
 - Paid Vertex spend so far: **0 USD** (cap 50 USD until 2026-11-01). No real model was called yet.
 
 ## Next steps, in order
 
-0. Fix the full-run stall above, then `make coverage` must pass (> 90 %; suite modules need tests first or they count
-   as 0 %).
-1. M4 judge suite:
-   - Draft the cases into `suite_cases/cases/*.yaml` (all `reviewed: false`, ~20 % `part: HELD_OUT`). Plan: hand-made
-     facts per corpus document (question en/pl, right / wrong / unsupported / incomplete answer, the snippet with the
-     fact, another snippet of the same doc) expanded into variants with known expected forms: ok with own refs;
-     contradicted own refs (HIGH, stage 2 cause ANSWER: primary CONTRADICTED_CLAIM, why NONE); unsupported extra claim
-     (near miss, MEDIUM, groundedness 3); chunking (snippet from another section → stage 1 UNSUPPORTED g2, stage 2
-     CHUNKING_ISSUE, fix = that doc); retrieval miss (unrelated ref, right doc in `documents` → RETRIEVAL_MISS);
-     no refs + contradicting doc (evidence check → CONTRADICTED + UNGROUNDED, HIGH; stage 2 RETRIEVAL_MISS);
-     no refs + correct (UNGROUNDED, MEDIUM); knowledge gap; outdated (`leave_2024`/`trips_2023` cited, newer doc in
-     `documents`, `flag_reasons: [DISLIKE]`, stage 1 NONE, stage 2 OUTDATED_SOURCE fix = old doc); conflicting
-     (`vpn` + `vpn_kh` both cited, fix = either, list); earlier-references follow-ups; relations (two-turn cases);
-     conversations of 3–5 turns per outcome (earlier turns carry `stage1` labels); edge tags; non-knowledge intents
-     (GENERAL_TASK, CHITCHAT, OTHER: ambiguous / out of scope, PEOPLE_LOOKUP with `person_finance`).
-     Expected values follow `judge_versions/v1/rubric/*.en.md` (e.g. contradicted: relevance 5, completeness 5,
-     clarity 5, groundedness 1, unsupported_spans = spans).
-   - `suite/runner.py`: load suite → for each pass and case: scrub PII like live, `stage1.assess`, evidence check if
-     needed, stage 2 when `expected.stage2` (flag reasons from the result or `case.flag_reasons`), session grade when
-     `expected.session` (earlier turns as `SegmentTurn` with their labels) → `scoring` → averages per case / field /
-     scenario / part, false and missed HIGH, label recall (≥ 70 % → reliable) → keep rule vs baseline (last KEEP or
-     BASELINE run, or `--baseline`) → `quality_judge_suite_runs` row + a JSON report in `suite_reports/` (gitignored).
-     A fixed `DocumentSource` from `case.documents` + `Suite.doc_texts()`. Add `--check` to `quality-judge-suite`
-     (prints coverage vs minimums, exit 1 if short; `make suite-coverage`). Spend guard: stop when estimated USD of
-     the run passes a setting.
-   - Tests for cases/scoring/runner (fake judge), then `make suite-live` with `LIMIT` small first; log spend.
-2. Analyzer: restrict index search to chunks of the analyzer's embedding model (`embedding_model = @model` in
-   `docs/index.py::_chunks_union`), so fake and real vectors never mix.
-3. Run `make index-local` once (builds the indexers image; reads gs://biztech-technical-wiki read-only via ADC; writes
+1. M4 live: `make suite-live PASSES=1 LIMIT=10` first (check the models answer, the token use per call, the spend
+   estimate), then one full pass; log every run in the **Spend log**. Tune nothing on held-out cases (§11.1).
+2. Run `make index-local` once (builds the indexers image; reads gs://biztech-technical-wiki read-only via ADC; writes
    only to the emulator). Then `EMBED=vertex` small run (log spend).
-4. M5–M7: daily, weekly, record, anomalies + anomaly alerts, release impact, clusters, document stats, digest,
-   eval documents.
-5. Feedback-after-window fallback (§12.5) behind `timing.feedback_after_window_fallback`.
-6. `make pii-eval`: synthetic Polish/English PII set with inflected names + recall (§6.12); `pii/evaluate.py`.
-7. Final: CLAUDE.md complete, `make demo` green, requirement sweep against design-doc.md.
+3. M5–M7: daily, weekly, record, anomalies + anomaly alerts, release impact, clusters, document stats, digest,
+   eval documents. Note: `github.cluster_ref_pattern` expects 12 hex digits, cluster IDs are `cluster-` + 16.
+4. Feedback-after-window fallback (§12.5) behind `timing.feedback_after_window_fallback`.
+5. `make pii-eval`: synthetic Polish/English PII set with inflected names + recall (§6.12); `pii/evaluate.py`.
+6. Final: CLAUDE.md complete, `make demo` green, requirement sweep against design-doc.md.
 
 ## Decisions (interview, 2026-10-29)
 
@@ -127,14 +99,16 @@ src/conversation_analyzer/
                        acknowledgements; deterministic alert IDs; writes ALERTS, ALERT_SESSIONS, PIPELINE_HEALTH, ACKS
   reporting/lookup.py  lookup(alert_id) for `ca quality-alert-lookup`
   suite/cases.py  SuiteCase/Expected*/Suite, load_suite(), scenarios(), coverage()/short(); suite/scoring.py distances
+  suite/runner.py SuiteRun.run_case (live path on fixed documents), summarize, decide (keep rule), run() → row+report
   cli.py        ca quality-assessor|quality-monitor|quality-daily|quality-weekly|quality-judge-suite|quality-record|
-                quality-alert-lookup|db-init|dev-seed  (daily/weekly/record/suite runner modules NOT written yet)
+                quality-alert-lookup|db-init|dev-seed  (daily/weekly/record modules NOT written yet)
 docker-compose.yml  bigquery (goccy emulator :9050), gcs (fake-gcs-server :4443), stubs (:8088)
 docker/stubs/server.py Slack (chat.postMessage, reactions.get), GitHub commits, Cloud Run executions; /_test/*
 local.env      all CA_* values for local runs and tests (tests/conftest.py loads it, never real endpoints)
 tests/         unit: foundations, vertex, cli, canary, judge_rules, parse, pii, sessions, reporting_units;
                emulator: bq, docs, assessor_e2e, assessor_paths (failures, time budget, late/erased turns, leaks),
-               monitor. conftest: rows() reader, wipe(), _fresh_emulator restarts a slow emulator per module
+               monitor, suite_run. test_suite: oracle judge over all suite cases (distance 0).
+               conftest: rows() reader, wipe(), _fresh_emulator restarts a slow emulator per module
 aiel-content-indexers/src/common/doc_index/  chunking, embedding (Vertex EU + Fake = analyzer's), bigquery REST, writer
 ```
 
@@ -163,7 +137,7 @@ docker-compose restart bigquery          # = full reset of the emulator (in memo
 | `TO_JSON_STRING` writes dates unquoted and BOOL as 0/1 | test helper `rows()` normalizes with the schema |
 | `CREATE TABLE IF NOT EXISTS` doesn't add new columns | restart the emulator after schema changes |
 | Refusing a duplicate `CREATE TABLE IF NOT EXISTS` takes ~5 s | `create_all` lists tables and creates only missing ones; emulator staging tables `_stg_<table>` are created there, not per write |
-| Slows down as its job history grows (`SELECT 1`: 0.3 s → 2+ s) | `make test` / `make coverage` start with `make db-reset` |
+| Slows down as its job history grows (`SELECT 1`: 0.3 s → 2+ s) | `make test` / `make coverage` start with `make db-reset`; batch statements into one multi-statement script (`wipe()`, MERGE + empty staging) |
 
 ### Make targets planned
 
@@ -246,10 +220,11 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 ## M4. Judge trust (§12.16 milestone 4)
 
 - [x] Suite case format (YAML in `suite_cases/`): fixed input incl. search results + expected forms, `reviewed`, `part`
-  — `suite/cases.py`, `suite_cases/{suite,documents}.yaml`; scoring in `suite/scoring.py` (untested yet)
-- [ ] Cases meeting every scenario minimum (§11.1); coverage checker
-- [ ] Scoring (§11.2), 3 runs averaged, per case/field/scenario
-- [ ] Keep rule (§11.3) → `quality_judge_suite_runs`; 70 % reliability → `experimental`
+  — `suite/cases.py`, `suite_cases/{suite,documents}.yaml` (21-document corpus)
+- [x] Cases meeting every scenario minimum (§11.1); coverage checker — 264 cases, `ca quality-judge-suite --check`
+- [x] Scoring (§11.2), 3 runs averaged, per case/field/scenario — `suite/scoring.py`, `suite/runner.py::summarize`
+- [x] Keep rule (§11.3) → `quality_judge_suite_runs`; 70 % reliability → `experimental` — `runner.decide`,
+  `label_recall`, read by `monitor.reliable_labels`
 - [ ] Live suite run on `gemini-3.8-flash` + `gemini-4-argon` (spend cap!)
 - [x] Canary assessed like real turns, `quality_canary_results` with question hash (§11.4) — agreement is daily (M5)
 - [x] Planted errors (swapped number, dropped step, wrong name), with and without references (§11.4)
@@ -309,9 +284,19 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 | Health alert periods | Same check fires again only in a new period: coverage and waiting once per hour, a failed run once per run, no run once per hour, log gap once per hour and channel, window and tokens once per day (deterministic alert IDs). |
 | Log gap check | The last hour that ended ≥ 15 min ago, once (a `LOG_HOUR` row marks it checked). Usual = median of the same hour 1–4 weeks back, only weeks whose day has log data; needs ≥ 2 such weeks; gap when records < 30 % of usual and usual ≥ 5. |
 | Run coverage | Per run: covered / eligible over the turns in the window that are eligible and younger than 3h30 (`quality_runs`). Daily coverage against the log's counts is the daily job's (§12.9). |
+| Suite input | A case is judged like a live turn: PII scrubbed, references get the placeholders, a fixed `DocumentSource` returns the case's `documents` for every search. Stage 2 runs when the case expects one and stage 1 (or the case's `flag_reasons`, a late trigger) flags it; otherwise it counts as missed. The session grade gets fixed stage 1 labels (earlier turns' `stage1`, the current turn's expected stage 1), so only the judge changes between runs. |
+| Suite scoring | A failed call scores as an empty form (every expected value missed) and is counted in `failed_calls`. Labels for reliability are the failure codes: a stage 1 code is found when stage 1 records it, a stage 2 primary when stage 2's failure types hold it. `false_high` is the total over passes; the keep rule compares it per pass. |
+| Suite runs | `--limit`/`--part` runs are stored with `partial = true` and no decision; only full runs become a baseline or set label reliability. A run of the baseline's own judge version is a new BASELINE (re-measure), not a decision. Spend guard: `suite.max_usd_per_run` with price estimates in settings; the run stops with TOKEN_LIMIT. |
+| Suite cases | Drafted by Claude from hand-made facts of the corpus (drafting script not kept: the YAML is the source and is reviewed by hand). Stage 2 of a turn whose only evidence is an earlier turn's references starts at question 3 (no cited documents), so its cause is RETRIEVAL_MISS. Span `refs` are 0-based like the log; the judge sees reference numbers from 1 (fixed in `render_turn`). |
 
 ## Spend log (paid Vertex calls, cap 50 USD)
 
 | Date | What | Model | Tokens in / out | Est. USD |
 |---|---|---|---|---|
-| — | nothing yet | — | — | 0 |
+| 2026-10-29 | judge suite smoke run, 10 cases, 1 pass (`suite-006ae3928a747698`) | gemini-3.8-flash | 99,365 / 4,960 | 0.21 |
+| 2026-10-29 | judge suite, all 264 cases, 1 pass (`suite-006ae392aee9aba9`, BASELINE) | gemini-3.8-flash | 2,098,509 / 220,991 | 5.29 |
+| | | gemini-4-argon | 319,185 / 16,345 | 1.76 |
+| | **Total so far** | | | **7.26** |
+
+Prices: Vertex AI billing catalog, regional (eu) online text: flash 1.65 / 8.25 USD per M tokens in / out, argon 4.40
+/ 22.00 (thinking tokens count as output). A full 1-pass suite run is about 7 USD and 35 minutes (argon is slow).

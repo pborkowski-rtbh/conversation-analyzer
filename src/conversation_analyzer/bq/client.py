@@ -163,13 +163,17 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
     payload = [_jsonable(r) for r in checked]
     if s.env.emulator:
         # The emulator corrupts its catalog when tables are dropped, so its staging tables (made by create_all) are
-        # reused, never dropped.
+        # reused, never dropped, and left empty; MERGE and emptying run as one script (every job slows it down).
         stg_id = f"{s.env.bq_project}.{getattr(s.datasets, table.dataset)}._stg_{table.name}"
+        empty = f"DELETE FROM `{stg_id}` WHERE TRUE"
         with _emulator_lock:
-            execute(f"DELETE FROM `{stg_id}` WHERE TRUE")
-            if client().insert_rows_json(stg_id, payload, retry=retry()):
-                raise RuntimeError("staging insert failed")
-            execute(merge_sql(table, f"`{stg_id}`"))
+            try:
+                if client().insert_rows_json(stg_id, payload, retry=retry()):
+                    raise RuntimeError("staging insert failed")
+                execute(merge_sql(table, f"`{stg_id}`") + ";\n" + empty)
+            except Exception:
+                execute(empty)
+                raise
         return len(checked)
     stg_name = f"_stg_{table.name}_{uuid.uuid4().hex[:12]}"
     stg_id = f"{s.env.bq_project}.{getattr(s.datasets, table.dataset)}.{stg_name}"

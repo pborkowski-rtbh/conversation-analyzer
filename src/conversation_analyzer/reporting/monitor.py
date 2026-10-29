@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import statistics
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any
 
 from conversation_analyzer import safe_log
-from conversation_analyzer.bq.client import fq, query, tbl, write
+from conversation_analyzer.bq.client import query, tbl, write
 from conversation_analyzer.bq.schema import (
     ACKNOWLEDGEMENTS,
     ALERT_SESSIONS,
@@ -22,13 +21,13 @@ from conversation_analyzer.bq.schema import (
 )
 from conversation_analyzer.judge.version import metric_version
 from conversation_analyzer.reporting import messages, slack
+from conversation_analyzer.reporting.completeness import check_hours
 from conversation_analyzer.reporting.results import ClusterKey, cluster_key, results
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.settings import now as utc_now
 from conversation_analyzer.vocab import (
     AlertKind,
     AnomalyState,
-    Channel,
     HealthCheck,
     HealthKind,
     RunStatus,
@@ -52,7 +51,8 @@ def reliable_labels(judge_version: str) -> set[str]:
     rows = query(
         f"""
 SELECT l.label FROM (
-  SELECT label_recall FROM {tbl(SUITE_RUNS)} WHERE judge_version = @v ORDER BY day DESC, suite_run_id DESC LIMIT 1
+  SELECT label_recall FROM {tbl(SUITE_RUNS)} WHERE judge_version = @v AND NOT partial
+  ORDER BY day DESC, suite_run_id DESC LIMIT 1
 ) r, UNNEST(r.label_recall) l WHERE l.reliable""",
         v=judge_version,
     )
@@ -216,7 +216,6 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
 
     def check_log_hour(self) -> datetime | None:
         """Once an hour: the records of the last complete hour against the usual for that hour and weekday (§8.2)."""
-        cfg = self.s.metrics.log_gap
         hour = floor_hour(self.now - timedelta(minutes=75))
         checked = query(
             f"SELECT COUNT(*) AS n FROM {tbl(PIPELINE_HEALTH)} WHERE day = @d AND kind = 'LOG_HOUR' AND hour = @h",
@@ -225,33 +224,14 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
         )
         if checked and checked[0]["n"]:
             return None
-        first = hour - timedelta(weeks=cfg.reference_weeks)
-        counts = query(
-            f"SELECT hour, day, channel, n_turns FROM {fq('log_views', 'quality_turn_counts_hourly')} WHERE day >= @d",
-            d=first.date(),
-        )
-        by_hour: dict[tuple[datetime, str], int] = {}
-        days_with_data: set[date] = set()
-        for r in counts:
-            h = r["hour"] if isinstance(r["hour"], datetime) else datetime.fromisoformat(str(r["hour"]))
-            by_hour[(h, r["channel"])] = r["n_turns"]
-            days_with_data.add(r["day"])
-        for channel in Channel:
-            references = [
-                by_hour.get((h, channel.value), 0)
-                for h in (hour - timedelta(weeks=k) for k in range(1, cfg.reference_weeks + 1))
-                if h.date() in days_with_data
-            ]
-            records = by_hour.get((hour, channel.value), 0)
-            expected = statistics.median(references) if len(references) >= 2 else None
-            gap = expected is not None and expected >= cfg.min_expected and records < cfg.min_ratio * expected
-            if gap:
+        for c in check_hours([hour]):
+            if c.gap:
                 self.send_health(
-                    alert_id("LOG_GAP", hour.isoformat(), channel.value),
+                    alert_id("LOG_GAP", hour.isoformat(), c.channel),
                     HealthCheck.LOG_GAP,
-                    float(records),
-                    channel=channel.value,
-                    expected=expected,
+                    float(c.records),
+                    channel=c.channel,
+                    expected=c.expected,
                     checked=messages.when(hour.date(), hour.hour),
                 )
             self.health.append(
@@ -260,11 +240,11 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
                     "kind": HealthKind.LOG_HOUR.value,
                     "run_id": None,
                     "hour": hour.hour,
-                    "channel": channel.value,
-                    "log_records": records,
-                    "log_expected": float(expected) if expected is not None else None,
-                    "log_gap": gap,
-                    "checks_fired": [HealthCheck.LOG_GAP.value] if gap else [],
+                    "channel": c.channel,
+                    "log_records": c.records,
+                    "log_expected": c.expected,
+                    "log_gap": c.gap,
+                    "checks_fired": [HealthCheck.LOG_GAP.value] if c.gap else [],
                 }
             )
         return hour

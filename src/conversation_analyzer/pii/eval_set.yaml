@@ -1,0 +1,189 @@
+# Synthetic Polish and English conversation text with planted personal details (§6.12). All people and numbers are
+# made up. A conversation's texts share one placeholder map, like a session; `forms` lists every form of a planted
+# person, which must all get one placeholder, also in `documents` (they only get the placeholders, §6.3). `keep` lists
+# content words that must survive scrubbing.
+- conversation: pl-urlop
+  language: pl
+  persons:
+    jan_kowalski: [Jan Kowalski, Jana Kowalskiego, Janowi Kowalskiemu, Janem Kowalskim, Kowalskiego]
+    anna_nowak: [Anna Nowak, Anny Nowak, Annie Nowak, Anną Nowak]
+  texts:
+    - text: Cześć, jestem Jan Kowalski z zespołu sprzedaży. Ile dni urlopu na żądanie mi przysługuje?
+      planted: [[PERSON, Jan Kowalski]]
+      keep: [urlopu na żądanie]
+    - text: Rozmawiałem wczoraj z Anną Nowak i powiedziała, że wniosek Jana Kowalskiego trzeba zgłosić w Workday.
+      planted: [[PERSON, Anną Nowak], [PERSON, Jana Kowalskiego]]
+      keep: [Workday]
+    - text: Przekaż proszę Annie Nowak, że Janowi Kowalskiemu zostały 4 dni urlopu.
+      planted: [[PERSON, Annie Nowak], [PERSON, Janowi Kowalskiemu]]
+    - text: Czy przełożony Anny Nowak zatwierdził już wniosek Kowalskiego?
+      planted: [[PERSON, Anny Nowak], [PERSON, Kowalskiego]]
+  documents:
+    - Wnioski urlopowe zatwierdza Anna Nowak, a w zastępstwie Jan Kowalski.
+- conversation: pl-hr
+  language: pl
+  persons:
+    katarzyna_wisniewska: [Katarzyna Wiśniewska, Katarzyny Wiśniewskiej, Katarzynie Wiśniewskiej, Katarzyną Wiśniewską,
+                           Katarzynę Wiśniewską]
+    marek_zielinski: [Marek Zieliński, Marka Zielińskiego, Markowi Zielińskiemu, Markiem Zielińskim, Marku Zielińskim]
+  texts:
+    - text: Mój PESEL to 85010112345, a numer telefonu 601 234 567. Czy Katarzyna Wiśniewska już go ma?
+      planted: [[PL_PESEL, "85010112345"], [PHONE_NUMBER, 601 234 567], [PERSON, Katarzyna Wiśniewska]]
+    - text: Wyślij umowę do Katarzyny Wiśniewskiej na adres katarzyna.wisniewska@rtbhouse.com.
+      planted: [[PERSON, Katarzyny Wiśniewskiej], [EMAIL_ADDRESS, katarzyna.wisniewska@rtbhouse.com]]
+    - text: Spotkałem się z Markiem Zielińskim. Marek Zieliński prosi o zwrot kosztów na konto PL61 1090 1014 0000 0712 1981 2874.
+      planted: [[PERSON, Markiem Zielińskim], [PERSON, Marek Zieliński], [IBAN_CODE, PL61 1090 1014 0000 0712 1981 2874]]
+    - text: Rozmawialiśmy o Marku Zielińskim i jego delegacji do Berlina. Przekaż Markowi Zielińskiemu numer +48 22 123 45 67.
+      planted: [[PERSON, Marku Zielińskim], [PERSON, Markowi Zielińskiemu], [PHONE_NUMBER, +48 22 123 45 67]]
+      keep: [delegacji, Berlina]
+    - text: Dziękuję Katarzynie Wiśniewskiej za pomoc. Wniosek Marka Zielińskiego czeka na Katarzynę Wiśniewską.
+      planted: [[PERSON, Katarzynie Wiśniewskiej], [PERSON, Marka Zielińskiego], [PERSON, Katarzynę Wiśniewską]]
+  documents:
+    - Delegacje rozlicza Katarzyna Wiśniewska (tel. 601-234-567). Zastępuje ją Marek Zieliński.
+- conversation: pl-it
+  language: pl
+  persons:
+    piotr_wojcik: [Piotr Wójcik, Piotra Wójcika, Piotrowi Wójcikowi, Piotrem Wójcikiem]
+    agnieszka_kaminska: [Agnieszka Kamińska, Agnieszki Kamińskiej, Agnieszką Kamińską]
+  texts:
+    - text: Laptop Piotra Wójcika nie łączy się z VPN. Jego numer pracownika to EMP-20431.
+      planted: [[PERSON, Piotra Wójcika], [EMPLOYEE_ID, EMP-20431]]
+      keep: [VPN]
+    - text: Czy mogę oddać stary laptop Piotrowi Wójcikowi zamiast do działu IT?
+      planted: [[PERSON, Piotrowi Wójcikowi]]
+    - text: Agnieszka Kamińska z IT mówi, że trzeba zresetować GlobalProtect. Zadzwoń do Agnieszki Kamińskiej pod 512-345-678.
+      planted: [[PERSON, Agnieszka Kamińska], [PERSON, Agnieszki Kamińskiej], [PHONE_NUMBER, 512-345-678]]
+      keep: [GlobalProtect]
+    - text: Umówiłem się z Agnieszką Kamińską i z Piotrem Wójcikiem na jutro.
+      planted: [[PERSON, Agnieszką Kamińską], [PERSON, Piotrem Wójcikiem]]
+  documents:
+    - Sprzęt wydaje Piotr Wójcik, pokój 3.12. Konta w GlobalProtect zakłada Agnieszka Kamińska.
+- conversation: pl-finanse
+  language: pl
+  persons:
+    tomasz_lewandowski: [Tomasz Lewandowski, Tomasza Lewandowskiego, Tomaszem Lewandowskim]
+    magdalena_wozniak: [Magdalena Woźniak, Magdaleny Woźniak, Magdaleną Woźniak]
+  texts:
+    - text: Faktura dla firmy o NIP 1234563218 jest u Tomasza Lewandowskiego.
+      planted: [[PL_NIP, "1234563218"], [PERSON, Tomasza Lewandowskiego]]
+    - text: Tomasz Lewandowski zapłacił kartą 4111 1111 1111 1111 za hotel. Czy to w porządku?
+      planted: [[PERSON, Tomasz Lewandowski], [CREDIT_CARD, 4111 1111 1111 1111]]
+      keep: [hotel]
+    - text: Mój dowód osobisty ma numer ABA300000, a PESEL 92031509872. Magdalena Woźniak prosiła o te dane.
+      planted: [[PL_ID_CARD, ABA300000], [PL_PESEL, "92031509872"], [PERSON, Magdalena Woźniak]]
+    - text: Napisz do Magdaleny Woźniak, że rozmawiałem z Tomaszem Lewandowskim o budżecie.
+      planted: [[PERSON, Magdaleny Woźniak], [PERSON, Tomaszem Lewandowskim]]
+      keep: [budżecie]
+    - text: Czy akceptację wydatków mogę uzgodnić z Magdaleną Woźniak?
+      planted: [[PERSON, Magdaleną Woźniak]]
+  documents:
+    - Wydatki powyżej 5000 zł akceptuje Tomasz Lewandowski, a w zastępstwie Magdalena Woźniak.
+- conversation: pl-mix
+  language: pl
+  persons:
+    ewa_szymanska: [Ewa Szymańska, Ewy Szymańskiej, Ewie Szymańskiej, Ewą Szymańską]
+    krzysztof_dabrowski: [Krzysztof Dąbrowski, Krzysztofa Dąbrowskiego, Krzysztofem Dąbrowskim]
+  texts:
+    - text: Pani Ewa Szymańska pyta, czy może przenieść urlop na przyszły rok.
+      planted: [[PERSON, Ewa Szymańska]]
+      keep: [urlop]
+    - text: Zapytaj Ewy Szymańskiej i Krzysztofa Dąbrowskiego, kto prowadzi szkolenie z BigQuery.
+      planted: [[PERSON, Ewy Szymańskiej], [PERSON, Krzysztofa Dąbrowskiego]]
+      keep: [BigQuery, szkolenie]
+    - text: Przekaż Ewie Szymańskiej mój nowy adres e-mail ewa.prywatny@gmail.com.
+      planted: [[PERSON, Ewie Szymańskiej], [EMAIL_ADDRESS, ewa.prywatny@gmail.com]]
+    - text: Krzysztof Dąbrowski ma numer służbowy RTB 104512, a ja jestem w zespole z Ewą Szymańską.
+      planted: [[PERSON, Krzysztof Dąbrowski], [EMPLOYEE_ID, RTB 104512], [PERSON, Ewą Szymańską]]
+    - text: Spotkanie z Krzysztofem Dąbrowskim jest w sali Złota na trzecim piętrze.
+      planted: [[PERSON, Krzysztofem Dąbrowskim]]
+      keep: [Złota]
+  documents:
+    - Szkolenia z BigQuery prowadzi Krzysztof Dąbrowski. Zapisy przyjmuje Ewa Szymańska.
+- conversation: en-travel
+  language: en
+  persons:
+    john_smith: [John Smith, Smith]
+    emily_clarke: [Emily Clarke, Emily]
+  texts:
+    - text: Hi, I'm John Smith from the London office. How do I book a business trip to Warsaw?
+      planted: [[PERSON, John Smith]]
+      keep: [London, Warsaw, business trip]
+    - text: Emily Clarke told me Finance must approve it. Can you check with Smith's manager?
+      planted: [[PERSON, Emily Clarke], [PERSON, Smith]]
+      keep: [Finance]
+    - text: Please send the itinerary to john.smith@rtbhouse.com and call me on +44 20 7946 0958.
+      planted: [[EMAIL_ADDRESS, john.smith@rtbhouse.com], [PHONE_NUMBER, +44 20 7946 0958]]
+    - text: My corporate card is 5500 0000 0000 0004 and my employee ID is EMP_7712345.
+      planted: [[CREDIT_CARD, 5500 0000 0000 0004], [EMPLOYEE_ID, EMP_7712345]]
+  documents:
+    - Travel questions go to Emily Clarke in Finance; John Smith handles the London office.
+- conversation: en-team
+  language: en
+  persons:
+    sarah_johnson: [Sarah Johnson, Sarah]
+    david_miller: [David Miller, David, Miller]
+  texts:
+    - text: Sarah Johnson and David Miller need access to the analytics.impressions_daily table.
+      planted: [[PERSON, Sarah Johnson], [PERSON, David Miller]]
+      keep: [analytics.impressions_daily]
+    - text: Can David reset the VPN for Sarah? Her number is (415) 555-0132.
+      planted: [[PERSON, David], [PERSON, Sarah], [PHONE_NUMBER, (415) 555-0132]]
+      keep: [VPN]
+    - text: Miller's laptop is broken. Please email david.miller@adlook.com when the new one is ready.
+      planted: [[PERSON, Miller], [EMAIL_ADDRESS, david.miller@adlook.com]]
+  documents:
+    - Access to analytics tables is granted by Sarah Johnson. Hardware is handled by David Miller.
+- conversation: en-hr
+  language: en
+  persons:
+    michael_brown: [Michael Brown, Michael]
+    laura_wilson: [Laura Wilson, Laura]
+  texts:
+    - text: Michael Brown is on sick leave this week. Who should Laura Wilson report it to?
+      planted: [[PERSON, Michael Brown], [PERSON, Laura Wilson]]
+      keep: [sick leave]
+    - text: Laura said the e-ZLA for Michael arrived. His personal email is mike.brown88@gmail.com.
+      planted: [[PERSON, Laura], [PERSON, Michael], [EMAIL_ADDRESS, mike.brown88@gmail.com]]
+      keep: [e-ZLA]
+    - text: Thanks, Bolek. Please remind me how many on-demand days Michael Brown has left.
+      planted: [[PERSON, Michael Brown]]
+      keep: [Bolek, on-demand]
+  documents:
+    - HR contact for sick leave in the London office is Laura Wilson.
+# Held out: added after the scrubber was tuned on the conversations above, and never tuned on.
+- conversation: pl-held-out
+  language: pl
+  held_out: true
+  persons:
+    pawel_mazur: [Paweł Mazur, Pawła Mazura, Pawłowi Mazurowi, Pawłem Mazurem]
+    joanna_krawczyk: [Joanna Krawczyk, Joanny Krawczyk, Joannie Krawczyk, Joanną Krawczyk]
+  texts:
+    - text: Dzień dobry, nazywam się Paweł Mazur. Mój telefon to 698 765 432, a mail pawel.mazur@rtbhouse.com.
+      planted: [[PERSON, Paweł Mazur], [PHONE_NUMBER, 698 765 432], [EMAIL_ADDRESS, pawel.mazur@rtbhouse.com]]
+    - text: Czy Joanna Krawczyk może podpisać wniosek Pawła Mazura o nowy laptop?
+      planted: [[PERSON, Joanna Krawczyk], [PERSON, Pawła Mazura]]
+      keep: [laptop]
+    - text: Wyślij Joannie Krawczyk numer konta PL27 1140 2004 0000 3002 0135 5387 i PESEL 02070803628.
+      planted: [[PERSON, Joannie Krawczyk], [IBAN_CODE, PL27 1140 2004 0000 3002 0135 5387], [PL_PESEL, "02070803628"]]
+    - text: Rozmawiałam z Pawłem Mazurem i z Joanną Krawczyk o szkoleniu z Jira.
+      planted: [[PERSON, Pawłem Mazurem], [PERSON, Joanną Krawczyk]]
+      keep: [Jira, szkoleniu]
+  documents:
+    - Wnioski sprzętowe podpisuje Joanna Krawczyk. W razie nieobecności Paweł Mazur.
+- conversation: en-held-out
+  language: en
+  held_out: true
+  persons:
+    olivia_turner: [Olivia Turner, Olivia, Turner]
+    james_walker: [James Walker, James]
+  texts:
+    - text: Olivia Turner asked me to renew her VPN certificate. Her phone is +1 212 555 0198.
+      planted: [[PERSON, Olivia Turner], [PHONE_NUMBER, +1 212 555 0198]]
+      keep: [VPN certificate]
+    - text: James Walker will be in Warsaw next week; can Turner book him a parking space?
+      planted: [[PERSON, James Walker], [PERSON, Turner]]
+      keep: [Warsaw, parking space]
+    - text: Please forward the invoice to james.walker@outlook.com, James prefers his private address.
+      planted: [[EMAIL_ADDRESS, james.walker@outlook.com], [PERSON, James]]
+  documents:
+    - Parking in Warsaw is booked by Olivia Turner for visitors such as James Walker.

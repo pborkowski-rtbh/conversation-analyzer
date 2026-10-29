@@ -5,12 +5,14 @@ from __future__ import annotations
 import pytest
 
 from conversation_analyzer.pii import presidio
+from conversation_analyzer.pii.evaluate import evaluate
 from conversation_analyzer.pii.scrubber import Entity, PiiMap, default_analyzer, name_key, scrub, stem
 
 
 def test_stem_and_name_key_join_inflected_forms():
     assert stem("Kowalskiego") == stem("Kowalski") == stem("Kowalskim") == "kowalsk"
-    assert stem("Ola") == "ola"  # too short to cut
+    assert stem("Ewa") == stem("Ewy") == stem("Ewie") == stem("Ewą") == "ew"  # short first names too
+    assert stem("Jo") == "jo"  # nothing left to cut
     assert name_key("Janem Kowalskim") == name_key("Jan Kowalski")
     assert name_key("x-1") == ("x-1",)
 
@@ -20,6 +22,7 @@ def test_placeholders_are_consistent_per_value():
     full = pii.placeholder("PERSON", "Jana Kowalskiego", "Jan Kowalski")
     assert full == "<PERSON_1>"
     assert pii.placeholder("PERSON", "Kowalskim") == full  # the surname alone
+    assert pii.placeholder("PERSON", "Janowi") == full  # the first name alone
     assert pii.placeholder("PERSON", "Anna Nowak") == "<PERSON_2>"
     assert pii.placeholder("PHONE_NUMBER", "+48 601 234 567") == pii.placeholder("PHONE_NUMBER", "601-234-567")
     assert pii.placeholder("EMAIL_ADDRESS", "A@x.com") == pii.placeholder("EMAIL_ADDRESS", " a@x.com ")
@@ -42,6 +45,24 @@ def test_apply_gives_documents_the_same_placeholders():
     assert f"Contact {person} ({email}, {phone} or {phone})" in out
     assert f"Ask Pan {person}" in out and f"Kadr {person} Nowaka" in out
     assert "Kowalsk" not in out and pii.apply("") == ""
+    assert pii.apply("Jan\nKowalski, Anna") == f"{person}, Anna"  # whitespace inside a name is part of it
+
+
+def test_a_first_name_two_persons_share_is_no_alias():
+    pii = PiiMap()
+    jan_k = pii.placeholder("PERSON", "Jan Kowalski")
+    jan_n = pii.placeholder("PERSON", "Jan Nowak")
+    assert jan_k != jan_n and pii.placeholder("PERSON", "Nowakiem") == jan_n
+    assert pii.placeholder("PERSON", "Jan") not in (jan_k, jan_n)  # ambiguous: a placeholder of its own
+    assert pii.apply("Kowalski and Jana Nowaka") == f"{jan_k} and {jan_n}"
+
+
+def test_scrub_replaces_known_names_the_analyzer_missed():
+    pii = PiiMap()
+    first = scrub("I'm David Miller.", pii, FixedAnalyzer([Entity(4, 16, "PERSON", 0.9)]))
+    assert first == "I'm <PERSON_1>." and scrub("Miller's laptop is broken.", pii, FixedAnalyzer([])) == (
+        "<PERSON_1>'s laptop is broken."
+    )
 
 
 class FixedAnalyzer:
@@ -108,3 +129,17 @@ def test_real_analyzer_keeps_content(analyzer):
     pii = PiiMap()
     out = scrub("Pan Marek Nowak pisał do Marka Nowaka.", pii, analyzer)
     assert out.count("<PERSON_1>") == 2 and "Pan <PERSON_1>" in out
+
+
+def test_eval_set_planted_details_are_all_found(analyzer):
+    report = evaluate(analyzer)
+    assert report["recall"] == 1.0 and report["missed"] == []
+    for ok, n in (report["persons_consistent"], report["documents_consistent"], report["content_kept"]):
+        assert ok == n > 0
+    assert {r["language"] for r in report["by_type"]} == {"en", "pl", "en-held-out", "pl-held-out"}
+
+
+def test_evaluate_reports_what_an_analyzer_misses():
+    report = evaluate(FixedAnalyzer([]))
+    assert report["recall"] < 0.5 and ("PERSON", "Jan Kowalski") in report["missed"]
+    assert report["persons_consistent"][0] == 0
