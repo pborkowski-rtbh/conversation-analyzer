@@ -99,20 +99,14 @@ def vertex_schema(model: type[BaseModel]) -> dict[str, Any]:
     return convert(raw)
 
 
-class VertexJudge:
-    """REST calls to Vertex AI's generateContent on the configured EU location."""
+class BearerToken:
+    """Application default credentials, refreshed only when they expire; shared by threads."""
 
-    def __init__(self, transport: httpx.BaseTransport | None = None, sleep=time.sleep) -> None:
-        s = get_settings().judge
-        check_location(s.location)
-        self.location = s.location
-        self.project = s.vertex_project
-        self.http = httpx.Client(timeout=httpx.Timeout(300.0), transport=transport)
-        self.sleep = sleep
+    def __init__(self) -> None:
         self._credentials = None
         self._lock = threading.Lock()
 
-    def _token(self) -> str:
+    def __call__(self) -> str:
         import google.auth
         import google.auth.transport.requests
 
@@ -122,6 +116,24 @@ class VertexJudge:
             if not self._credentials.valid:
                 self._credentials.refresh(google.auth.transport.requests.Request())
             return self._credentials.token
+
+
+def backoff_seconds(attempt: int) -> float:
+    """Exponential backoff with jitter, from the configured base."""
+    return get_settings().judge.retry_base_seconds * 2**attempt * (1 + random.random() / 2)
+
+
+class VertexJudge:
+    """REST calls to Vertex AI's generateContent on the configured EU location."""
+
+    def __init__(self, transport: httpx.BaseTransport | None = None, sleep=time.sleep, token=None) -> None:
+        s = get_settings().judge
+        check_location(s.location)
+        self.location = s.location
+        self.project = s.vertex_project
+        self.http = httpx.Client(timeout=httpx.Timeout(300.0), transport=transport)
+        self.sleep = sleep
+        self._token = token or BearerToken()
 
     def url(self, model: str) -> str:
         return (
@@ -150,7 +162,7 @@ class VertexJudge:
             except httpx.HTTPError as exc:
                 if attempt == s.max_retries:
                     raise JudgeApiError() from exc
-                self.sleep(s.retry_base_seconds * 2**attempt)
+                self.sleep(backoff_seconds(attempt))
                 continue
             if resp.status_code == 429 or resp.status_code >= 500:
                 if resp.status_code == 429:
@@ -158,7 +170,7 @@ class VertexJudge:
                         usage.throttled += 1
                 if attempt == s.max_retries:
                     raise JudgeApiError(ErrorClass.JUDGE_THROTTLED if resp.status_code == 429 else None)
-                self.sleep(s.retry_base_seconds * 2**attempt * (1 + random.random() / 2))
+                self.sleep(backoff_seconds(attempt))
                 continue
             if resp.status_code != 200:
                 raise JudgeApiError()

@@ -162,11 +162,10 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
     s = get_settings()
     payload = [_jsonable(r) for r in checked]
     if s.env.emulator:
-        # The emulator corrupts its catalog when tables are dropped, so its staging tables are reused, never dropped.
-        stg_name = f"_stg_{table.name}"
-        stg_id = f"{s.env.bq_project}.{getattr(s.datasets, table.dataset)}.{stg_name}"
+        # The emulator corrupts its catalog when tables are dropped, so its staging tables (made by create_all) are
+        # reused, never dropped.
+        stg_id = f"{s.env.bq_project}.{getattr(s.datasets, table.dataset)}._stg_{table.name}"
         with _emulator_lock:
-            execute(ddl(table, emulator=True, name_override=stg_name))
             execute(f"DELETE FROM `{stg_id}` WHERE TRUE")
             if client().insert_rows_json(stg_id, payload, retry=retry()):
                 raise RuntimeError("staging insert failed")

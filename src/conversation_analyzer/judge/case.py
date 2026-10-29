@@ -1,5 +1,4 @@
-"""What the judge sees for one turn, and how it is written into a prompt. The same shape comes from the live
-assessor and from the judge test suite (§11.1), so between two suite runs only the judge changes."""
+"""What the judge sees for one turn and how it becomes a prompt; the live assessor and the suite share it (§11.1)."""
 
 from __future__ import annotations
 
@@ -8,7 +7,7 @@ from typing import Any, Protocol
 
 from conversation_analyzer.log.parse import Reference, Span
 from conversation_analyzer.settings import get_settings
-from conversation_analyzer.vocab import KNOWLEDGE_INTENTS, EvidenceKind
+from conversation_analyzer.vocab import EvidenceKind
 
 
 @dataclass(frozen=True)
@@ -147,7 +146,3 @@ def render_documents(docs: list[DocText], heading: str = "DOCUMENTS") -> str:
     for i, d in enumerate(docs, start=1):
         out.append(f"[{i}] data store {d.ref.data_store}, title: {d.title}\n{d.text[:cap]}")
     return "\n\n".join(out) if docs else f"## {heading}\n(none)"
-
-
-def is_knowledge(intent: str) -> bool:
-    return intent in KNOWLEDGE_INTENTS

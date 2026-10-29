@@ -1,8 +1,4 @@
-"""Sessions and segments, from the turns in the window and what earlier runs stored (§5).
-
-Stored turns keep their segment; segment numbers come from storage because a session's first segments may already
-be erased (§12.6). Only derived values leave this module.
-"""
+"""Sessions and segments from the window and stored rows; stored turns keep their segment number (§5, §12.6)."""
 
 from __future__ import annotations
 
@@ -68,6 +64,20 @@ class SessionPlan:
     places: list[TurnPlace]
 
 
+def _later_stored_segment(
+    turns: list[Turn], i: int, stored_turns: dict[str, dict[str, Any]], idle: timedelta, hard: timedelta
+) -> int | None:
+    """The segment of the first stored turn after turn i, when no pause of 30 minutes lies between them."""
+    for j in range(i + 1, len(turns)):
+        if turns[j].timestamp - turns[j - 1].timestamp >= idle:
+            return None
+        no = (stored_turns.get(turns[j].turn_key) or {}).get("segment_no")
+        if no:
+            last = max(t.timestamp for t in turns if (stored_turns.get(t.turn_key) or {}).get("segment_no") == no)
+            return no if last - turns[i].timestamp < hard else None
+    return None
+
+
 def plan_session(
     session_key: str,
     turns: list[Turn],
@@ -102,6 +112,10 @@ def plan_session(
             if joins:
                 assign[t.turn_key] = pseg
                 continue
+        later = _later_stored_segment(turns, i, stored_turns, idle, hard)
+        if later is not None:  # a turn that reached the log late joins the stored segment it precedes (§6.1)
+            assign[t.turn_key] = later
+            continue
         known = list(assign.values()) + list(stored_segments)
         assign[t.turn_key] = (max(known) if known else 0) + 1
 

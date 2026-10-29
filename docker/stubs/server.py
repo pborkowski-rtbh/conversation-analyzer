@@ -1,7 +1,4 @@
-"""Local stand-ins for the Slack Web API, the GitHub API and the Cloud Run executions API.
-
-Tests and `make` targets control them through /_test/* endpoints. Nothing here talks to a real service.
-"""
+"""Local stand-ins for Slack, GitHub and Cloud Run executions; tests steer them through /_test/* endpoints."""
 
 from __future__ import annotations
 
@@ -12,7 +9,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-LOCK = threading.Lock()
+LOCK = threading.RLock()  # reset() takes it again inside a request
 STATE: dict = {}
 
 

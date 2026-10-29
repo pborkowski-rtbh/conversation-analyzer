@@ -1,7 +1,4 @@
-"""One assessment run: read the window, assess, keep derived values only (§12.6).
-
-Text exists only in this process's memory, and only while the run lasts.
-"""
+"""One assessment run: read the window, assess, keep derived values only; text lives only in memory (§12.6)."""
 
 from __future__ import annotations
 
@@ -35,13 +32,13 @@ from conversation_analyzer.bq.schema import (
     Table,
 )
 from conversation_analyzer.docs.index import DocumentIndex, SessionDocuments
-from conversation_analyzer.errors import AnalyzerError, JudgeOutputError, LeakGuardError, report
+from conversation_analyzer.errors import AnalyzerError, JudgeOutputError, LeakGuardError, classify
 from conversation_analyzer.judge import evidence, session, stage1, stage2
 from conversation_analyzer.judge.case import EarlierTurn, JudgeCase
 from conversation_analyzer.judge.client import Judge, Usage, default_judge
 from conversation_analyzer.judge.stage1 import Stage1Result
 from conversation_analyzer.judge.stage2 import Stage2Result
-from conversation_analyzer.judge.version import JudgeVersion, current, previous
+from conversation_analyzer.judge.version import JudgeVersion, current, in_parallel_run, metric_version, previous
 from conversation_analyzer.keys import stable_fraction
 from conversation_analyzer.leak_guard import check_row
 from conversation_analyzer.log.parse import Feedback, Span, Turn
@@ -142,12 +139,9 @@ class AssessmentRun:
         self.hard = timedelta(minutes=s.timing.hard_limit_minutes)
         self.eligible_after = timedelta(minutes=s.timing.eligible_after_minutes)
         self.cur = current()
-        prev = previous()
-        until = s.judge.parallel_run_until
-        self.parallel = prev is not None and until is not None and self.today <= until
-        self.versions: list[JudgeVersion] = [self.cur] + ([prev] if self.parallel else [])
-        # During a parallel run, metrics, flags and late triggers use the old version (§8.2).
-        self.metric_version = prev if self.parallel else self.cur
+        self.parallel = in_parallel_run(self.today)
+        self.metric_version = metric_version(self.today)
+        self.versions: list[JudgeVersion] = [self.cur] + ([self.metric_version] if self.parallel else [])
         self.pii: dict[str, PiiMap] = {}
         self.grades: dict[tuple[str, int], session.GradeResult] = {}
         self.canary_rows: list[dict[str, Any]] = []
@@ -546,7 +540,12 @@ class AssessmentRun:
                 if evidence.needed(pr):
                     self._call(
                         lambda pr=pr, pcase=pcase: evidence.check(
-                            pcase, pr, self.cur, self.judge, self.usage, self.docs_view(ts)  # noqa: B023
+                            pcase,
+                            pr,
+                            self.cur,
+                            self.judge,
+                            self.usage,
+                            self.docs_view(ts),  # noqa: B023
                         )
                     )
                 self.canary_rows.append(
@@ -885,7 +884,7 @@ class AssessmentRun:
             self.write_all(states, stored)
             record = self.run_record(states, RunStatus.OK, None, search_cutoff, feedback_cutoff)
         except Exception as exc:
-            error_class = report(exc)
+            error_class = classify(exc)  # the job wrapper reports it to Sentry
             record = self.run_record(states, RunStatus.FAILED, error_class.value, None, None)
             write(RUNS, [record])
             raise

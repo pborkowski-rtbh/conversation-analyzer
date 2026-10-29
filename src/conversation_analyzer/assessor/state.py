@@ -54,8 +54,10 @@ def load(session_keys: list[str], today: date) -> Stored:
     turn_keys = list(out.turns)
     if turn_keys:
         # Only the stage 2 columns needed: nested repeated fields don't round-trip through the emulator.
-        for table, target, cols in ((STAGE1_RESULTS, out.stage1, "*"),
-                                    (STAGE2_RESULTS, out.stage2, "turn_key, judge_version, primary_failure, severity")):
+        for table, target, cols in (
+            (STAGE1_RESULTS, out.stage1, "*"),
+            (STAGE2_RESULTS, out.stage2, "turn_key, judge_version, primary_failure, severity"),
+        ):
             for row in query(
                 f"SELECT {cols} FROM {tbl(table)} WHERE day >= @since AND turn_key IN UNNEST(@keys)",
                 since=since,

@@ -1,7 +1,4 @@
-"""The canary: evaluator questions on the production engine, assessed like real turns and kept apart (§11.4, §12.11).
-
-Canary answers are synthetic material, so the assessor may change them to plant known errors.
-"""
+"""The canary: evaluator turns assessed like real ones, kept apart, and changed to plant errors (§11.4, §12.11)."""
 
 from __future__ import annotations
 
@@ -13,7 +10,7 @@ from conversation_analyzer.judge.case import JudgeCase
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.vocab import FailureCode, PlantedError, Severity
 
-_NUMBER = re.compile(r"(?<![\w.])(\d{1,6})(?![\w.])")
+_NUMBER = re.compile(r"(?<![\w.])(\d{1,6})(?!\w|\.\d)")  # whole numbers, also at the end of a sentence
 _STEP = re.compile(r"^\s*(?:\d+[.)]|[-*•])\s+\S.*$", re.MULTILINE)
 _CAPITALIZED = re.compile(r"(?<![.!?]\s)(?<!^)\b([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,})\b")
 

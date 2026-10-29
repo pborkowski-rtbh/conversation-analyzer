@@ -7,12 +7,18 @@ from google.cloud import bigquery
 
 from conversation_analyzer.bq.client import client, execute, fq, retry
 from conversation_analyzer.bq.external import EXTERNAL_TABLES
-from conversation_analyzer.bq.schema import TABLES, chunk_table, ddl
+from conversation_analyzer.bq.schema import TABLES, Table, chunk_table, ddl
 from conversation_analyzer.bq.views import views
 from conversation_analyzer.settings import get_settings
 
 
+def staging_name(table: Table) -> str:
+    """The emulator's reused staging table of a table (dropping tables corrupts the emulator)."""
+    return f"_stg_{table.name}"
+
+
 def create_all() -> list[str]:
+    """Create what is missing; existing tables are left alone (the emulator is slow to refuse a duplicate)."""
     s = get_settings()
     created: list[str] = []
     datasets = ["turns", "metrics", "log_views", "doc_index"]
@@ -30,8 +36,17 @@ def create_all() -> list[str]:
     if s.env.emulator:
         tables += list(EXTERNAL_TABLES)
         tables += [chunk_table(d.id) for d in s.data_stores if d.has_content]
+    existing = {
+        (t.dataset_id, t.table_id)
+        for key in datasets
+        for t in client().list_tables(f"{s.env.bq_project}.{getattr(s.datasets, key)}", retry=retry())
+    }
     for table in tables:
-        execute(ddl(table, emulator=s.env.emulator))
+        dataset = getattr(s.datasets, table.dataset)
+        names = [table.name] + ([staging_name(table)] if s.env.emulator and table in TABLES else [])
+        for name in names:
+            if (dataset, name) not in existing:
+                execute(ddl(table, emulator=s.env.emulator, name_override=None if name == table.name else name))
         created.append(table.name)
     for name, sql in views().items():
         execute(f"CREATE OR REPLACE VIEW {fq('log_views', name)} AS {sql}")

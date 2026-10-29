@@ -1,0 +1,67 @@
+# Judge test suite (§11.1-11.3): field weights of the distance (§11.2) and the scenario minimums (§11.1).
+# Both are versioned with the cases: changing any file in suite_cases/ changes the suite version.
+weights:
+  intent: 3
+  check: 1              # relation, needs internal knowledge, each yes/no check, the evidence check
+  score: 1              # relevance, completeness, clarity, groundedness
+  span_counts: 1
+  failure_types: 2
+  primary_failure: 2
+  severity: 1
+  filled_fields: 1      # a field filled that should be empty, or the other way round
+  stage2_cause: 2
+  document_to_fix: 1
+  session_outcome: 2
+  first_bad_turn: 1
+  recovered: 1
+minimums:
+  intent:FACT_LOOKUP: 10
+  intent:HOW_TO: 10
+  intent:TROUBLESHOOTING: 10
+  intent:PEOPLE_LOOKUP: 10
+  intent:DATA_QUESTION: 10
+  intent:GENERAL_TASK: 10
+  intent:CHITCHAT: 10
+  intent:OTHER: 10
+  evidence:OWN_REFERENCES: 20
+  evidence:EARLIER_REFERENCES: 20
+  evidence:NONE: 20
+  failure:NONE: 5
+  failure:RETRIEVAL_MISS: 5
+  failure:CHUNKING_ISSUE: 5
+  failure:KNOWLEDGE_GAP: 5
+  failure:OUTDATED_SOURCE: 5
+  failure:CONFLICTING_SOURCES: 5
+  failure:CONTRADICTED_CLAIM: 5
+  failure:UNSUPPORTED_CLAIM: 5
+  failure:REASONING_ERROR: 5
+  failure:INCOMPLETE_ANSWER: 5
+  failure:MISUNDERSTOOD_QUERY: 5
+  failure:PRESENTATION_ISSUE: 5
+  failure:UNGROUNDED_INTERNAL_ANSWER: 5
+  failure:AMBIGUOUS_QUESTION: 5
+  failure:OUT_OF_SCOPE: 5
+  failure:AGENT_OR_TOOL_ERROR: 5
+  severity:HIGH: 20
+  severity:NEAR_MISS: 5   # only unsupported, no contradiction: must not become HIGH
+  relation:FIRST: 5
+  relation:FOLLOW_UP: 5
+  relation:REPHRASE: 5
+  relation:CORRECTION: 5
+  relation:FRUSTRATION: 5
+  relation:NEW_TOPIC: 5
+  cause:OUTDATED_SOURCE: 5
+  cause:CONFLICTING_SOURCES: 5
+  cause:CHUNKING_ISSUE: 5
+  cause:RETRIEVAL_MISS: 5
+  cause:KNOWLEDGE_GAP: 5
+  cause:ANSWER: 5         # no cause on the path: the answer itself
+  outcome:RESOLVED: 10
+  outcome:PARTIALLY_RESOLVED: 10
+  outcome:UNRESOLVED: 10
+  outcome:UNCLEAR: 10
+  edge:refusal: 5
+  edge:wrong_language: 5
+  edge:people_lookup: 5
+  edge:private_details: 5
+  edge:long_context: 5

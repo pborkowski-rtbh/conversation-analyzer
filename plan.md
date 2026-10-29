@@ -4,29 +4,62 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-29, end of session 1)
+## Status (2026-10-29, end of session 2)
 
-- Branch `AIENGLAB-782` in this repo; submodule `aiel-content-indexers` checked out on its own branch `AIENGLAB-782`
-  (from its `origin/main` at 2b92f03), **no changes in the submodule yet**.
-- M0 and M1 done. M2 mostly done: the whole assessor path runs end to end on the emulator (`tests/test_assessor_e2e.py`).
-  Big parts of M3 and M4 (evidence check, stage 2, session grades, canary, planted errors, second model) are already
-  written inside the assessor and covered by the e2e test.
-- `uv run pytest -q --no-cov -p no:logging tests/` → **41 passed** (needs `docker-compose up -d`; ~5 min, spaCy lg models).
-- Coverage not measured yet; target > 90 % (`fail_under = 90`). Many modules only have e2e coverage so far.
+- Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
+  2b92f03). Both pushed at the end of session 2.
+- M0, M1, M2 done (incl. `quality-monitor`). M3 done in code: the indexers' doc-index step (submodule) and the
+  analyzer side; the local run against real sources (`make index-local`) is written but **not yet executed**.
+- M4 started: `suite/cases.py` (case model + scenario tags + coverage), `suite/scoring.py` (§11.2 distance),
+  `suite_cases/suite.yaml` (weights, minimums), `suite_cases/documents.yaml` (17-document corpus). **Not written yet:**
+  the cases (`suite_cases/cases/*.yaml`), `suite/runner.py`, the `--check` option, tests for suite modules.
+- Tests: 142 unit tests pass (`make test-unit`, 2 s). Every emulator module passes when run on its own
+  (`test_assessor_e2e` 9, `test_assessor_paths` 10, `test_monitor` 6, `test_docs` 9, `test_bq`). Last full coverage
+  measured: 96.7 % (before monitor/suite modules). **Open issue:** a full `make coverage` run stalls inside
+  `tests/test_monitor.py` (after ~122 tests, twice; emulator busy at ~50-90 % CPU). Reproduce with
+  `uv run pytest -q -p no:logging --no-cov -o faulthandler_timeout=300 tests/test_docs.py tests/test_monitor.py`
+  to get the stack (killing `uv` with SIGABRT hits the wrapper, not Python). Suspects: the scenario + assessor run in
+  `test_high_cluster_alerts_after_the_scenario` after the emulator restart by `_fresh_emulator`, or the log view.
+- Indexers: 1361 passed, new `common/doc_index` package at 95 %; committed and pushed (48dc7ad).
 - Paid Vertex spend so far: **0 USD** (cap 50 USD until 2026-11-01). No real model was called yet.
 
 ## Next steps, in order
 
-1. `Dockerfile`, `Makefile` (all targets, see **Make targets planned**), `CLAUDE.md`, `.gitignore`; commit + push.
-2. Unit tests to reach > 90 % coverage for what exists (judge client with `httpx.MockTransport`, stage1/stage2 rules,
-   sessions edge cases, pii, docs, canary mutations, embedder, content reader with fake GCS).
-3. `reporting/monitor.py` (pipeline health per run + hourly log gaps + alerts to the team alerts channel) — finishes M2.
-4. M3: indexer sink change in the submodule (Python 3.14, line length 100, its own CLAUDE.md rules) + local run to emulator.
-5. M4: judge test suite (case format, cases, scoring, runner, keep rule), live run on flash + argon (spend cap).
-6. M5–M7: daily, weekly, record, alerts, digest, anomalies, release impact, eval documents.
-7. Feedback-after-window fallback (§12.5): setting exists (`timing.feedback_after_window_fallback`), code path not
-   written (currently only counted in `quality_runs.feedback_after_window`).
-8. `make pii-eval`: synthetic Polish/English PII set with inflected names + recall measurement (§6.12).
+0. Fix the full-run stall above, then `make coverage` must pass (> 90 %; suite modules need tests first or they count
+   as 0 %).
+1. M4 judge suite:
+   - Draft the cases into `suite_cases/cases/*.yaml` (all `reviewed: false`, ~20 % `part: HELD_OUT`). Plan: hand-made
+     facts per corpus document (question en/pl, right / wrong / unsupported / incomplete answer, the snippet with the
+     fact, another snippet of the same doc) expanded into variants with known expected forms: ok with own refs;
+     contradicted own refs (HIGH, stage 2 cause ANSWER: primary CONTRADICTED_CLAIM, why NONE); unsupported extra claim
+     (near miss, MEDIUM, groundedness 3); chunking (snippet from another section → stage 1 UNSUPPORTED g2, stage 2
+     CHUNKING_ISSUE, fix = that doc); retrieval miss (unrelated ref, right doc in `documents` → RETRIEVAL_MISS);
+     no refs + contradicting doc (evidence check → CONTRADICTED + UNGROUNDED, HIGH; stage 2 RETRIEVAL_MISS);
+     no refs + correct (UNGROUNDED, MEDIUM); knowledge gap; outdated (`leave_2024`/`trips_2023` cited, newer doc in
+     `documents`, `flag_reasons: [DISLIKE]`, stage 1 NONE, stage 2 OUTDATED_SOURCE fix = old doc); conflicting
+     (`vpn` + `vpn_kh` both cited, fix = either, list); earlier-references follow-ups; relations (two-turn cases);
+     conversations of 3–5 turns per outcome (earlier turns carry `stage1` labels); edge tags; non-knowledge intents
+     (GENERAL_TASK, CHITCHAT, OTHER: ambiguous / out of scope, PEOPLE_LOOKUP with `person_finance`).
+     Expected values follow `judge_versions/v1/rubric/*.en.md` (e.g. contradicted: relevance 5, completeness 5,
+     clarity 5, groundedness 1, unsupported_spans = spans).
+   - `suite/runner.py`: load suite → for each pass and case: scrub PII like live, `stage1.assess`, evidence check if
+     needed, stage 2 when `expected.stage2` (flag reasons from the result or `case.flag_reasons`), session grade when
+     `expected.session` (earlier turns as `SegmentTurn` with their labels) → `scoring` → averages per case / field /
+     scenario / part, false and missed HIGH, label recall (≥ 70 % → reliable) → keep rule vs baseline (last KEEP or
+     BASELINE run, or `--baseline`) → `quality_judge_suite_runs` row + a JSON report in `suite_reports/` (gitignored).
+     A fixed `DocumentSource` from `case.documents` + `Suite.doc_texts()`. Add `--check` to `quality-judge-suite`
+     (prints coverage vs minimums, exit 1 if short; `make suite-coverage`). Spend guard: stop when estimated USD of
+     the run passes a setting.
+   - Tests for cases/scoring/runner (fake judge), then `make suite-live` with `LIMIT` small first; log spend.
+2. Analyzer: restrict index search to chunks of the analyzer's embedding model (`embedding_model = @model` in
+   `docs/index.py::_chunks_union`), so fake and real vectors never mix.
+3. Run `make index-local` once (builds the indexers image; reads gs://biztech-technical-wiki read-only via ADC; writes
+   only to the emulator). Then `EMBED=vertex` small run (log spend).
+4. M5–M7: daily, weekly, record, anomalies + anomaly alerts, release impact, clusters, document stats, digest,
+   eval documents.
+5. Feedback-after-window fallback (§12.5) behind `timing.feedback_after_window_fallback`.
+6. `make pii-eval`: synthetic Polish/English PII set with inflected names + recall (§6.12); `pii/evaluate.py`.
+7. Final: CLAUDE.md complete, `make demo` green, requirement sweep against design-doc.md.
 
 ## Decisions (interview, 2026-10-29)
 
@@ -86,12 +119,23 @@ src/conversation_analyzer/
                   → flags (late triggers, reactions) → phase3 (stage 2 + grades) → canary → write_all → run record
   devtools/synthetic.py SynthTurn → audit_logs rows; search/change rows; index_documents() (bucket + chunks)
   devtools/scenario.py  demo window that walks every path; seed(now)
-  cli.py        ca quality-assessor|quality-monitor|quality-daily|quality-weekly|quality-judge-suite|quality-record|db-init
-                (monitor/daily/weekly/suite/record modules NOT written yet)
+  reporting/slack.py   post(), reactions() (Slack Web API; stub locally); errors → ErrorClass.SLACK
+  reporting/results.py results(where, version, **params): one result per turn (stage 2 else stage 1) via SQL;
+                       ClusterKey/cluster_key() (§9.1): doc to fix / single cited doc / topic; cluster_id
+  reporting/messages.py templates: high_cluster, health, session_line, acknowledged (derived values only)
+  reporting/monitor.py Monitor.execute(): check_runs (per-run health + alerts), check_log_hour, high_cluster_alerts,
+                       acknowledgements; deterministic alert IDs; writes ALERTS, ALERT_SESSIONS, PIPELINE_HEALTH, ACKS
+  reporting/lookup.py  lookup(alert_id) for `ca quality-alert-lookup`
+  suite/cases.py  SuiteCase/Expected*/Suite, load_suite(), scenarios(), coverage()/short(); suite/scoring.py distances
+  cli.py        ca quality-assessor|quality-monitor|quality-daily|quality-weekly|quality-judge-suite|quality-record|
+                quality-alert-lookup|db-init|dev-seed  (daily/weekly/record/suite runner modules NOT written yet)
 docker-compose.yml  bigquery (goccy emulator :9050), gcs (fake-gcs-server :4443), stubs (:8088)
 docker/stubs/server.py Slack (chat.postMessage, reactions.get), GitHub commits, Cloud Run executions; /_test/*
 local.env      all CA_* values for local runs and tests (tests/conftest.py loads it, never real endpoints)
-tests/         test_foundations.py, test_bq.py, test_assessor_e2e.py (module fixture seeds + runs the assessor)
+tests/         unit: foundations, vertex, cli, canary, judge_rules, parse, pii, sessions, reporting_units;
+               emulator: bq, docs, assessor_e2e, assessor_paths (failures, time budget, late/erased turns, leaks),
+               monitor. conftest: rows() reader, wipe(), _fresh_emulator restarts a slow emulator per module
+aiel-content-indexers/src/common/doc_index/  chunking, embedding (Vertex EU + Fake = analyzer's), bigquery REST, writer
 ```
 
 ### How to run (until the Makefile exists)
@@ -118,6 +162,8 @@ docker-compose restart bigquery          # = full reset of the emulator (in memo
 | `SELECT *` of nested repeated structs (stage 2 `claims[].documents[]`) fails | code selects only needed columns; tests read `TO_JSON_STRING(t)` |
 | `TO_JSON_STRING` writes dates unquoted and BOOL as 0/1 | test helper `rows()` normalizes with the schema |
 | `CREATE TABLE IF NOT EXISTS` doesn't add new columns | restart the emulator after schema changes |
+| Refusing a duplicate `CREATE TABLE IF NOT EXISTS` takes ~5 s | `create_all` lists tables and creates only missing ones; emulator staging tables `_stg_<table>` are created there, not per write |
+| Slows down as its job history grows (`SELECT 1`: 0.3 s → 2+ s) | `make test` / `make coverage` start with `make db-reset` |
 
 ### Make targets planned
 
@@ -132,7 +178,7 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] `pyproject.toml` (uv), package skeleton, ruff (SIM108 ignored), pytest, pytest-cov `fail_under = 90`
 - [x] `docker-compose.yml`: BigQuery emulator, fake GCS, stub servers (Slack, GitHub, Cloud Run executions)
 - [x] Verify emulator capabilities; gaps recorded in **Emulator quirks**
-- [ ] `Dockerfile` (one image, spaCy models), `Makefile`, `CLAUDE.md`, `.gitignore`
+- [x] `Dockerfile` (one image, spaCy models), `Makefile`, `CLAUDE.md`, `.gitignore`
 
 ## M1. Foundations (§12.16 milestone 1)
 
@@ -171,16 +217,22 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] Phase 1 concurrency + 7-minute stop (§12.6)
 - [x] Retrieval counts per document and day (§12.6)
 - [x] Run record in `quality_runs` (§12.10, §12.12) — plus `covered`, `search_cutoff`, `feedback_cutoff`
-- [ ] `quality-monitor`: pipeline health per run + hourly log gap check + pipeline-health alerts (§9.2, §12.8)
-- [ ] Unit tests to > 90 % coverage
+- [x] `quality-monitor`: pipeline health per run + hourly log gap check + pipeline-health alerts (§9.2, §12.8)
+  — also HIGH cluster alerts with session grades, ✅ acknowledgements and the alert lookup (M6 items, done here)
+- [x] Unit tests to > 90 % coverage
 
 ## M3. Documents and stage 2 (§12.16 milestone 3)
 
-- [ ] Indexer sink in the submodule (§12.7): chunk at headings, split > ~2,000 chars with overlap, title prefix; embed
-  (EU); one table per data store (`quality_chunks_<ds with - → _>`, schema = `bq/schema.CHUNK_COLS`); add before
-  delete; one delete at end of a complete run; nothing deleted after a partial run; embedding failure never breaks
-  indexing; full reindex embeds docs without vectors for current text; people directory skipped
-- [ ] Local indexer runs write vectors to the emulator (`make index-local`, small by default; `FULL=1` full fill)
+- [x] Indexer sink in the submodule (§12.7): `src/common/doc_index/` (chunking, embedding, bigquery REST, writer),
+  hooked into `VertexAIDataStore` (`_buffer_content` → `add_part`, `finalize_content` → `finish`, `_cleanup_content`
+  → `cleanup(keep)`) and `LocalStorageSink`; `BaseIndexer._DOC_INDEX = False` on `AssociatesIndexer`. Enabled by
+  `-p doc_index.dataset=...` (+ `project_id`, `endpoint`, `embedder=vertex|fake`, `embedding_project`,
+  `embedding_location`, `max_documents`). Prod inserts = one DML `INSERT ... FROM UNNEST(@rows)` per 200 rows (no
+  streaming buffer, so the end-of-run DELETE works on hourly runs); emulator = insertAll. Unchanged text (same URL,
+  text hash, model) is skipped; the delete removes rows whose `TO_HEX(SHA256(uri))` is not in the bucket keep-set and
+  old rows of rewritten URLs; an empty keep-set deletes nothing.
+- [ ] Local indexer runs write vectors to the emulator (`make index-local` → submodule `quality-index-local`, docker,
+  `host.docker.internal:9050`, 20 docs unless `FULL=1`, `EMBED=fake|vertex`) — target written, not yet run
 - [x] Content bucket reader (Fernet, path rule, cap) — `docs/content.py`
 - [x] Document index search (`VECTOR_SEARCH` / emulator cosine), top 10, people directory excluded
 - [x] Evidence check (§6.9)
@@ -193,7 +245,8 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 
 ## M4. Judge trust (§12.16 milestone 4)
 
-- [ ] Suite case format (YAML in `suite_cases/`): fixed input incl. search results + expected forms, `reviewed`, `part`
+- [x] Suite case format (YAML in `suite_cases/`): fixed input incl. search results + expected forms, `reviewed`, `part`
+  — `suite/cases.py`, `suite_cases/{suite,documents}.yaml`; scoring in `suite/scoring.py` (untested yet)
 - [ ] Cases meeting every scenario minimum (§11.1); coverage checker
 - [ ] Scoring (§11.2), 3 runs averaged, per case/field/scenario
 - [ ] Keep rule (§11.3) → `quality_judge_suite_runs`; 70 % reliability → `experimental`
@@ -213,8 +266,8 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 
 ## M6. Alerts, clusters, digest (§12.16 milestone 6)
 
-- [ ] Anomaly check + alerts + ✅ acknowledgement (§8.6, §8.7, §12.8)
-- [ ] `HIGH` cluster alerts with session grades; alert lookup (§7.7, §9.2, §12.8)
+- [ ] Anomaly check + alerts (§8.6, §8.7) — ✅ acknowledgement is read by the monitor (done)
+- [x] `HIGH` cluster alerts with session grades; alert lookup (§7.7, §9.2, §12.8) — `reporting/monitor.py`, `reporting/lookup.py`
 - [ ] Release impact (§10.3)
 - [ ] Weekly clusters, document stats, digest (§9)
 
@@ -246,7 +299,16 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 | Cut-offs | Searches counted once via `quality_runs.search_cutoff` (now − 15 min) and feedback via `feedback_cutoff`. |
 | Names in PII | Names only from the main-language model, honorifics trimmed, identifier-like tokens (all caps, `_`) excluded; allow list (`Bolek`, `Gemini`, …). |
 | Vertex | REST calls (`aiplatform.eu.rep.googleapis.com` for `eu`), like the evaluator; `responseSchema` from the pydantic form. |
-| Fake judge | Scripted by `[[fake key=value]]` markers in synthetic text (see `judge/fake.py`). |
+| Fake judge | Scripted by `[[fake key=value]]` markers in synthetic text (see `judge/fake.py`); `fail=output|api fail_on=<Form>` makes a call fail. |
+| HIGH cluster alerts | A turn is alerted once its stage 2 is no longer `PENDING` (done or given up), so a stage 1 HIGH that stage 2 drops never alerts. "New" = no earlier HIGH alert of the same cluster for the same session segment. Pace-marked and canary turns never alert. One alert per cluster with ≥ `alerts.high_alert_bar` new turns. |
+| Experimental labels (§11.3) | A label is reliable when the latest suite run of the metric judge version marks it so (`quality_judge_suite_runs.label_recall`). Alerts with an experimental primary failure are still sent, marked "(experimental label)" and `quality_alerts.experimental`; weekly ranking will list them apart. |
+| Doc index per URL | The sink writes one content blob per URL (parts of one URL joined); the index does the same: rows keyed by URI, `doc_id` = normalized ID of the URL's first document. Confluence `:chunk:` documents are skipped like for the bucket. |
+| Doc index tables | Created by the writer if missing (`CREATE TABLE IF NOT EXISTS`, schema = `CHUNK_COLS`); in production the indexer SA needs dataEditor on `bolek_quality_doc_index`. |
+| Suite topic | §11.2 scores no topic, so the expected stage 1 form has none. |
+| Suite stage 2 | Run only for cases with an expected stage 2; a case flagged by a late trigger gives `flag_reasons`. |
+| Health alert periods | Same check fires again only in a new period: coverage and waiting once per hour, a failed run once per run, no run once per hour, log gap once per hour and channel, window and tokens once per day (deterministic alert IDs). |
+| Log gap check | The last hour that ended ≥ 15 min ago, once (a `LOG_HOUR` row marks it checked). Usual = median of the same hour 1–4 weeks back, only weeks whose day has log data; needs ≥ 2 such weeks; gap when records < 30 % of usual and usual ≥ 5. |
+| Run coverage | Per run: covered / eligible over the turns in the window that are eligible and younger than 3h30 (`quality_runs`). Daily coverage against the log's counts is the daily job's (§12.9). |
 
 ## Spend log (paid Vertex calls, cap 50 USD)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -75,3 +76,14 @@ def current() -> JudgeVersion:
 def previous() -> JudgeVersion | None:
     name = get_settings().judge.previous_version
     return load(name) if name else None
+
+
+def in_parallel_run(day: date) -> bool:
+    until = get_settings().judge.parallel_run_until
+    return get_settings().judge.previous_version is not None and until is not None and day <= until
+
+
+def metric_version(day: date) -> JudgeVersion:
+    """During a parallel run metrics, flags and alerts use the old version; the new one after it ends (§8.2)."""
+    prev = previous() if in_parallel_run(day) else None
+    return prev or current()

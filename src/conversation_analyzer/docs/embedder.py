@@ -5,12 +5,13 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import time
 from typing import Protocol
 
 import httpx
 
 from conversation_analyzer.errors import AnalyzerError
-from conversation_analyzer.judge.client import api_host, check_location
+from conversation_analyzer.judge.client import BearerToken, api_host, backoff_seconds, check_location
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.vocab import ErrorClass
 
@@ -43,7 +44,9 @@ class FakeEmbedder:
 class VertexEmbedder:
     """text-multilingual-embedding models through Vertex AI's predict endpoint in an EU region."""
 
-    def __init__(self, transport: httpx.BaseTransport | None = None, token=None) -> None:
+    BATCH = 5
+
+    def __init__(self, transport: httpx.BaseTransport | None = None, token=None, sleep=time.sleep) -> None:
         s = get_settings()
         check_location(s.embedding.location)
         self.model = s.embedding.model
@@ -52,31 +55,35 @@ class VertexEmbedder:
             f"{s.embedding.location}/publishers/google/models/{self.model}:predict"
         )
         self.http = httpx.Client(timeout=60.0, transport=transport)
-        self._token = token
+        self._token = token or BearerToken()
+        self.sleep = sleep
 
-    def _bearer(self) -> str:
-        if self._token is None:
-            import google.auth
-            import google.auth.transport.requests
-
-            creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-            creds.refresh(google.auth.transport.requests.Request())
-            return creds.token
-        return self._token()
+    def _post(self, payload: dict) -> httpx.Response:
+        retries = get_settings().judge.max_retries
+        for attempt in range(retries + 1):
+            try:
+                resp = self.http.post(self.url, json=payload, headers={"Authorization": f"Bearer {self._token()}"})
+            except httpx.HTTPError as exc:
+                if attempt == retries:
+                    raise AnalyzerError(ErrorClass.EMBEDDING_API) from exc
+            else:
+                if resp.status_code == 200:
+                    return resp
+                if (resp.status_code != 429 and resp.status_code < 500) or attempt == retries:
+                    raise AnalyzerError(ErrorClass.EMBEDDING_API)
+            self.sleep(backoff_seconds(attempt))
+        raise AnalyzerError(ErrorClass.EMBEDDING_API)  # pragma: no cover - the loop always returns or raises
 
     def embed(self, texts: list[str], task: str = "RETRIEVAL_QUERY") -> list[list[float]]:
         out: list[list[float]] = []
         dims = get_settings().embedding.dimensions
-        for i in range(0, len(texts), 5):
-            batch = [{"content": t, "task_type": task} for t in texts[i : i + 5]]
-            resp = self.http.post(
-                self.url,
-                json={"instances": batch, "parameters": {"outputDimensionality": dims}},
-                headers={"Authorization": f"Bearer {self._bearer()}"},
-            )
-            if resp.status_code != 200:
-                raise AnalyzerError(ErrorClass.EMBEDDING_API)
-            out.extend(p["embeddings"]["values"] for p in resp.json()["predictions"])
+        for i in range(0, len(texts), self.BATCH):
+            batch = [{"content": t, "task_type": task} for t in texts[i : i + self.BATCH]]
+            resp = self._post({"instances": batch, "parameters": {"outputDimensionality": dims}})
+            try:
+                out.extend(p["embeddings"]["values"] for p in resp.json()["predictions"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise AnalyzerError(ErrorClass.EMBEDDING_API) from exc
         return out
 
 

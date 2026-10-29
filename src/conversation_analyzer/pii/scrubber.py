@@ -1,7 +1,4 @@
-"""PII scrubbing of conversations, and the conversation's placeholders applied to documents (§6.3, §12.13).
-
-The mapping from values to placeholders exists only in memory during a run.
-"""
+"""PII scrubbing of conversations, and their placeholders applied to documents; the mapping lives only in memory."""
 
 from __future__ import annotations
 
@@ -20,6 +17,7 @@ _SUFFIXES = (
     "imi",
     "ami",
     "ach",
+    "iem",
     "ego",
     "emu",
     "owi",
@@ -40,15 +38,18 @@ _SUFFIXES = (
     "e",
 )
 _WORD = re.compile(r"[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:-[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)?")
-_NAME_SEQ = re.compile(rf"{_WORD.pattern}(?:\s+{_WORD.pattern}){{0,2}}")
+_NAME_SEQ = re.compile(rf"{_WORD.pattern}(?:\s+{_WORD.pattern})*")
+_FLEETING_E = re.compile(r"(?<=[^aeiouyąęó])e([kłlc])$")
 
 
 def stem(word: str) -> str:
+    """Strip a Polish ending, and the fleeting e of Marek/Marka or Paweł/Pawła, so all forms share one stem."""
     w = word.lower()
     for suffix in _SUFFIXES:
         if w.endswith(suffix) and len(w) - len(suffix) >= 3:
-            return w[: -len(suffix)]
-    return w
+            w = w[: -len(suffix)]
+            break
+    return _FLEETING_E.sub(r"\1", w) if len(w) >= 4 else w
 
 
 def name_key(text: str) -> tuple[str, ...]:
@@ -87,15 +88,9 @@ class PiiMap:
     def placeholder(self, entity_type: str, surface: str, lemma: str | None = None) -> str:
         if entity_type == "PERSON":
             key = name_key(lemma or surface)
-            if key not in self._persons and len(key) == 1:
-                # A surname alone gets the placeholder of the full name it belongs to.
-                for full, ph in self._persons.items():
-                    if len(full) > 1 and full[-1] == key[0]:
-                        self._persons[key] = ph
-                        break
             if key not in self._persons:
                 self._persons[key] = self._new("PERSON")
-                if len(key) > 1:  # a document that names only the surname gets the same placeholder
+                if len(key) > 1:  # the surname alone, later or in a document, gets the same placeholder
                     self._persons.setdefault(key[-1:], self._persons[key])
             return self._persons[key]
         digits = _digits(surface)
@@ -124,10 +119,9 @@ class PiiMap:
         for value, ph in sorted(self._exact.items(), key=lambda kv: -len(kv[0])):
             text = re.sub(re.escape(value), ph, text, flags=re.IGNORECASE)
         for digits, ph in self._digits.items():
-            pattern = r"\+?" + r"[\s-]?".join(re.escape(d) for d in digits)
-            text = re.sub(pattern, ph, text)
-            if digits.startswith("48") and len(digits) == 11:
-                text = re.sub(r"[\s-]?".join(re.escape(d) for d in digits[2:]), ph, text)
+            # Phones are keyed without the Polish country code, which a document may or may not write.
+            prefix = r"(?:\+?48[\s-]?)?" if ph.startswith("<PHONE_NUMBER_") else ""
+            text = re.sub(r"(?<!\d)" + prefix + r"[\s-]?".join(re.escape(d) for d in digits) + r"(?!\d)", ph, text)
         if self._persons:
             text = _NAME_SEQ.sub(lambda m: self._replace_names(m.group(0)), text)
         return text
@@ -140,7 +134,7 @@ class PiiMap:
             for i in range(len(words) - size + 1):
                 ph = self._persons.get(tuple(stems[i : i + size]))
                 if ph:
-                    before = " ".join(words[:i])
+                    before = self._replace_names(" ".join(words[:i])) if i else ""
                     after = self._replace_names(" ".join(words[i + size :])) if i + size < len(words) else ""
                     return " ".join(x for x in (before, ph, after) if x)
         return seq

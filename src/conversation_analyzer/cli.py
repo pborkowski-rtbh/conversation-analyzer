@@ -90,6 +90,20 @@ def quality_record(
     _job("quality-record", lambda: record(kind, day, hour, doc_id, data_store, list(clusters)))
 
 
+@main.command("quality-alert-lookup")
+@click.option("--alert", "alert_id", required=True, help="Alert ID from a Slack message, e.g. alert-1a2b3c4d5e6f7a8b.")
+def quality_alert_lookup(alert_id: str) -> None:
+    """Show an alert and its session segments, with the grades shown then and the latest ones (§7.7)."""
+    import json
+
+    from conversation_analyzer.reporting.lookup import lookup
+
+    found = lookup(alert_id)
+    if found is None:
+        raise click.ClickException("no such alert")
+    click.echo(json.dumps(found, default=str, indent=2))
+
+
 @main.command("db-init")
 def db_init() -> None:
     """Create all datasets, tables and views."""
@@ -97,6 +111,22 @@ def db_init() -> None:
 
     created = create_all()
     safe_log.log("db_init", tables=len(created))
+
+
+@main.command("dev-seed")
+@click.option("--now", default=None, help="Time the synthetic window ends (ISO); default now (or CA_NOW).")
+def dev_seed(now: str | None) -> None:
+    """Local only: write the synthetic scenario (log rows, documents, chunks) into the emulator."""
+    from datetime import datetime
+
+    from conversation_analyzer.devtools import scenario
+    from conversation_analyzer.settings import get_settings
+    from conversation_analyzer.settings import now as current
+
+    if not get_settings().env.emulator:
+        raise click.UsageError("dev-seed writes synthetic rows and runs only against the emulator")
+    scenario.seed(datetime.fromisoformat(now) if now else current())
+    safe_log.log("dev_seed", turns=len(scenario.turns()))
 
 
 if __name__ == "__main__":

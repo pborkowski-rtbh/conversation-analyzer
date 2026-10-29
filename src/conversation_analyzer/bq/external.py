@@ -1,7 +1,4 @@
-"""Tables this system reads but does not own: the log, ge_metrics and the evaluator's aiel_evals contract (§12.11).
-
-Their DDL is used only to create emulator copies; in production they already exist.
-"""
+"""Tables we read but don't own (log, ge_metrics, aiel_evals contract, §12.11); DDL only for emulator copies."""
 
 from __future__ import annotations
 

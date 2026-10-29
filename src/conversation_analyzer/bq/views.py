@@ -1,7 +1,4 @@
-"""Shared SQL over the log, and the authorized views of bolek_quality_log_views (§12.4).
-
-The views return only counts and change records, so the reporting jobs never read the log itself.
-"""
+"""Shared SQL over the log, and the authorized views (§12.4) that give reporting jobs counts, never the log."""
 
 from __future__ import annotations
 
@@ -20,15 +17,20 @@ def engine_filter(column: str = "JSON_VALUE(request, '$.name')") -> str:
     return f"STRPOS(CONCAT(IFNULL({column}, ''), '/'), '/engines/{get_settings().production_engine}/') > 0"
 
 
+# Search requests carry `query` as a plain string; only StreamAssist requests are asked for query.text (the emulator
+# fails on the path otherwise, and CASE keeps it from evaluating it on other rows).
+QUERY_TEXT = "CASE WHEN methodName = 'StreamAssist' THEN JSON_VALUE(request, '$.query.text') END"
+
+
 def channel_sql() -> str:
     """web UI requests carry agentsSpec; Slack Bolek and MCP send query.text (§8.9)."""
     return (
         "CASE WHEN JSON_QUERY(request, '$.agentsSpec') IS NOT NULL THEN 'WEB_UI' "
-        "WHEN JSON_VALUE(request, '$.query.text') IS NOT NULL THEN 'SLACK_MCP' ELSE 'WEB_UI' END"
+        f"WHEN {QUERY_TEXT} IS NOT NULL THEN 'SLACK_MCP' ELSE 'WEB_UI' END"
     )
 
 
-def canary_prefix_sql(text_column: str = "JSON_VALUE(request, '$.query.text')") -> str:
+def canary_prefix_sql(text_column: str = QUERY_TEXT) -> str:
     prefix = get_settings().evaluator.prompt_prefix.replace("'", "\\'")
     return f"STARTS_WITH(LTRIM(IFNULL({text_column}, '')), '{prefix}')"
 

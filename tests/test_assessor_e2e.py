@@ -3,22 +3,29 @@
 from __future__ import annotations
 
 import json
-import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from conversation_analyzer.assessor.run import run
-from conversation_analyzer.bq.client import query, tbl
 from conversation_analyzer.bq.schema import (
-    CANARY_RESULTS, JUDGE_CHECKS, JUDGE_VERSIONS, QUALITY_TURNS, RETRIEVAL_COUNTS, RUNS, SEGMENTS, SESSION_GRADES,
-    STAGE1_RESULTS, STAGE2_RESULTS, TABLES,
+    CANARY_RESULTS,
+    JUDGE_CHECKS,
+    JUDGE_VERSIONS,
+    QUALITY_TURNS,
+    RETRIEVAL_COUNTS,
+    RUNS,
+    SEGMENTS,
+    SESSION_GRADES,
+    STAGE1_RESULTS,
+    STAGE2_RESULTS,
+    TABLES,
 )
 from conversation_analyzer.devtools import scenario
 from conversation_analyzer.docs.index import DocumentIndex
 from conversation_analyzer.judge.fake import FakeJudge
 from conversation_analyzer.settings import get_settings
-from tests.conftest import wipe
+from tests.conftest import rows, wipe
 
 pytestmark = pytest.mark.emulator
 
@@ -41,24 +48,6 @@ def first_run(emulator):
     s.evaluator.accounts = accounts
     s.judge.second_model_share = share
     s.canary.planted_share = 0.25
-
-
-def rows(table, where="TRUE"):
-    """Rows as JSON: the emulator can't return nested repeated structs directly, and writes dates unquoted and
-    booleans as 0/1, so both are normalized with the table's schema."""
-    out = []
-    bools = {c.name for c in table.cols if c.type == "BOOL"}
-    for r in query(f"SELECT TO_JSON_STRING(t) AS j FROM {tbl(table)} t WHERE {where}"):
-        text = re.sub(r"(?<=[:\[,])(\d{4}-\d{2}-\d{2}(?:[ T][0-9:.+-]+Z?)?)(?=[,}\]])", r'"\1"', r["j"])
-        row = json.loads(text)
-        for k in ("day", "first_day", "last_day", "run_day"):
-            if isinstance(row.get(k), str):
-                row[k] = datetime.fromisoformat(row[k]).date()
-        for k in bools:
-            if row.get(k) is not None:
-                row[k] = bool(row[k])
-        out.append(row)
-    return out
 
 
 def by_status():
@@ -96,8 +85,11 @@ def test_statuses_and_positions(first_run):
 
 
 def test_contradiction_flags_stage2_and_reaction(first_run):
-    t = [r for r in rows(QUALITY_TURNS) if r["flagged"] and "HIGH_SEVERITY" in r["flag_reasons"]
-         and r["evidence_kind"] == "OWN_REFERENCES"][0]
+    t = [
+        r
+        for r in rows(QUALITY_TURNS)
+        if r["flagged"] and "HIGH_SEVERITY" in r["flag_reasons"] and r["evidence_kind"] == "OWN_REFERENCES"
+    ][0]
     assert t["stage2_state"] == "DONE" and t["reaction"] == "CORRECTION"
     assert "NEXT_CORRECTION" in t["flag_reasons"]
     s1 = rows(STAGE1_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
@@ -111,8 +103,11 @@ def test_contradiction_flags_stage2_and_reaction(first_run):
 
 
 def test_evidence_check_finds_contradiction(first_run):
-    t = [r for r in rows(QUALITY_TURNS) if r["evidence_kind"] == "NONE" and r["flagged"]
-         and "HIGH_SEVERITY" in r["flag_reasons"]][0]
+    t = [
+        r
+        for r in rows(QUALITY_TURNS)
+        if r["evidence_kind"] == "NONE" and r["flagged"] and "HIGH_SEVERITY" in r["flag_reasons"]
+    ][0]
     s1 = rows(STAGE1_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
     assert s1["verifiable"] is False and s1["evidence_check_contradiction"] is True
     assert set(s1["failure_types"]) == {"CONTRADICTED_CLAIM", "UNGROUNDED_INTERNAL_ANSWER"}
@@ -155,8 +150,9 @@ def test_second_model_retrieval_versions(first_run):
     checks = {r["field"]: r for r in rows(JUDGE_CHECKS)}
     assert checks["INTENT"]["n_compared"] > 0
     counts = rows(RETRIEVAL_COUNTS)
-    assert counts == [{"day": NOW.date(), "doc_id": scenario.LEAVE.doc_id, "data_store": "rtb-crj-hr-house",
-                       "n_returned": 2}]
+    assert counts == [
+        {"day": NOW.date(), "doc_id": scenario.LEAVE.doc_id, "data_store": "rtb-crj-hr-house", "n_returned": 2}
+    ]
     assert len(rows(JUDGE_VERSIONS)) == 1
 
 
@@ -169,7 +165,7 @@ def test_no_text_is_stored(first_run):
     allowed = {d.uri for d in scenario.DOCUMENTS}
     for text in inputs:
         for i in range(0, max(len(text) - 20, 1)):
-            piece = text[i:i + 21]
+            piece = text[i : i + 21]
             if len(piece) == 21 and piece in dump and not any(piece in a for a in allowed):
                 pytest.fail("stored text found")
     for pii in scenario.PLANTED_PII:

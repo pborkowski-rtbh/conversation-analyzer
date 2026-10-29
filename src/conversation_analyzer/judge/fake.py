@@ -1,7 +1,9 @@
-"""A deterministic stand-in for the judge in tests and local runs; no model is called.
+"""A deterministic stand-in for the judge, scripted by `[[fake key=value]]` markers in synthetic text."""
 
-Synthetic turns can script it with a marker in their text, e.g. `[[fake intent=HOW_TO codes=CONTRADICTED_CLAIM]]`.
-"""
+# Markers: intent, topic, relation, relevance, completeness, clarity, groundedness, unsupported_spans, language_matches,
+# refusal, contradicts_earlier, internal, codes=A|B, severity; contradiction=1 (evidence check); why, what, drop,
+# s2_groundedness, claim (stage 2); outcome, first_bad, recovered (session grade); fail=output|api with optional
+# fail_on=<FormName> makes that call fail.
 
 from __future__ import annotations
 
@@ -9,6 +11,7 @@ import re
 
 from pydantic import BaseModel
 
+from conversation_analyzer.errors import JudgeApiError, JudgeOutputError
 from conversation_analyzer.judge import forms
 from conversation_analyzer.judge.client import Usage
 
@@ -41,6 +44,10 @@ class FakeJudge:
         usage.add(model, len(system + prompt) // 4, 60)
         current = _current(prompt)
         m = markers(current.split("## STAGE 1 RESULT")[0])
+        if form is forms.SessionGradeForm:
+            m = markers(prompt)
+        if "fail" in m and m.get("fail_on", form.__name__) == form.__name__:
+            raise JudgeOutputError() if m["fail"] == "output" else JudgeApiError()
         if form is forms.Stage1Form:
             return self._stage1(current, m)
         if form is forms.EvidenceCheckForm:
@@ -53,11 +60,10 @@ class FakeJudge:
         if form is forms.Stage2Form:
             return self._stage2(prompt, m)
         if form is forms.SessionGradeForm:
-            s = markers(prompt)
             return forms.SessionGradeForm(
-                outcome=s.get("outcome", "RESOLVED"),
-                first_bad_turn=int(s["first_bad"]) if "first_bad" in s else None,
-                recovered_after_correction=s.get("recovered", "NO_CORRECTION"),
+                outcome=m.get("outcome", "RESOLVED"),
+                first_bad_turn=int(m["first_bad"]) if "first_bad" in m else None,
+                recovered_after_correction=m.get("recovered", "NO_CORRECTION"),
                 confidence=0.7,
             )
         raise TypeError(form.__name__)
@@ -112,16 +118,14 @@ class FakeJudge:
             "RETRIEVAL_MISS": "HOLDS_RIGHT_ANSWER",
         }.get(why, "CITED")
         doc = found_first if why == "RETRIEVAL_MISS" else 1
-        claims = (
-            [
-                forms.ClaimForm(
-                    span_index=0,
-                    what=m.get("what", "CONTRADICTED_CLAIM"),
-                    documents=[forms.DocumentRole(document=doc, role=role)],
-                    **flags,
-                )
-            ]
-        )
+        claims = [
+            forms.ClaimForm(
+                span_index=0,
+                what=m.get("what", "CONTRADICTED_CLAIM"),
+                documents=[forms.DocumentRole(document=doc, role=role)],
+                **flags,
+            )
+        ]
         drop = [c for c in m.get("drop", "").split("|") if c]
         return forms.Stage2Form(
             cited_documents_outdated=[1] if why == "OUTDATED_SOURCE" else [],

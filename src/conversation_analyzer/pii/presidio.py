@@ -167,12 +167,31 @@ class PresidioAnalyzer:
                     "model_to_presidio_entity_mapping": {"PERSON": "PERSON", "PER": "PERSON", "persName": "PERSON"},
                     "low_confidence_score_multiplier": 0.4,
                     "low_score_entity_names": [],
-                # Company names, places and dates are content the judge needs, not personal details.
-                "labels_to_ignore": [
-                    "CARDINAL", "DATE", "EVENT", "FAC", "GPE", "LANGUAGE", "LAW", "LOC", "MONEY", "NORP", "ORDINAL",
-                    "ORG", "PERCENT", "PRODUCT", "QUANTITY", "TIME", "WORK_OF_ART", "orgName", "placeName",
-                    "geogName", "date", "time",
-                ],
+                    # Company names, places and dates are content the judge needs, not personal details.
+                    "labels_to_ignore": [
+                        "CARDINAL",
+                        "DATE",
+                        "EVENT",
+                        "FAC",
+                        "GPE",
+                        "LANGUAGE",
+                        "LAW",
+                        "LOC",
+                        "MONEY",
+                        "NORP",
+                        "ORDINAL",
+                        "ORG",
+                        "PERCENT",
+                        "PRODUCT",
+                        "QUANTITY",
+                        "TIME",
+                        "WORK_OF_ART",
+                        "orgName",
+                        "placeName",
+                        "geogName",
+                        "date",
+                        "time",
+                    ],
                 },
             }
         )
