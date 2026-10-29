@@ -416,7 +416,6 @@ ALERTS = Table(
         i("n_turns"),
         ident("run_id"),
         f("value"),
-        b("experimental"),
     ),
     key=("alert_id",),
     writer="monitor",

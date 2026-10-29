@@ -77,6 +77,12 @@ def test_runs_are_stored_and_compared(emulator, small_suite, tmp_path, monkeypat
     with pytest.raises(AnalyzerError):
         runner.run(passes=1, judge=FakeJudge(), baseline="suite-00000000", **kw)
 
+    # After an emulator reset the stored runs come back from their reports.
+    wipe(SUITE_RUNS)
+    assert runner.load_reports([tmp_path / f"{kept['suite_run_id']}.json"]) == [kept["suite_run_id"]]
+    assert runner.baseline_row(small_suite.version, None)["suite_run_id"] == kept["suite_run_id"]
+    assert "CONTRADICTED_CLAIM" in reliable_labels(changed.version_id)
+
 
 def test_spend_guard_stops_and_reports(emulator, small_suite, tmp_path, monkeypatch):
     from conversation_analyzer.settings import get_settings

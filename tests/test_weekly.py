@@ -166,17 +166,18 @@ def test_weekly_clusters_documents_eval_sets_and_digest(clean, monkeypatch):
 
     clusters = {c["cluster_id"]: c for c in rows(PROBLEM_CLUSTERS, f"week = '{WEEK}'")}
     outdated, contradicted = clusters[OUTDATED_ID], clusters[CONTRADICTED_ID]
+    # OUTDATED_SOURCE weighs most, but only CONTRADICTED_CLAIM is reliable: an experimental label is never ranked.
     assert (outdated["rank"], outdated["n_turns"], outdated["weighted"], outdated["owner"]) == (
-        1,
+        None,
         5,
         10,
         "DOCUMENT_OWNER",
     )
     assert outdated["family"] == "CORPUS" and outdated["experimental"] and outdated["state"] == "ACTIVE"
-    assert (contradicted["rank"], contradicted["n_high"], contradicted["owner"]) == (2, 3, "TEAM")
+    assert (contradicted["rank"], contradicted["n_high"], contradicted["owner"]) == (1, 3, "TEAM")
     assert contradicted["prev_4w_avg"] == 0.75 and contradicted["trend"] == 4.0 and not contradicted["experimental"]
     (topic,) = [c for c in clusters.values() if c["primary_failure"] == "UNGROUNDED_INTERNAL_ANSWER"]
-    assert topic["topic"] == "OTHER" and topic["doc_id"] is None and topic["rank"] == 3
+    assert topic["topic"] == "OTHER" and topic["doc_id"] is None and topic["rank"] is None and topic["experimental"]
 
     (hr,) = rows(DOCUMENT_STATS, f"week = '{WEEK}' AND doc_id = 'hr_leave'")
     assert (hr["n_cited"], hr["n_verifiable"], hr["n_good"], hr["n_found"], hr["n_retrieved"]) == (30, 30, 25, 2, 42)
@@ -192,7 +193,9 @@ def test_weekly_clusters_documents_eval_sets_and_digest(clean, monkeypatch):
 
     text = httpx.get(f"{clean}/_test/state").json()["messages"][-1]["text"]
     assert "*Bolek quality digest*, week of 2026-10-19" in text and "ALL: 81.0% (4 weeks before: 76.0%)" in text
-    assert "1. `OUTDATED_SOURCE` (experimental label) rtb-crj-hr-house document hr_leave" in text
+    assert "1. `CONTRADICTED_CLAIM` rtb-crj-confluence document confluence_1: 3 turns (3 HIGH), x4.0" in text
+    assert text.index("*Experimental labels*") < text.index("• `OUTDATED_SOURCE` rtb-crj-hr-house document hr_leave")
+    assert "2. " not in text
     assert "owner DOCUMENT_OWNER" in text and CONTRADICTED_ID in text and "x4.0" in text
     assert "AQR 83.3% over 30 turns" in text and "HR_HOUSE: AQR 90.0% over 40 turns" in text
     assert "fast-growing topic HR_HOUSE" in text and "document hr_leave cited 30 times" in text

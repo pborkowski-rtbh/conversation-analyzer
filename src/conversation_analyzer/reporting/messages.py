@@ -16,7 +16,11 @@ _OUTCOME = {
     Outcome.UNRESOLVED: "unresolved",
     Outcome.UNCLEAR: "unclear",
 }
-_COUNT = {CountBucket.ZERO: "never", CountBucket.ONE: "once", CountBucket.TWO_OR_MORE: "2 or more times"}
+_COUNT = {
+    CountBucket.ZERO: "not rephrased or corrected",
+    CountBucket.ONE: "rephrased or corrected once",
+    CountBucket.TWO_OR_MORE: "rephrased or corrected 2 or more times",
+}
 
 
 def when(day: date, hour: int) -> str:
@@ -27,16 +31,20 @@ def duration(minutes: float) -> str:
     return f"{int(minutes) // 60}h{int(minutes) % 60:02d}"
 
 
+def turns(n: int, adjective: str = "") -> str:
+    return f"{n} {adjective + ' ' if adjective else ''}turn{'' if n == 1 else 's'}"
+
+
 def session_line(grade: dict[str, Any] | None, n_turns: int) -> str:
     """For example: 5 turns, unresolved (provisional), went wrong at turn 2, rephrased or corrected 2 or more times."""
     if grade is None:
-        return f"{n_turns} turns, no grade yet"
+        return f"{turns(n_turns)}, no grade yet"
     if grade["grade_state"] == GradeState.NOT_GRADABLE:
-        return f"{n_turns} turns, not gradable (earlier text already erased)"
-    parts = [f"{n_turns} turns", f"{_OUTCOME[Outcome(grade['outcome'])]} ({grade['grade_state'].lower()})"]
+        return f"{turns(n_turns)}, not gradable (earlier text already erased)"
+    parts = [turns(n_turns), f"{_OUTCOME[Outcome(grade['outcome'])]} ({grade['grade_state'].lower()})"]
     if grade.get("first_bad_turn"):
         parts.append(f"went wrong at turn {grade['first_bad_turn']}")
-    parts.append(f"rephrased or corrected {_COUNT[CountBucket(grade['rephrases_corrections'])]}")
+    parts.append(_COUNT[CountBucket(grade["rephrases_corrections"])])
     if grade.get("recovered") == "YES":
         parts.append("recovered after the correction")
     return ", ".join(parts)
@@ -47,7 +55,6 @@ def high_cluster(
     key: ClusterKey,
     by_channel: dict[str, int],
     owner: str,
-    experimental: bool,
     sessions: list[str],
     day: date,
     hour: int,
@@ -55,9 +62,9 @@ def high_cluster(
     n = sum(by_channel.values())
     where = f"{key.data_store} document {key.doc_id}" if key.doc_id else f"topic {key.topic}"
     lines = [
-        f":red_circle: *HIGH failures* `{key.primary_failure}`{' (experimental label)' if experimental else ''}",
+        f":red_circle: *HIGH failures* `{key.primary_failure}`",
         f"{where}" + (f" <{key.uri}|link>" if key.uri else ""),
-        f"{n} new turns ({', '.join(f'{c} {k}' for k, c in sorted(by_channel.items()))}), {when(day, hour)}."
+        f"{turns(n, 'new')} ({', '.join(f'{c} {k}' for k, c in sorted(by_channel.items()))}), {when(day, hour)}."
         f" Owner: {owner}.",
         "Sessions:",
         *[f"• {s}" for s in sessions],
@@ -124,10 +131,21 @@ def _change(change_id: str | None) -> str:
     return f"`{change_id}`" if change_id and _EVENT_ID.match(change_id) else "a change"
 
 
+def _cluster(c: dict[str, Any]) -> str:
+    where = f"{c['data_store']} document {c['doc_id']}" if c["doc_id"] else f"topic {c['topic']}"
+    link = f" <{c['uri']}|link>" if c.get("uri") else ""
+    trend_text = f"x{c['trend']:.1f}" if c.get("trend") else "new"
+    return (
+        f"`{c['primary_failure']}` {where}{link}: {turns(c['n_turns'])} ({c['n_high']} HIGH), {trend_text}, "
+        f"owner {c['owner']}, `{c['cluster_id']}`"
+    )
+
+
 def digest(
     week: date,
     trend: dict[str, dict[str, float | None]],
     clusters: list[dict[str, Any]],
+    experimental: list[dict[str, Any]],
     best_docs: list[dict[str, Any]],
     best_topics: list[dict[str, Any]],
     unusual: list[str],
@@ -141,26 +159,19 @@ def digest(
         t = trend[channel]
         lines.append(f"• {channel}: {value('AQR', t.get('now'))} (4 weeks before: {value('AQR', t.get('before'))})")
     lines.append("*Top problem clusters* (turns this week; trend against the 4 weeks before; owner)")
-    for c in clusters:
-        where = f"{c['data_store']} document {c['doc_id']}" if c["doc_id"] else f"topic {c['topic']}"
-        link = f" <{c['uri']}|link>" if c.get("uri") else ""
-        trend_text = f"x{c['trend']:.1f}" if c.get("trend") else "new"
-        label = " (experimental label)" if c["experimental"] else ""
-        lines.append(
-            f"{c['rank']}. `{c['primary_failure']}`{label} {where}{link}: {c['n_turns']} turns ({c['n_high']} HIGH), "
-            f"{trend_text}, owner {c['owner']}, `{c['cluster_id']}`"
-        )
-    if not clusters:
-        lines.append("none")
+    lines += [f"{c['rank']}. {_cluster(c)}" for c in clusters] or ["none"]
+    if experimental:
+        lines.append("*Experimental labels* (not ranked: the judge test suite has not shown that the judge finds them)")
+        lines += [f"• {_cluster(c)}" for c in experimental]
     lines.append("*Best documents*")
     lines += [
         f"• {d['data_store']} document {d['doc_id']}"
         + (f" <{d['uri']}|link>" if d.get("uri") else "")
-        + f": AQR {value('AQR', d['aqr'])} over {d['n_verifiable']} turns"
+        + f": AQR {value('AQR', d['aqr'])} over {turns(d['n_verifiable'])}"
         for d in best_docs
     ] or ["none with enough turns"]
     lines.append("*Best topics*")
-    lines += [f"• {t['topic']}: AQR {value('AQR', t['aqr'])} over {t['n']} turns" for t in best_topics] or ["none"]
+    lines += [f"• {t['topic']}: AQR {value('AQR', t['aqr'])} over {turns(t['n'])}" for t in best_topics] or ["none"]
     lines.append("*Unusual*")
     lines += [f"• {u}" for u in unusual] or ["nothing"]
     lines.append("*Release results* (standardized AQR, all channels)")

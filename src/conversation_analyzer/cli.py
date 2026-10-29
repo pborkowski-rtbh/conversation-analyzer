@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from pathlib import Path
 
 import click
 
@@ -148,6 +149,22 @@ def dev_seed(now: str | None) -> None:
         raise click.UsageError("dev-seed writes synthetic rows and runs only against the emulator")
     scenario.seed(datetime.fromisoformat(now) if now else current())
     safe_log.log("dev_seed", turns=len(scenario.turns()))
+
+
+@main.command("dev-load-suite-runs")
+@click.argument("reports", nargs=-1, type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def dev_load_suite_runs(reports: tuple[Path, ...]) -> None:
+    """Local only: write suite runs back from their reports; default every full run in suite_reports/."""
+    import json
+
+    from conversation_analyzer.settings import get_settings
+    from conversation_analyzer.suite.runner import REPORTS_DIR, load_reports
+
+    if not get_settings().env.emulator:
+        raise click.UsageError("dev-load-suite-runs runs only against the emulator")
+    paths = list(reports) or [p for p in sorted(REPORTS_DIR.glob("*.json")) if not json.loads(p.read_text())["partial"]]
+    for run_id in load_reports(paths):
+        click.echo(run_id)
 
 
 if __name__ == "__main__":

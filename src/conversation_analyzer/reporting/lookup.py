@@ -11,7 +11,7 @@ from conversation_analyzer.bq.schema import ALERT_SESSIONS, ALERTS, SESSION_GRAD
 def lookup(alert_id: str) -> dict[str, Any] | None:
     alerts = query(
         f"""SELECT alert_id, kind, day, hour, check, channel, primary_failure, data_store, doc_id, uri, topic, n_turns,
-       run_id, value, experimental FROM {tbl(ALERTS)} WHERE alert_id = @a""",
+       run_id, value FROM {tbl(ALERTS)} WHERE alert_id = @a""",
         a=alert_id,
     )
     if not alerts:

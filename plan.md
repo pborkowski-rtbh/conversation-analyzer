@@ -4,28 +4,36 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-29, end of session 3)
+## Status (2026-10-29, session 4)
 
 - Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
   2b92f03). Both pushed; the submodule is unchanged since session 2 (48dc7ad).
-- Milestones M0–M7 done in code and tests (see the checklists). Open: `make index-local` (written, never run), the
-  final pass (CLAUDE.md check, `make demo`, requirement sweep).
+- Milestones M0–M7 done in code and tests (see the checklists). `make index-local` ran (fake and real embeddings),
+  `make demo` runs end to end (~50 s). §11.3 now applied strictly: experimental labels neither alert nor rank.
 - Judge: the suite (264 drafted cases, `reviewed: false`) ran live twice: v1 BASELINE, v2 KEEP (tuning 0.77 → 0.46,
   held-out 1.47 → 1.15, false HIGH 4 → 4, missed HIGH 6 → 0). Settings name v2 as current. Only REASONING_ERROR is
   below 70 % recall (experimental). Cases that look like drafting mistakes, for the engineer review:
   `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
   judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
-- Tests: 227 pass, 98.35 % branch coverage (`make coverage`, ~9.5 min; `make test-unit` 3 s).
-- Paid Vertex spend: **14.50 USD** of the 50 USD cap (Spend log below).
+- Tests: `make coverage` (~10 min), `make test-unit` 3 s.
+- Paid Vertex spend: **14.51 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
 
-1. Run `make index-local` once (builds the indexers image; reads gs://biztech-technical-wiki read-only via ADC;
-   writes only to the emulator). Then a small `EMBED=vertex` run (cents; log it).
-2. `make demo` end to end (db-reset, seed, assessor, monitor, daily and weekly on the seeded day, prints the Slack
-   stub's messages); fix whatever it shows.
-3. Final: CLAUDE.md complete, `make help` lists every target, requirement sweep of design-doc.md section by section
-   against this plan (deviations table up to date).
+State at the end of session 4: everything below "Status" is in the working tree and committed in the "session 4" commit.
+The full `make coverage` was killed mid-run, so it has NOT been run on the session-4 changes (unit tests and the
+monitor, weekly, suite_run and assessor_e2e modules passed).
+
+1. `make coverage` (~10 min, needs `make up`): must pass at > 90 %. Fix whatever fails.
+2. `make build` (never run: the job image `conversation-analyzer:local`); fix the Dockerfile if it fails.
+3. Requirement sweep of design-doc.md against the code, section by section (an earlier attempt with four read-only
+   agents was stopped before it reported): §1-5 + §12.5-12.6; §6-7; §8-10 + §12.8-12.9; §11 + §12.1-4, 12.7, 12.10-17.
+   For each gap: fix it or add a row to the deviations table below. Spec says "nothing less, nothing more".
+4. Final: CLAUDE.md complete, `make help` lists every target (checked, all have descriptions), commit and push both
+   repos (the submodule is unchanged).
+
+Budget note: 9 USD of conversation budget left when this was written; paid Vertex spend is 14.51 of 50 USD (no further
+paid runs are needed for the steps above).
 
 ## Decisions (interview, 2026-10-29)
 
@@ -95,7 +103,7 @@ src/conversation_analyzer/
   suite/cases.py  SuiteCase/Expected*/Suite, load_suite(), scenarios(), coverage()/short(); suite/scoring.py distances
   suite/runner.py SuiteRun.run_case (live path on fixed documents), summarize, decide (keep rule), run() → row+report
   cli.py        ca quality-assessor|quality-monitor|quality-daily|quality-weekly|quality-judge-suite|quality-record|
-                quality-alert-lookup|db-init|dev-seed  (daily/weekly/record modules NOT written yet)
+                quality-alert-lookup|db-init|dev-seed|dev-load-suite-runs
 docker-compose.yml  bigquery (goccy emulator :9050), gcs (fake-gcs-server :4443), stubs (:8088)
 docker/stubs/server.py Slack (chat.postMessage, reactions.get), GitHub commits, Cloud Run executions; /_test/*
 local.env      all CA_* values for local runs and tests (tests/conftest.py loads it, never real endpoints)
@@ -106,7 +114,7 @@ tests/         unit: foundations, vertex, cli, canary, judge_rules, parse, pii, 
 aiel-content-indexers/src/common/doc_index/  chunking, embedding (Vertex EU + Fake = analyzer's), bigquery REST, writer
 ```
 
-### How to run (until the Makefile exists)
+### How to run without make
 
 ```bash
 docker-compose up -d                     # emulator, fake GCS, stubs
@@ -135,8 +143,9 @@ docker-compose restart bigquery          # = full reset of the emulator (in memo
 
 ### Make targets planned
 
-`help, up, down, db-init, db-reset, seed, run-assessor, run-monitor, run-daily, run-weekly, record, alert-lookup,
-suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverage, lint, fmt, build`.
+`help, up, down, db-init, db-reset, seed, demo, run-assessor, run-monitor, run-daily, run-weekly, record,
+alert-lookup, suite, suite-coverage, suite-restore, suite-live, pii-eval, index-local (FULL=1), test, test-unit,
+coverage, lint, fmt, build`.
 
 ---
 
@@ -201,8 +210,11 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
   streaming buffer, so the end-of-run DELETE works on hourly runs); emulator = insertAll. Unchanged text (same URL,
   text hash, model) is skipped; the delete removes rows whose `TO_HEX(SHA256(uri))` is not in the bucket keep-set and
   old rows of rewritten URLs; an empty keep-set deletes nothing.
-- [ ] Local indexer runs write vectors to the emulator (`make index-local` → submodule `quality-index-local`, docker,
-  `host.docker.internal:9050`, 20 docs unless `FULL=1`, `EMBED=fake|vertex`) — target written, not yet run
+- [x] Local indexer runs write vectors to the emulator (`make index-local` → submodule `quality-index-local`, docker,
+  `host.docker.internal:9050`, 20 docs unless `FULL=1`, `EMBED=fake|vertex`) — run 2026-10-29 on biztech (476 pages
+  read from gs://biztech-technical-wiki, 20 embedded): fake 62 chunks, vertex 53 chunks (`max_documents` takes the
+  first 20 to finish, so the sets differ). The analyzer's `DocumentIndex` finds each indexed document first for its
+  own text, 5 of 5 with both embedders; re-embedded URLs lost their old-model rows, searches filter by model.
 - [x] Content bucket reader (Fernet, path rule, cap) — `docs/content.py`
 - [x] Document index search (`VECTOR_SEARCH` / emulator cosine), top 10, people directory excluded
 - [x] Evidence check (§6.9)
@@ -281,7 +293,7 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 | Vertex | REST calls (`aiplatform.eu.rep.googleapis.com` for `eu`), like the evaluator; `responseSchema` from the pydantic form. |
 | Fake judge | Scripted by `[[fake key=value]]` markers in synthetic text (see `judge/fake.py`); `fail=output|api fail_on=<Form>` makes a call fail. |
 | HIGH cluster alerts | A turn is alerted once its stage 2 is no longer `PENDING` (done or given up), so a stage 1 HIGH that stage 2 drops never alerts. "New" = no earlier HIGH alert of the same cluster for the same session segment. Pace-marked and canary turns never alert. One alert per cluster with ≥ `alerts.high_alert_bar` new turns. |
-| Experimental labels (§11.3) | A label is reliable when the latest suite run of the metric judge version marks it so (`quality_judge_suite_runs.label_recall`). Alerts with an experimental primary failure are still sent, marked "(experimental label)" and `quality_alerts.experimental`; weekly ranking will list them apart. |
+| Experimental labels (§11.3) | A label is reliable when the latest full suite run of the metric judge version marks it so (`quality_judge_suite_runs.label_recall`); with no such run every label is experimental. A cluster with an experimental primary failure is never alerted and never ranked (`rank` NULL, `experimental` true); the digest lists such clusters apart under *Experimental labels*. `make demo` seeds a stand-in suite run with the v2 run's recall (`scenario.SUITE_RECALL`); `make suite-restore` loads the stored reports back after a reset. |
 | Doc index per URL | The sink writes one content blob per URL (parts of one URL joined); the index does the same: rows keyed by URI, `doc_id` = normalized ID of the URL's first document. Confluence `:chunk:` documents are skipped like for the bucket. |
 | Doc index tables | Created by the writer if missing (`CREATE TABLE IF NOT EXISTS`, schema = `CHUNK_COLS`); in production the indexer SA needs dataEditor on `bolek_quality_doc_index`. |
 | Suite topic | §11.2 scores no topic, so the expected stage 1 form has none. |
@@ -309,7 +321,8 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 | | | gemini-4-argon | 319,185 / 16,345 | 1.76 |
 | 2026-10-29 | judge suite v2, all 264 cases, 1 pass (`suite-006ae3961f390f5f`, KEEP) | gemini-3.8-flash | 2,143,050 / 214,003 | 5.30 |
 | | | gemini-4-argon | 354,282 / 17,330 | 1.94 |
-| | **Total so far** | | | **14.50** |
+| 2026-10-29 | `make index-local EMBED=vertex`: 20 biztech documents, 53 chunks (≤ 2,000 chars), plus 5 search queries | text-multilingual-embedding-002 | ≤ 110k chars | < 0.01 |
+| | **Total so far** | | | **14.51** |
 
 Prices: Vertex AI billing catalog, regional (eu) online text: flash 1.65 / 8.25 USD per M tokens in / out, argon 4.40
 / 22.00 (thinking tokens count as output). A full 1-pass suite run is about 7 USD and 35 minutes (argon is slow).

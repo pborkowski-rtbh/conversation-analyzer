@@ -113,9 +113,14 @@ class Weekly:
                 found[cid] = Cluster(cid, h["primary_failure"], h["data_store"], h["doc_id"], h["uri"], h["topic"])
         weights = self.s.clusters.severity_weights
         reliable = reliable_labels(self.version)
-        ranked = sorted(found.values(), key=lambda c: (-c.weighted(weights), -c.n, c.cluster_id))
+        ranked = sorted(
+            found.values(), key=lambda c: (c.primary_failure not in reliable, -c.weighted(weights), -c.n, c.cluster_id)
+        )
         rows = []
-        for rank, c in enumerate(ranked, start=1):
+        rank = 0
+        for c in ranked:
+            experimental = c.primary_failure not in reliable  # shown, never ranked (§11.3)
+            rank += not experimental
             prev = self.previous_counts(c.cluster_id)
             avg = statistics.mean(prev) if prev else None
             row = {
@@ -133,10 +138,10 @@ class Weekly:
                 "n_medium": c.severities[Severity.MEDIUM.value],
                 "n_low": c.severities[Severity.LOW.value],
                 "weighted": c.weighted(weights),
-                "rank": rank,
+                "rank": None if experimental else rank,
                 "prev_4w_avg": avg,
                 "trend": (c.n / avg) if avg else None,
-                "experimental": c.primary_failure not in reliable,
+                "experimental": experimental,
                 **self.fix_state(c, fixes.get(c.cluster_id, []), history.get(c.cluster_id)),
             }
             rows.append(row)
@@ -329,7 +334,9 @@ GROUP BY channel, period""",
         trend: dict[str, dict[str, float | None]] = defaultdict(dict)
         for r in aqr:
             trend[r["channel"]][r["period"]] = r["num"] / r["den"] if r["den"] else None
-        top = [c for c in clusters if c["state"] == ClusterState.ACTIVE and c["n_turns"]][: self.s.clusters.top_n]
+        active = [c for c in clusters if c["state"] == ClusterState.ACTIVE and c["n_turns"]]
+        top = [c for c in active if not c["experimental"]][: self.s.clusters.top_n]
+        experimental = [c for c in active if c["experimental"]]
         min_turns = self.s.metrics.min_slice_size
         rated = [d for d in docs if d["n_verifiable"] >= min_turns and d["aqr"] is not None]
         best_docs = sorted(rated, key=lambda d: (-d["aqr"], -d["n_verifiable"]))[: cfg.best_n]
@@ -353,7 +360,16 @@ WHERE computed_day BETWEEN @a AND @b AND metric = 'AQR_STANDARDIZED' AND channel
             b=self.last,
         )
         return messages.digest(
-            self.week, trend, top, best_docs, best_topics, unusual, releases, gates, self.baseline_top_turns()
+            self.week,
+            trend,
+            top,
+            experimental,
+            best_docs,
+            best_topics,
+            unusual,
+            releases,
+            gates,
+            self.baseline_top_turns(),
         )
 
     def topic_aqr(self) -> list[dict[str, Any]]:

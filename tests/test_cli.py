@@ -140,6 +140,24 @@ def test_dev_seed_only_on_the_emulator(monkeypatch):
     assert result.exit_code == 2 and len(seeded) == 1
 
 
+def test_dev_load_suite_runs_loads_full_runs_only_on_the_emulator(monkeypatch, tmp_path):
+    for name, partial in (("suite-0000000a", False), ("suite-0000000b", True)):
+        (tmp_path / f"{name}.json").write_text(json.dumps({"suite_run_id": name, "partial": partial}))
+    loaded = []
+    fake_module(
+        monkeypatch,
+        "conversation_analyzer.suite.runner",
+        REPORTS_DIR=tmp_path,
+        load_reports=lambda paths: [loaded.append(p.name) or p.stem for p in paths],
+    )
+    result = CliRunner().invoke(cli.main, ["dev-load-suite-runs"])
+    assert result.exit_code == 0 and result.output.split() == ["suite-0000000a"]
+    result = CliRunner().invoke(cli.main, ["dev-load-suite-runs", str(tmp_path / "suite-0000000b.json")])
+    assert result.exit_code == 0 and loaded == ["suite-0000000a.json", "suite-0000000b.json"]
+    monkeypatch.setattr(get_settings().env, "bq_endpoint", None)
+    assert CliRunner().invoke(cli.main, ["dev-load-suite-runs"]).exit_code == 2
+
+
 def test_alert_lookup_prints_json_or_fails(monkeypatch):
     found = {"alert": {"alert_id": "alert-1", "kind": "HIGH_CLUSTER"}, "sessions": []}
     fake_module(

@@ -74,7 +74,7 @@ def test_session_lines():
         "recovered": "YES",
     }
     assert messages.session_line(grade, 1) == (
-        "1 turns, partly resolved (final), rephrased or corrected never, recovered after the correction"
+        "1 turn, partly resolved (final), not rephrased or corrected, recovered after the correction"
     )
 
 
@@ -83,21 +83,20 @@ def test_high_cluster_message_has_only_derived_values():
         "OUTDATED_SOURCE", "rtb-crj-hr-house", "doc_1", "https://sites.google.com/rtbhouse.com/hr-house/x", None
     )
     text = messages.high_cluster(
-        "alert-abc", key, {"WEB_UI": 2, "SLACK_MCP": 1}, "DOCUMENT_OWNER", True, ["2 turns, no grade yet"], DAY, 9
+        "alert-abc", key, {"WEB_UI": 2, "SLACK_MCP": 1}, "DOCUMENT_OWNER", ["2 turns, no grade yet"], DAY, 9
     )
-    assert "`OUTDATED_SOURCE` (experimental label)" in text and "3 new turns (1 SLACK_MCP, 2 WEB_UI)" in text
+    assert "`OUTDATED_SOURCE`" in text and "3 new turns (1 SLACK_MCP, 2 WEB_UI)" in text
     assert "2026-10-28 09:00 UTC" in text and "|link>" in text and "make alert-lookup ALERT=alert-abc" in text
     topic = messages.high_cluster(
         "alert-abc",
         ClusterKey("KNOWLEDGE_GAP", None, None, None, "BIZTECH"),
         {"WEB_UI": 1},
         "CORPUS_OWNER",
-        False,
         [],
         DAY,
         9,
     )
-    assert "topic BIZTECH" in topic and "experimental" not in topic and "link" not in topic
+    assert "topic BIZTECH" in topic and "1 new turn (1 WEB_UI)" in topic and "link" not in topic
 
 
 @pytest.mark.parametrize(
@@ -158,7 +157,8 @@ def test_anchor_set_follows_traffic_with_a_minimum_per_data_store():
 
 
 def test_digest_without_data_says_so():
-    text = messages.digest(DAY, {}, [], [], [], [], [], [], None)
+    text = messages.digest(DAY, {}, [], [], [], [], [], [], [], None)
     for line in ("*Top problem clusters*", "none", "none with enough turns", "nothing", "none this week"):
         assert line in text
+    assert "Experimental" not in text
     assert messages.value("VOLUME", 12.0) == "12.0" and messages.value("AQR_RAW", None) == "n/a"

@@ -92,7 +92,6 @@ class Monitor:
                 "channel": ctx.get("channel"),
                 "run_id": ctx.get("run_id"),
                 "value": value,
-                "experimental": False,
             }
         )
 
@@ -286,10 +285,10 @@ WHERE a.kind = @k AND a.day >= @d""",
             if (key.cluster_id, r["session_key"], r["segment_no"]) not in seen:
                 by_cluster[key].append(r)
         bar = self.s.alerts.high_alert_bar
-        todo = {k: v for k, v in by_cluster.items() if len(v) >= bar}
+        reliable = reliable_labels(version.version_id)  # an experimental label never alerts (§11.3)
+        todo = {k: v for k, v in by_cluster.items() if len(v) >= bar and k.primary_failure in reliable}
         if not todo:
             return 0
-        reliable = reliable_labels(version.version_id)
         segments = sorted({(r["session_key"], r["segment_no"]) for turns in todo.values() for r in turns})
         grades = {
             (g["session_key"], g["segment_no"]): g
@@ -309,17 +308,9 @@ WHERE a.kind = @k AND a.day >= @d""",
             for seg in segs:
                 g = grades.get(seg)
                 lines.append(messages.session_line(g, (g or {}).get("graded_turns") or 0))
-            experimental = key.primary_failure not in reliable
             by_channel = Counter(r["channel"] for r in turns)
             text = messages.high_cluster(
-                aid,
-                key,
-                dict(by_channel),
-                owner_of(key.primary_failure).value,
-                experimental,
-                lines,
-                self.today,
-                self.hour,
+                aid, key, dict(by_channel), owner_of(key.primary_failure).value, lines, self.today, self.hour
             )
             channel, ts = slack.post(self.s.alerts.quality_channel, text)
             self.sent.add(aid)
@@ -338,7 +329,6 @@ WHERE a.kind = @k AND a.day >= @d""",
                     "uri": key.uri,
                     "topic": key.topic,
                     "n_turns": len(turns),
-                    "experimental": experimental,
                 }
             )
             for session_key, segment_no in segs:

@@ -26,11 +26,12 @@ spec are in `plan.md`. Read `plan.md` **Status** and **Next steps** first when r
 
 ```text
 config/settings.yaml   every tunable (§12.14); env-specific values come from CA_* variables (local.env)
-judge_versions/v1/     rubric (en, pl), prompts, models.yaml
+judge_versions/vN/     rubric (en, pl), prompts, models.yaml; v2 is current (`judge.current_version`)
 suite_cases/           judge test suite cases (YAML, §11.1)
 src/conversation_analyzer/
   cli.py               `ca <job>`: quality-assessor, quality-monitor, quality-daily, quality-weekly,
-                       quality-judge-suite, quality-record, quality-alert-lookup, db-init, dev-seed
+                       quality-judge-suite, quality-record, quality-alert-lookup, db-init, dev-seed,
+                       dev-load-suite-runs
   settings.py vocab.py safe_log.py errors.py secrets.py keys.py leak_guard.py
   bq/                  schema (all tables), client (query, guarded MERGE writes), views, external tables, init
   log/                 audit-log parsing (turns, references, spans, feedback, searches) and the window read
@@ -59,6 +60,8 @@ make coverage         # same with branch coverage; fails under 90 %
 make lint / make fmt
 make suite-coverage   # suite cases against the §11.1 scenario minimums (no judge)
 make suite LIMIT=20   # the suite runner with the fake judge (free)
+make suite-restore    # load the stored suite runs (suite_reports/) back into a reset emulator
+make index-local      # real indexer (biztech, 20 docs) into the emulator's document index; EMBED=vertex is paid
 make pii-eval         # PII scrubber recall on the synthetic Polish/English set (§6.12)
 make help             # every target
 ```
@@ -73,7 +76,7 @@ make help             # every target
 - Never look at held-out cases (`part: HELD_OUT`) while tuning a judge version.
 - A judge change: copy `judge_versions/vN` to a new directory, edit, run `make suite-live JUDGE_VERSION=vN+1`
   (paid, ~7 USD and ~35 min per pass; log it in plan.md). The run prints KEEP or REJECT (§11.3). The local
-  emulator forgets runs on reset: load the baseline row back from `suite_reports/<run>.json` first.
+  emulator forgets runs on reset: `make suite-restore` loads them back from `suite_reports/` first.
 - Reports in `suite_reports/` (gitignored) hold per-case field distances and the judge's codes (no text).
 
 Single test: `uv run pytest -q -p no:logging --no-cov tests/test_assessor_e2e.py::test_segments`.

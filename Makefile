@@ -15,6 +15,7 @@ LIMIT ?= 0
 JUDGE_VERSION ?=
 SUITE_ARGS = --part $(PART) --limit $(LIMIT) $(if $(JUDGE_VERSION),--judge-version $(JUDGE_VERSION))
 FULL ?=
+REPORTS ?=
 EMBED ?= fake
 DATA_STORE ?=
 JOB ?=
@@ -99,6 +100,10 @@ suite-coverage: ## Check the suite cases against every scenario minimum of §11.
 .PHONY: suite
 suite: ## Run the suite with the fake judge (checks the runner, costs nothing); PART, LIMIT, JUDGE_VERSION
 	$(CA) quality-judge-suite --passes 1 $(SUITE_ARGS)
+
+.PHONY: suite-restore
+suite-restore: ## Load stored suite runs back into the emulator after a reset (REPORTS=..., default every full run)
+	$(CA) dev-load-suite-runs $(REPORTS)
 
 .PHONY: suite-live
 suite-live: ## PAID: the suite on Vertex (eu); PASSES, PART, LIMIT, JUDGE_VERSION; log the spend in plan.md

@@ -7,7 +7,7 @@ import uuid
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from statistics import mean
 from typing import Any
@@ -397,3 +397,14 @@ def run(
         false_high=summary["false_high"],
     )
     return report
+
+
+def load_reports(paths: list[Path]) -> list[str]:
+    """Write stored suite runs back from their reports (the emulator forgets them on reset); returns their IDs."""
+    names = {c.name for c in SUITE_RUNS.cols}
+    rows = []
+    for path in paths:
+        report = json.loads(path.read_text())
+        rows.append({**{k: v for k, v in report.items() if k in names}, "day": date.fromisoformat(report["day"])})
+    write(SUITE_RUNS, rows)
+    return [r["suite_run_id"] for r in rows]
