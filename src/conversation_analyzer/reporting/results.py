@@ -13,7 +13,7 @@ from conversation_analyzer.vocab import FailureCode, TurnStatus
 
 RESULT_COLUMNS = """
   t.turn_key, t.session_key, t.segment_no, t.day, t.channel, t.is_canary, t.pace_excluded, t.stage2_state,
-  t.flagged, t.flag_reasons, t.cited_docs, t.feedback_thumbs, t.reaction,
+  t.flagged, t.flag_reasons, t.cited_docs, t.found_docs, t.feedback_thumbs, t.reaction,
   s1.intent, s1.topic, s1.relevance, s1.completeness, s1.clarity, s1.groundedness, s1.unsupported_spans,
   s1.total_spans, s1.language_matches, s1.refusal_or_empty, s1.knowledge_turn, s1.verifiable, s1.evidence_kind,
   s1.needs_internal_knowledge,

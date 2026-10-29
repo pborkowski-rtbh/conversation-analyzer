@@ -9,6 +9,7 @@ import click
 
 from conversation_analyzer import safe_log
 from conversation_analyzer.errors import init_sentry, report
+from conversation_analyzer.vocab import ChangeKind
 
 
 def _job(name: str, fn: Callable[[], object]) -> None:
@@ -95,7 +96,7 @@ def quality_judge_suite(
 
 
 @main.command("quality-record")
-@click.option("--kind", required=True, help="Change kind, e.g. DOCUMENT or AQR_REBASE.")
+@click.option("--kind", required=True, type=click.Choice([k.value for k in ChangeKind]), help="e.g. DOCUMENT.")
 @click.option("--day", default=None, help="Day of the change (YYYY-MM-DD); default today.")
 @click.option("--hour", default=None, type=int)
 @click.option("--doc-id", default=None)

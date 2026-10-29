@@ -96,10 +96,11 @@ def rows(table, where="TRUE"):
 
     out = []
     bools = {c.name for c in table.cols if c.type == "BOOL"}
+    dates = {c.name for c in table.cols if c.type == "DATE"}
     for r in query(f"SELECT TO_JSON_STRING(t) AS j FROM {tbl(table)} t WHERE {where}"):
         text = re.sub(r"(?<=[:\[,])(\d{4}-\d{2}-\d{2}(?:[ T][0-9:.+-]+Z?)?)(?=[,}\]])", r'"\1"', r["j"])
         row = json.loads(text)
-        for k in ("day", "first_day", "last_day", "run_day"):
+        for k in dates:
             if isinstance(row.get(k), str):
                 row[k] = datetime.fromisoformat(row[k]).date()
         for k in bools:

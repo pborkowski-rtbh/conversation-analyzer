@@ -498,6 +498,7 @@ _BASE_METRICS = [
     "RESUMED_WITHOUT_TEXT",
     "RESUMED_AND_CONTINUED",
     "PACE_EXCLUDED_COUNT",
+    "FLAGGED_SHARE",  # flagged turns of the day over assessed turns: the stage 2 load (milestone 3)
 ]
 FAILURE_RATE_CODES = [c for c in FailureCode if c is not FailureCode.NONE]
 Metric = StrEnum("Metric", {m: m for m in _BASE_METRICS + [f"FAILURE_RATE_{c.value}" for c in FAILURE_RATE_CODES]})
@@ -549,6 +550,7 @@ def all_closed_values() -> frozenset[str]:
     s = get_settings().strata
     values: set[str] = set(topics()) | set(strata_codes()) | set(s.intent_families) | set(s.data_store_families)
     values |= {ALL, MERGED_OTHER}
+    values |= {d.id for d in get_settings().data_stores}  # the allowlisted data stores, a slice of the metrics
     for enum in (
         Channel,
         Intent,

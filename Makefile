@@ -84,7 +84,11 @@ alert-lookup: ## Show the sessions behind an alert: make alert-lookup ALERT=aler
 	$(CA) quality-alert-lookup --alert $(ALERT)
 
 .PHONY: demo
-demo: db-reset seed run-assessor run-monitor run-daily run-weekly ## Whole pipeline on the synthetic scenario
+demo: db-reset seed run-assessor run-monitor ## Whole pipeline on the synthetic scenario (seeded today)
+	$(CA) quality-daily --day $$(date -u +%F)
+	$(CA) quality-weekly --week $$(date -u +%F)
+	@curl -s localhost:8088/_test/state | python3 -c 'import json,sys; [print(m["channel"], m["text"], sep="\n", end="\n\n") for m in json.load(sys.stdin)["messages"]]'
+
 
 # --- judge test suite ----------------------------------------------------------------------------------------------
 

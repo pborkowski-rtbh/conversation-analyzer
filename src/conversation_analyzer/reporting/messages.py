@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Any
 
 from conversation_analyzer.reporting.results import ClusterKey
+from conversation_analyzer.settings import get_settings
 from conversation_analyzer.vocab import CountBucket, GradeState, HealthCheck, Outcome
 
 _OUTCOME = {
@@ -85,3 +87,90 @@ def health(alert_id: str, check: HealthCheck, value: float | None, day: date, ho
 
 def acknowledged(user: str, day: date) -> str:
     return f":white_check_mark: Acknowledged by <@{user}> on {day.isoformat()}; the reference period restarts that day."
+
+
+_PERCENT = ("AQR", "SHARE", "RATE", "COVERAGE", "RESUMED")
+_KIND = {"JUMP": "sudden jump", "DRIFT": "slow drift"}
+_EVENT_ID = re.compile(r"^evt-[0-9a-f]{8,64}$")
+
+
+def value(metric: str, v: float | None) -> str:
+    if v is None:
+        return "n/a"
+    return f"{v:.1%}" if any(p in metric for p in _PERCENT) else f"{v:.1f}"
+
+
+def anomaly(a: dict[str, Any]) -> str:
+    m = a["metric"]
+    events = a.get("change_events") or []
+    cause = (
+        "Change events in the 48 hours before, likely caused by: " + ", ".join(f"`{e}`" for e in events)
+        if events
+        else "No change event in the 48 hours before: unexplained."
+    )
+    return "\n".join(
+        [
+            f":chart_with_downwards_trend: *Anomaly* `{m}` on {a['channel']}, {a['day'].isoformat()} "
+            f"({_KIND[a['kind']]})",
+            f"Value {value(m, a['value'])}, reference {value(m, a['reference_value'])} "
+            f"(band {value(m, a['band_low'])} to {value(m, a['band_high'])}).",
+            cause,
+            f"React with :{get_settings().alerts.ack_emoji}: to acknowledge. Alert `{a['alert_id']}`.",
+        ]
+    )
+
+
+def _change(change_id: str | None) -> str:
+    return f"`{change_id}`" if change_id and _EVENT_ID.match(change_id) else "a change"
+
+
+def digest(
+    week: date,
+    trend: dict[str, dict[str, float | None]],
+    clusters: list[dict[str, Any]],
+    best_docs: list[dict[str, Any]],
+    best_topics: list[dict[str, Any]],
+    unusual: list[str],
+    releases: list[dict[str, Any]],
+    gates: list[dict[str, Any]],
+    baseline_top_turns: int | None,
+) -> str:
+    """The Monday digest (§9.2): derived values only, documents by ID and allowlisted link."""
+    lines = [f":bar_chart: *Bolek quality digest*, week of {week.isoformat()}", "*AQR (standardized)*"]
+    for channel in sorted(trend):
+        t = trend[channel]
+        lines.append(f"• {channel}: {value('AQR', t.get('now'))} (4 weeks before: {value('AQR', t.get('before'))})")
+    lines.append("*Top problem clusters* (turns this week; trend against the 4 weeks before; owner)")
+    for c in clusters:
+        where = f"{c['data_store']} document {c['doc_id']}" if c["doc_id"] else f"topic {c['topic']}"
+        link = f" <{c['uri']}|link>" if c.get("uri") else ""
+        trend_text = f"x{c['trend']:.1f}" if c.get("trend") else "new"
+        label = " (experimental label)" if c["experimental"] else ""
+        lines.append(
+            f"{c['rank']}. `{c['primary_failure']}`{label} {where}{link}: {c['n_turns']} turns ({c['n_high']} HIGH), "
+            f"{trend_text}, owner {c['owner']}, `{c['cluster_id']}`"
+        )
+    if not clusters:
+        lines.append("none")
+    lines.append("*Best documents*")
+    lines += [
+        f"• {d['data_store']} document {d['doc_id']}"
+        + (f" <{d['uri']}|link>" if d.get("uri") else "")
+        + f": AQR {value('AQR', d['aqr'])} over {d['n_verifiable']} turns"
+        for d in best_docs
+    ] or ["none with enough turns"]
+    lines.append("*Best topics*")
+    lines += [f"• {t['topic']}: AQR {value('AQR', t['aqr'])} over {t['n']} turns" for t in best_topics] or ["none"]
+    lines.append("*Unusual*")
+    lines += [f"• {u}" for u in unusual] or ["nothing"]
+    lines.append("*Release results* (standardized AQR, all channels)")
+    lines += [
+        f"• {_change(r['event_id'])}: {r['verdict'].lower().replace('_', ' ')}"
+        + (f" ({r['diff'] * 100:+.1f} points)" if r.get("diff") is not None else "")
+        for r in releases
+    ] or ["none this week"]
+    lines.append("*Release gate verdicts*")
+    lines += [f"• {_change(g['change_id'])}: {g['verdict']}" for g in gates] or ["none this week"]
+    if baseline_top_turns is not None:
+        lines.append(f"*Turns still in the baseline's top clusters*: {baseline_top_turns}")
+    return "\n".join(lines)

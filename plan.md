@@ -4,34 +4,28 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-29, session 3)
+## Status (2026-10-29, end of session 3)
 
 - Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
-  2b92f03).
-- M0, M1, M2 done (incl. `quality-monitor`). M3 done in code: the indexers' doc-index step (submodule) and the
-  analyzer side; the local run against real sources (`make index-local`) is written but **not yet executed**.
-- The full-run stall of session 2 is fixed: it was no deadlock, the emulator slowed down with every job, and `wipe()`
-  ran one DELETE job per table (~50 per test). `wipe()` is now one multi-statement script (0.15 s instead of 4.5 s),
-  the emulator write path runs MERGE + emptying the staging table as one script. Full run: 183 tests in 4 min.
-- M4 judge suite written: 264 cases in `suite_cases/cases/*.yaml` (drafted, `reviewed: false`, 50 held out), every
-  §11.1 minimum met (`make suite-coverage`), `suite/runner.py` (passes, scoring, label recall, keep rule, spend
-  guard, run row + JSON report), `--check`/`--judge-version`. `tests/test_suite.py` runs an oracle judge (fills each
-  form with the expected values) over all cases: distance 0 everywhere, so every expected form is consistent with the
-  deterministic rules. **Live run not yet done.**
-- Index search uses only chunks of the analyzer's embedding model (step 2 done).
-- Paid Vertex spend so far: **0 USD** (cap 50 USD until 2026-11-01). No real model was called yet.
+  2b92f03). Both pushed; the submodule is unchanged since session 2 (48dc7ad).
+- Milestones M0–M7 done in code and tests (see the checklists). Open: `make index-local` (written, never run), the
+  final pass (CLAUDE.md check, `make demo`, requirement sweep).
+- Judge: the suite (264 drafted cases, `reviewed: false`) ran live twice: v1 BASELINE, v2 KEEP (tuning 0.77 → 0.46,
+  held-out 1.47 → 1.15, false HIGH 4 → 4, missed HIGH 6 → 0). Settings name v2 as current. Only REASONING_ERROR is
+  below 70 % recall (experimental). Cases that look like drafting mistakes, for the engineer review:
+  `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
+  judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
+- Tests: 227 pass, 98.35 % branch coverage (`make coverage`, ~9.5 min; `make test-unit` 3 s).
+- Paid Vertex spend: **14.50 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
 
-1. M4 live: `make suite-live PASSES=1 LIMIT=10` first (check the models answer, the token use per call, the spend
-   estimate), then one full pass; log every run in the **Spend log**. Tune nothing on held-out cases (§11.1).
-2. Run `make index-local` once (builds the indexers image; reads gs://biztech-technical-wiki read-only via ADC; writes
-   only to the emulator). Then `EMBED=vertex` small run (log spend).
-3. M5–M7: daily, weekly, record, anomalies + anomaly alerts, release impact, clusters, document stats, digest,
-   eval documents. Note: `github.cluster_ref_pattern` expects 12 hex digits, cluster IDs are `cluster-` + 16.
-4. Feedback-after-window fallback (§12.5) behind `timing.feedback_after_window_fallback`.
-5. `make pii-eval`: synthetic Polish/English PII set with inflected names + recall (§6.12); `pii/evaluate.py`.
-6. Final: CLAUDE.md complete, `make demo` green, requirement sweep against design-doc.md.
+1. Run `make index-local` once (builds the indexers image; reads gs://biztech-technical-wiki read-only via ADC;
+   writes only to the emulator). Then a small `EMBED=vertex` run (cents; log it).
+2. `make demo` end to end (db-reset, seed, assessor, monitor, daily and weekly on the seeded day, prints the Slack
+   stub's messages); fix whatever it shows.
+3. Final: CLAUDE.md complete, `make help` lists every target, requirement sweep of design-doc.md section by section
+   against this plan (deviations table up to date).
 
 ## Decisions (interview, 2026-10-29)
 
@@ -164,7 +158,7 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] Keys (§12.5)
 - [x] BigQuery DDL for all tables of §12.10 + authorized-view SQL + `aiel_evals` contract + emulator copies
 - [x] `ca db-init`; MERGE writer keyed by table key (§12.6)
-- [ ] CLI: job modules for monitor, daily, weekly, judge-suite, record (commands exist, modules don't)
+- [x] CLI: job modules for monitor, daily, weekly, judge-suite, record
 - [x] Done when: an assessor run writes its run record (§12.16)
 
 ## M2. Stage 1 in shadow (§12.16 milestone 2)
@@ -178,7 +172,8 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] Eligibility, too large, missed (§2.3, §6.3)
 - [x] Pace check (§8.2)
 - [x] PII scrubbing (Presidio, en/pl, custom recognisers, inflected names, placeholders in documents) (§6.3, §12.13)
-- [ ] Polish/English synthetic PII test set + recall measurement (`make pii-eval`) (§6.12)
+- [x] Polish/English synthetic PII test set + recall measurement (`make pii-eval`) (§6.12) — `pii/eval_set.yaml`
+  (82 planted values, 20 persons with inflected forms, a held-out part), `pii/evaluate.py`; 100 % recall
 - [x] Judge client: `eu` only, temperature 0, structured output, 429 backoff, throttled count, tokens, daily limit
 - [x] Stage 1 form + rubric en/pl + gating + deterministic codes + primary order + severity + topic (§6.4–§6.8)
 - [x] Evidence kind, verifiable, people directory excluded (§6.2, §6.6)
@@ -186,7 +181,8 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] Fingerprint; late-arriving earlier turn re-assesses later ones (§6.1)
 - [x] Relation → previous turn's reaction (§5.3)
 - [x] Feedback in window: thumbs + reason codes, comment never; dislike = late trigger
-- [ ] Feedback after window: fallback by session key + question index behind the setting (§12.5)
+- [x] Feedback after window: fallback by session key + question index behind the setting (§12.5) — off by
+  default; position = the log's `questionIndex` + 1 (to confirm with §12.17 before switching it on)
 - [x] Work list incl. parallel run doubling, 5 % second-model sample, missed at 3h30 (§12.6)
 - [x] Phase 1 concurrency + 7-minute stop (§12.6)
 - [x] Retrieval counts per document and day (§12.6)
@@ -215,7 +211,8 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] Stage 2 kept beside stage 1 (§7.6)
 - [x] Session grades: provisional / final / not gradable; re-grade at close (§7.7)
 - [x] Phase 3 time budget, pending first, give up at 3h30 (§12.6)
-- [ ] Done when: index hit rate and flagged share are measured (daily job, M5)
+- [x] Done when: index hit rate and flagged share are measured (daily job, M5) — `INDEX_HIT_RATE` in
+  `quality_judge_quality`; `FLAGGED_SHARE` daily metric (flagged / assessed turns)
 
 ## M4. Judge trust (§12.16 milestone 4)
 
@@ -225,7 +222,11 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 - [x] Scoring (§11.2), 3 runs averaged, per case/field/scenario — `suite/scoring.py`, `suite/runner.py::summarize`
 - [x] Keep rule (§11.3) → `quality_judge_suite_runs`; 70 % reliability → `experimental` — `runner.decide`,
   `label_recall`, read by `monitor.reliable_labels`
-- [ ] Live suite run on `gemini-3.8-flash` + `gemini-4-argon` (spend cap!)
+- [x] Live suite run on `gemini-3.8-flash` + `gemini-4-argon` (spend cap!) — v1 BASELINE (tuning 0.77, held-out
+  1.47, 4 false / 6 missed HIGH); v2 (conflicting references are contradicted; OUT_OF_SCOPE also on a rightful
+  refusal) KEEP: tuning 0.46, held-out 1.15, 4 false / 0 missed HIGH; every label reliable except REASONING_ERROR
+  (20 %, experimental). Settings name v2 as current (pre-launch: no parallel run). One pass each, not 3, to stay
+  within the spend cap; the job's default stays 3.
 - [x] Canary assessed like real turns, `quality_canary_results` with question hash (§11.4) — agreement is daily (M5)
 - [x] Planted errors (swapped number, dropped step, wrong name), with and without references (§11.4)
 - [x] Index hit rate per canary question (expected doc in top 10) (§11.4)
@@ -235,24 +236,28 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 ## M5. Metrics (§12.16 milestone 5)
 
 - [x] Authorized views SQL (§12.4)
-- [ ] Log completeness (§8.2)
-- [ ] Change events from 5 sources (§12.9)
-- [ ] Daily metrics (§8.1–§8.5), standardized AQR (§8.4), judge quality measures (§11.4, §11.5), recompute-not-add
+- [x] Log completeness (§8.2) — `reporting/completeness.py`: the monitor checks the last hour, the daily job all 24
+  hours of its day again; a channel with a gap hour makes the day incomplete (`incomplete`, `LOG_GAP_HOURS`)
+- [x] Change events from 5 sources (§12.9) — `reporting/changes.py` (log view, GitHub commits per path with cluster
+  IDs from the message, Cloud Run indexer executions, judge versions and parallel-run ends), `reporting/record.py`
+- [x] Daily metrics (§8.1–§8.5), standardized AQR (§8.4), judge quality measures (§11.4, §11.5), recompute-not-add —
+  `reporting/metrics.py`, `reporting/judge_quality.py`, `reporting/daily.py`
 
 ## M6. Alerts, clusters, digest (§12.16 milestone 6)
 
-- [ ] Anomaly check + alerts (§8.6, §8.7) — ✅ acknowledgement is read by the monitor (done)
+- [x] Anomaly check + alerts (§8.6, §8.7) — `reporting/anomaly.py` (jump, CUSUM drift, reference restart at the ✅,
+  no new alert while one is open), alerts and retries in `daily.py`; ✅ read by the monitor
 - [x] `HIGH` cluster alerts with session grades; alert lookup (§7.7, §9.2, §12.8) — `reporting/monitor.py`, `reporting/lookup.py`
-- [ ] Release impact (§10.3)
-- [ ] Weekly clusters, document stats, digest (§9)
+- [x] Release impact (§10.3) — `reporting/release.py`
+- [x] Weekly clusters, document stats, digest (§9) — `reporting/weekly.py`, `messages.digest`
 
 ## M7. Closed loop (§12.16 milestone 7)
 
-- [ ] `quality_eval_documents` (§10.1, §12.11); gate verdicts in digest; turns still in baseline top clusters (§9.3)
+- [x] `quality_eval_documents` (§10.1, §12.11); gate verdicts in digest; turns still in baseline top clusters (§9.3)
 
 ## Final
 
-- [ ] `CLAUDE.md` complete; `make help` lists every target; `make test` + coverage green
+- [ ] `CLAUDE.md` complete; `make help` lists every target; `make test` + coverage green (green at 98.35 %)
 - [ ] Requirement sweep: re-read `design-doc.md` section by section against this plan
 
 ---
@@ -287,6 +292,12 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 | Suite input | A case is judged like a live turn: PII scrubbed, references get the placeholders, a fixed `DocumentSource` returns the case's `documents` for every search. Stage 2 runs when the case expects one and stage 1 (or the case's `flag_reasons`, a late trigger) flags it; otherwise it counts as missed. The session grade gets fixed stage 1 labels (earlier turns' `stage1`, the current turn's expected stage 1), so only the judge changes between runs. |
 | Suite scoring | A failed call scores as an empty form (every expected value missed) and is counted in `failed_calls`. Labels for reliability are the failure codes: a stage 1 code is found when stage 1 records it, a stage 2 primary when stage 2's failure types hold it. `false_high` is the total over passes; the keep rule compares it per pass. |
 | Suite runs | `--limit`/`--part` runs are stored with `partial = true` and no decision; only full runs become a baseline or set label reliability. A run of the baseline's own judge version is a new BASELINE (re-measure), not a decision. Spend guard: `suite.max_usd_per_run` with price estimates in settings; the run stops with TOKEN_LIMIT. |
+| Daily metrics | Rates per channel (and ALL) and slice (intent, topic, data store, stratum, families); small slices pooled into `MERGED_OTHER` per slice kind (`merged`); stratum rows always kept as the parts of standardized AQR. Stratum weights = verifiable-turn shares over the 4 weeks from `go_live_day` or the last AQR_REBASE, days before the computed day only (today's own mix while none exist); a small stratum takes its intent family's AQR, else the channel's. Volume, coverage, missed from the log's counts view; dislikes from the feedback view (web UI only); active users and retention from `ge_metrics` (latest 7 days rewritten). Extra metric `FLAGGED_SHARE` (M3 done-criterion). |
+| Anomalies | Series = slice ALL per channel; days skipped when incomplete or under 100 turns; reference pooled over the last 28 such days of the same kind (≥ 14), restarted at the last acknowledgement; noise = max(chance for the day's denominator, stdev of the days); CUSUM rebuilt over up to 120 days; no new anomaly while one is open. Coverage checked from day 1, quality metrics after the baseline. Unsent alerts are retried by the next run. |
+| Release impact | Releases = prompt, data store, document, model, engine, agent, connector events; confounded by another release, a judge change, a parallel-run end or a rebase in the 10 weekdays, or by a judge version change between the two sides. WAITING rows until 5 complete weekdays after exist. Indexer runs are recorded but neither measured nor confounding (hourly). |
+| Change events | GitHub `paths` map a path to the change kind; cluster IDs (`cluster-<16 hex>`) parsed from commit messages. Indexer events = Cloud Run executions of `indexer-*` jobs finished on the day. |
+| Weekly | Clusters from the week's assessed turns (per-day metric judge version); trend = turns / mean of the 4 weeks before; a fixed cluster is followed through weeks without turns and closes after 2 weeks under 25 % of its 4-week level before the fix week. Anchor set once per quarter (traffic = cited + retrieved; at least 20 per data store with traffic); focus set per active cluster with a document, a knowledge gap once a DOCUMENT fix names it. Digest = AQR trend, top clusters, best documents and topics, unusual items, release verdicts, gate verdicts (only change IDs that look like event IDs), turns still in the baseline's top clusters. |
+| Feedback after window | Off by default; matches session key + position (`questionIndex` + 1) over 30 days and rewrites the stored turn row. |
 | Suite cases | Drafted by Claude from hand-made facts of the corpus (drafting script not kept: the YAML is the source and is reviewed by hand). Stage 2 of a turn whose only evidence is an earlier turn's references starts at question 3 (no cited documents), so its cause is RETRIEVAL_MISS. Span `refs` are 0-based like the log; the judge sees reference numbers from 1 (fixed in `render_turn`). |
 
 ## Spend log (paid Vertex calls, cap 50 USD)
@@ -296,7 +307,9 @@ suite, suite-coverage, suite-live, pii-eval, index-local (FULL=1), test, coverag
 | 2026-10-29 | judge suite smoke run, 10 cases, 1 pass (`suite-006ae3928a747698`) | gemini-3.8-flash | 99,365 / 4,960 | 0.21 |
 | 2026-10-29 | judge suite, all 264 cases, 1 pass (`suite-006ae392aee9aba9`, BASELINE) | gemini-3.8-flash | 2,098,509 / 220,991 | 5.29 |
 | | | gemini-4-argon | 319,185 / 16,345 | 1.76 |
-| | **Total so far** | | | **7.26** |
+| 2026-10-29 | judge suite v2, all 264 cases, 1 pass (`suite-006ae3961f390f5f`, KEEP) | gemini-3.8-flash | 2,143,050 / 214,003 | 5.30 |
+| | | gemini-4-argon | 354,282 / 17,330 | 1.94 |
+| | **Total so far** | | | **14.50** |
 
 Prices: Vertex AI billing catalog, regional (eu) online text: flash 1.65 / 8.25 USD per M tokens in / out, argon 4.40
 / 22.00 (thinking tokens count as output). A full 1-pass suite run is about 7 USD and 35 minutes (argon is slow).

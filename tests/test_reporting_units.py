@@ -129,3 +129,36 @@ def test_slack_client_errors_are_one_class(monkeypatch):
     with pytest.raises(AnalyzerError):
         slack.reactions("C1", "1.1")
     assert messages.acknowledged("U1", DAY).startswith(":white_check_mark: Acknowledged by <@U1> on 2026-10-28")
+
+
+def test_reference_noise_is_the_larger_of_chance_and_spread():
+    from conversation_analyzer.reporting.anomaly import Day, reference
+
+    days = [Day(date(2026, 9, d), 0.8, 80.0, 100.0, 100) for d in range(1, 20)]
+    ref = reference(days, 100)
+    assert ref.value == pytest.approx(0.8) and ref.noise == pytest.approx((0.8 * 0.2 / 100) ** 0.5)
+    spread = [Day(date(2026, 9, d), 0.7 + 0.1 * (d % 2), 0.0, 100.0, 100) for d in range(1, 20)]
+    assert reference(spread, 100_000).noise > 0.04  # the days vary more than chance explains
+    assert reference(days[:5], 100) is None  # fewer than 14 reference days
+    assert reference([Day(date(2026, 9, d), 0.0, 0.0, 100.0, 100) for d in range(1, 20)], 100) is None
+
+
+def test_anchor_set_follows_traffic_with_a_minimum_per_data_store():
+    from conversation_analyzer.reporting.weekly import anchor_set, monday, quarter_start
+
+    docs = [
+        {"doc_id": "a", "data_store": "rtb-crj-hr-house", "uri": None, "n_cited": 90, "n_retrieved": 10},
+        {"doc_id": "b", "data_store": "rtb-crj-hr-house", "uri": None, "n_cited": 50, "n_retrieved": 50},
+        {"doc_id": "c", "data_store": "rtb-crj-biztech", "uri": None, "n_cited": 2, "n_retrieved": 0},
+    ]
+    out = {d["doc_id"]: d["n_questions"] for d in anchor_set(docs, date(2026, 10, 1), date(2026, 10, 5))}
+    assert out == {"a": 198, "b": 198, "c": 20}
+    assert anchor_set([{**docs[0], "n_cited": 0, "n_retrieved": 0}], date(2026, 10, 1), date(2026, 10, 5)) == []
+    assert quarter_start(date(2026, 12, 31)) == date(2026, 10, 1) and monday(date(2026, 10, 25)) == date(2026, 10, 19)
+
+
+def test_digest_without_data_says_so():
+    text = messages.digest(DAY, {}, [], [], [], [], [], [], None)
+    for line in ("*Top problem clusters*", "none", "none with enough turns", "nothing", "none this week"):
+        assert line in text
+    assert messages.value("VOLUME", 12.0) == "12.0" and messages.value("AQR_RAW", None) == "n/a"

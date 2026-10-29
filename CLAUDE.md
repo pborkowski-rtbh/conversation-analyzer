@@ -39,7 +39,8 @@ src/conversation_analyzer/
                        stage 2, session grades
   docs/                content bucket reader, embedder, document index search
   assessor/            sessions/segments, stored state, canary, the assessment run
-  reporting/           monitor, daily, weekly, record, alerts
+  reporting/           monitor, daily (changes, completeness, metrics, anomaly, release, judge_quality),
+                       weekly (clusters, documents, eval sets, digest), record, messages, slack
   suite/               judge test suite runner and keep rule
   devtools/            synthetic log rows and the demo scenario (emulator only)
 docker/stubs/server.py Slack, GitHub and Cloud Run stubs for local runs
@@ -53,11 +54,27 @@ aiel-content-indexers/ git submodule (branch AIENGLAB-782): the doc-index sink (
 make install          # uv sync (pulls the spaCy lg models, ~1 GB)
 make up               # emulator :9050, fake GCS :4443, stubs :8088, then db-init
 make demo             # reset, seed the synthetic scenario, run every job once
-make test             # all tests except paid ones (~5 min; needs make up)
+make test             # all tests except paid ones (~10 min; needs make up)
 make coverage         # same with branch coverage; fails under 90 %
 make lint / make fmt
+make suite-coverage   # suite cases against the §11.1 scenario minimums (no judge)
+make suite LIMIT=20   # the suite runner with the fake judge (free)
+make pii-eval         # PII scrubber recall on the synthetic Polish/English set (§6.12)
 make help             # every target
 ```
+
+## Judge test suite (§11)
+
+- Cases: `suite_cases/cases/*.yaml` (drafted, `reviewed: false` until an engineer checks them), corpus in
+  `suite_cases/documents.yaml`, weights and minimums in `suite_cases/suite.yaml`. Any change there is a new suite
+  version, and the next full run of it is a new BASELINE.
+- `tests/test_suite.py` runs an oracle judge (every form filled with the expected values) over all cases: it must stay
+  at distance 0, so a case whose expected form contradicts the deterministic rules fails the tests.
+- Never look at held-out cases (`part: HELD_OUT`) while tuning a judge version.
+- A judge change: copy `judge_versions/vN` to a new directory, edit, run `make suite-live JUDGE_VERSION=vN+1`
+  (paid, ~7 USD and ~35 min per pass; log it in plan.md). The run prints KEEP or REJECT (§11.3). The local
+  emulator forgets runs on reset: load the baseline row back from `suite_reports/<run>.json` first.
+- Reports in `suite_reports/` (gitignored) hold per-case field distances and the judge's codes (no text).
 
 Single test: `uv run pytest -q -p no:logging --no-cov tests/test_assessor_e2e.py::test_segments`.
 The tests load `local.env` themselves; for `uv run ca ...` by hand run `set -a; . ./local.env; set +a` first.

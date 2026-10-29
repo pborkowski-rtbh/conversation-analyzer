@@ -44,6 +44,7 @@ class SynthTurn:
     spans: list[tuple[str, list[int]]] = field(default_factory=list)  # (text in the answer, reference indices)
     feedback: str | None = None  # LIKE or DISLIKE
     feedback_minutes_ago: float | None = None
+    question_index: int = 0  # the feedback record's position of the question in the session, counted from 0
     state: str = "SUCCEEDED"
     erased: bool = False  # past the anonymizer: answer, session ID and identity are gone
     engine: str | None = None
@@ -126,7 +127,7 @@ def turn_rows(t: SynthTurn, now: datetime) -> list[dict[str, Any]]:
                             "conversationInfo": {
                                 "session": f"{engine}/sessions/{t.session_id}",
                                 "assistToken": t.assist_token,
-                                "questionIndex": 0,
+                                "questionIndex": t.question_index,
                             },
                         },
                     }

@@ -17,7 +17,7 @@ from conversation_analyzer import safe_log
 from conversation_analyzer.assessor import canary as canary_mod
 from conversation_analyzer.assessor import state as state_mod
 from conversation_analyzer.assessor.sessions import Segment, TurnPlace, plan_session
-from conversation_analyzer.bq.client import write
+from conversation_analyzer.bq.client import query, tbl, write
 from conversation_analyzer.bq.schema import (
     CANARY_RESULTS,
     JUDGE_CHECKS,
@@ -62,6 +62,7 @@ from conversation_analyzer.vocab import (
     TurnStatus,
 )
 
+FEEDBACK_DAYS = 30  # a feedback record stays in the log this long (§2.1)
 SECOND_MODEL_FIELDS = {
     FormField.INTENT: "intent",
     FormField.TOPIC: "topic",
@@ -848,9 +849,11 @@ class AssessmentRun:
             "feedback_cutoff": feedback_cutoff,
         }
 
-    def feedback_counts(self, states: list[TurnState], since: datetime) -> None:
+    def feedback_counts(self, states: list[TurnState], since: datetime) -> list[dict[str, Any]]:
+        """Feedback in the window is matched in memory; later it is counted, or found by session and position."""
         assert self.window is not None
         in_window = {ts.turn.assist_token for ts in states if ts.turn.assist_token}
+        late = []
         for fb in self.window.feedback:
             if fb.timestamp <= since:
                 continue
@@ -858,6 +861,29 @@ class AssessmentRun:
                 self.counters.add("feedback_matched")
             else:
                 self.counters.add("feedback_after_window")
+                late.append(fb)
+        return self.late_feedback(late) if self.s.timing.feedback_after_window_fallback else []
+
+    def late_feedback(self, feedback: list[Feedback]) -> list[dict[str, Any]]:
+        """Stored turn rows with the thumbs and reason codes of feedback that came after the window."""
+        wanted = {
+            (fb.session_key, fb.question_index + 1): fb  # the log counts questions from 0, our positions from 1
+            for fb in feedback
+            if fb.session_key and fb.question_index is not None and fb.thumbs
+        }
+        if not wanted:
+            return []
+        rows = query(
+            f"SELECT * FROM {tbl(QUALITY_TURNS)} WHERE day >= @since AND session_key IN UNNEST(@keys)",
+            since=self.today - timedelta(days=FEEDBACK_DAYS),
+            keys=sorted({k for k, _ in wanted}),
+        )
+        out = []
+        for r in rows:
+            fb = wanted.get((r["session_key"], r["position_in_session"]))
+            if fb is not None:
+                out.append({**r, "feedback_thumbs": fb.thumbs.value, "feedback_reasons": [x.value for x in fb.reasons]})
+        return out
 
     # ------------------------------------------------------------------ the run
 
@@ -875,13 +901,14 @@ class AssessmentRun:
             stored = state_mod.load(sorted({t.session_key for t in self.window.turns}), self.today)
             stored.versions = run_info.versions
             states = self.plan(stored)
-            self.feedback_counts(states, feedback_since)
+            late_feedback = self.feedback_counts(states, feedback_since)
             self.phase1(states, stored)
             self.phase2(states)
             self.flags(states, stored)
             self.phase3(states, stored)
             self.run_canary(states)
             self.write_all(states, stored)
+            write(QUALITY_TURNS, late_feedback)
             record = self.run_record(states, RunStatus.OK, None, search_cutoff, feedback_cutoff)
         except Exception as exc:
             error_class = classify(exc)  # the job wrapper reports it to Sentry

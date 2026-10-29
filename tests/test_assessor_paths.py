@@ -8,6 +8,7 @@ import pytest
 
 from conversation_analyzer.assessor import run as run_mod
 from conversation_analyzer.assessor.run import run
+from conversation_analyzer.bq.external import AUDIT_LOGS
 from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, SEGMENTS, SESSION_GRADES, STAGE1_RESULTS
 from conversation_analyzer.devtools import scenario
 from conversation_analyzer.devtools.synthetic import SynthTurn, insert_log, turn_rows
@@ -178,3 +179,36 @@ def test_feedback_for_a_turn_outside_the_window_is_counted(clean):
     )
     record = assess()
     assert record["feedback_after_window"] == 1 and record["feedback_matched"] == 1
+
+
+def test_feedback_after_the_window_reaches_its_turn_when_switched_on(clean, monkeypatch):
+    seed([SynthTurn("W3", 20, "How many leave days?", "Four."), SynthTurn("W3", 15, "And sick days?", "Ask HR.")])
+    assess()
+    stored = {r["position_in_session"]: r for r in rows(QUALITY_TURNS)}
+    assert stored[2]["feedback_thumbs"] is None
+    later = NOW + timedelta(hours=5)  # both turns erased; the user dislikes the second answer
+
+    def dislike(at: datetime) -> None:
+        turn = SynthTurn(
+            "W3",
+            300,
+            "And sick days?",
+            "Ask HR.",
+            erased=True,
+            feedback="DISLIKE",
+            feedback_minutes_ago=2,
+            question_index=1,
+        )
+        insert_log([r for r in turn_rows(turn, at) if r["methodName"] != "StreamAssist"])
+
+    wipe(AUDIT_LOGS)
+    dislike(later)
+    monkeypatch.setattr(get_settings().timing, "feedback_after_window_fallback", False)
+    assert assess(now=later)["feedback_after_window"] == 1  # only counted
+    assert {r["position_in_session"]: r["feedback_thumbs"] for r in rows(QUALITY_TURNS)} == {1: None, 2: None}
+    monkeypatch.setattr(get_settings().timing, "feedback_after_window_fallback", True)
+    dislike(later + timedelta(minutes=10))  # each run reads only the feedback that arrived since the last one
+    assess(now=later + timedelta(minutes=10))
+    after = {r["position_in_session"]: r for r in rows(QUALITY_TURNS)}
+    assert after[2]["feedback_thumbs"] == "DOWN" and after[2]["feedback_reasons"] == ["INACCURATE", "UNRECOGNIZED"]
+    assert after[1]["feedback_thumbs"] is None and after[2]["status"] == stored[2]["status"]
