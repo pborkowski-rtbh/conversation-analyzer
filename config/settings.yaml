@@ -1,0 +1,185 @@
+# All settings of the Conversation Analyzer, kept in one place (design-doc.md §12.14).
+# Environment-specific values (endpoints, projects, tokens) come from environment variables, see settings.py.
+
+project: rtbhouse-agentspace
+
+# --- Secret Manager (§12.2, §12.4): only the assessor reads these ---
+secrets:
+  project: rtbhouse-agentspace
+  hash_key: quality-hash-key
+  content_project: rtbhouse-agentspace
+  content_key: mcp-content-encryption-key
+  content_salt: mcp-content-encryption-salt
+
+# --- Datasets (§12.10) ---
+datasets:
+  log: analytics                       # Google's activity log export (read only)
+  turns: bolek_quality_turns
+  metrics: bolek_quality_metrics
+  log_views: bolek_quality_log_views
+  doc_index: bolek_quality_doc_index
+  evals: aiel_evals
+log_table: audit_logs
+ge_metrics_table: ge_metrics
+
+# --- Production engine and traffic (§2.1, §3.2, §12.6) ---
+production_engine: gemini-enterprise-rtbh-pro_1760602066633
+evaluator:
+  prompt_prefix: "Provide concise, focused answers"   # matched after LTRIM, the prompt starts with a newline
+  question_marker: "\n\nQuestion: "
+  accounts: []                                         # principals of the evaluator, e.g. "user:evaluator@rtbhouse.com"
+
+# --- Canary (§11.4) ---
+canary:
+  planted_share: 0.25                  # share of canary turns that also get planted-error copies (6 extra judge calls each)
+
+# --- Timing (§2.2, §2.3, §5.2, §12.3, §12.6, §12.12) ---
+timing:
+  eligible_after_minutes: 5
+  hard_limit_minutes: 210              # 3h30: missed, forced segment close, last late trigger
+  assessment_target_minutes: 180       # turn waiting longer than 3 hours alerts
+  segment_idle_close_minutes: 30
+  window_read_minutes: 270             # read the last 4h30 of the log
+  window_alert_minutes: 225            # alert when the oldest answer still in the log is younger than 3h45
+  stop_new_calls_after_seconds: 420    # 7 minutes
+  run_time_limit_seconds: 540          # 9 minutes
+  no_run_alert_minutes: 25
+  feedback_after_window_fallback: false  # §12.5: switched on only after the numbering check (§12.17)
+
+# --- Sizes (§5.3, §6.3, §6.9, §7.2) ---
+sizes:
+  too_large_chars: 50000
+  context_chars: 60000
+  document_chars: 20000                # cap per document read by the evidence check and stage 2
+  evidence_check_documents: 3
+  stage2_found_documents: 5           # documents found by stage 2's own search that it reads
+  search_top_k: 10
+  stage2_max_claims: 3
+
+# --- Pace check (§8.2) ---
+pace:
+  max_turns: 10
+  window_minutes: 10
+
+# --- Judge (§2.2, §6.3, §6.11, §11.5, §12.12, §12.14) ---
+judge:
+  location: eu                          # EU multi-region, never global
+  allowed_locations: [eu, europe-west1, europe-west3, europe-west4, europe-central2, europe-north1, europe-southwest1, europe-west8, europe-west9]
+  vertex_project: rtb-ai-engineering-indexers
+  current_version: v1
+  previous_version: null                # set during a parallel run
+  parallel_run_until: null              # last day (UTC) of the parallel run, 5 weekdays after the change
+  concurrency: 8
+  max_retries: 6
+  retry_base_seconds: 2.0
+  second_model_share: 0.05
+  daily_token_limit: 60000000
+
+# --- Embeddings for the document index (§12.2, §12.7) ---
+embedding:
+  model: text-multilingual-embedding-002
+  location: europe-west4
+  dimensions: 768
+  chunk_chars: 2000
+  chunk_overlap_chars: 200
+
+# --- Metrics (§8) ---
+metrics:
+  min_slice_size: 20
+  go_live_day: null                     # first day of assessment; the baseline is the 4 weeks after it
+  baseline_weeks: 4
+  coverage_target: 0.98
+  anomaly:
+    jump_noise_levels: 3.0
+    cusum_slack: 0.5
+    cusum_limit: 4.0
+    reference_days: 28
+    min_reference_days: 14
+    min_day_turns: 100
+    change_event_lookback_hours: 48
+  release_impact:
+    weekdays: 5
+    z: 1.96
+  log_gap:
+    reference_weeks: 4
+    min_ratio: 0.3                      # an hour with fewer than 30 % of its usual records is a gap
+    min_expected: 5                     # hours that usually have fewer records are not checked
+
+# --- Strata of standardized AQR (§8.4, §8.9). Provisional, frozen when the baseline starts. ---
+strata:
+  intent_families:
+    FACT: [FACT_LOOKUP, DATA_QUESTION]
+    PROCEDURE: [HOW_TO, TROUBLESHOOTING]
+    PEOPLE: [PEOPLE_LOOKUP]
+    TASK: [GENERAL_TASK, CHITCHAT, OTHER]
+  data_store_families:
+    ENGINEERING: [CONFLUENCE, BIZTECH, API_DOCS, BQ_DOCS, APP_HINTS, TRAFFIC_WIKI, DOC_REPO]
+    COMPANY: [HR_HOUSE, HELPDESK_QA, INHOUSE, KNOWHOW, ABOUT_BOLEK]
+    DRIVE: [GOOGLE_DRIVE]
+    NONE: [OTHER]
+
+# --- Alerts, clusters, digest (§9) ---
+alerts:
+  high_alert_bar: 1                     # HIGH failures in a cluster after a run that make an alert (§9.4)
+  quality_channel: "#bolek-quality"
+  alerts_channel: "#aiel-alerts"
+  ack_emoji: white_check_mark
+clusters:
+  severity_weights: {HIGH: 3, MEDIUM: 2, LOW: 1}
+  top_n: 10
+  trend_weeks: 4
+  close_ratio: 0.25
+  close_weeks: 2
+  reliability_threshold: 0.70           # §11.3: a label is used in ranking and alerts only when found this often
+digest:
+  best_n: 5
+  growth_ratio: 2.0                     # "suddenly cited much more", "fast-growing topic"
+
+# --- Verification (§10) ---
+eval_documents:
+  anchor_questions: 400
+  anchor_min_per_data_store: 20
+  focus_questions_per_cluster: 15
+
+# --- GitHub sources of change events (§12.9) ---
+github:
+  repositories: [RTBHouse-OEET/aiel-infrastructure]
+  paths: [modules/agentspace]
+  cluster_ref_pattern: "cluster:([0-9a-f]{12})"
+indexer_jobs:
+  project: rtbhouse-agentspace
+  location: europe-west4
+  name_prefix: indexer-
+engine_change_methods: [UpdateEngine, UpdateAssistant, UpdateDataStore, CreateDataStore, DeleteDataStore, UpdateAgent, CreateAgent, DeleteAgent, UpdateDataConnector, SetUpDataConnector, UpdateServingConfig]
+
+# --- Data stores (§2.1, §6.10, §12.7). Topic = one per data store, plus OTHER. ---
+content_bucket: rtbhouse-agentspace-mcp-document-content   # written by the Cloud Run indexers (infrastructure/terraform/rtbhouse-agentspace)
+# The production engine's data stores (aiel-infrastructure/modules/agentspace-engines, prod engine).
+data_stores:
+  - {id: rtb-crj-confluence, topic: CONFLUENCE, hosts: [rtbhouseproduct.atlassian.net], has_content: true}
+  - {id: rtb-crj-knowhow, topic: KNOWHOW, hosts: [knowhow.rtbhouse.com], has_content: true}
+  - {id: rtb-crj-biztech, topic: BIZTECH, hosts: [biztech.rtbhouse.com], has_content: true}
+  - {id: rtb-crj-traffic-wiki, topic: TRAFFIC_WIKI, hosts: [traffic-wiki.rtbhouse.biz], has_content: true}
+  - {id: rtb-crj-inhouse, topic: INHOUSE, hosts: [inhouse.rtbhouse.net], has_content: true}
+  - {id: rtb-crj-helpdesk-qa, topic: HELPDESK_QA, hosts: [sites.google.com], path_prefix: /rtbhouse.com/hdqa, has_content: true}
+  - {id: rtb-crj-hr-house, topic: HR_HOUSE, hosts: [sites.google.com], path_prefix: /rtbhouse.com/hr-house, has_content: true}
+  - {id: rtb-crj-app-hints, topic: APP_HINTS, hosts: [api.apps-tools.rtbhouse.biz], has_content: true}
+  - {id: rtb-crj-about-bolek, topic: ABOUT_BOLEK, hosts: [about.bolek.rtbhouse.net], has_content: true}
+  - {id: rtb-crj-api-docs, topic: API_DOCS, hosts: [api.rtbhouse.com, panel.rtbhouse.com], has_content: true}
+  - {id: rtb-crj-doc-repo, topic: DOC_REPO, hosts: [docrepo.rtbhouse.biz], has_content: true}
+  - {id: rtb-crj-bq-documentation, topic: BQ_DOCS, hosts: [console.cloud.google.com], has_content: true}
+  - {id: gdrive_collection_22062025_google_drive, topic: GOOGLE_DRIVE, hosts: [drive.google.com, docs.google.com], has_content: false}
+people_directory:
+  data_store_ids: [rtb-crj-associates]
+  data_store_prefixes: [people-connections_]
+  doc_id_prefixes: [associate-]
+  uri_schemes: [mailto]
+
+# --- PII scrubbing (§6.3, §12.13) ---
+pii:
+  spacy_models: {en: en_core_web_lg, pl: pl_core_news_lg}
+  company_email_domains: [rtbhouse.com, adlook.com]
+  score_threshold: 0.5
+  phone_regions: [PL, US, GB, DE, FR, ES, IT, NL, JP, SG]
+  employee_id_patterns: ['\b(?:EMP|RTB)[-_ ]?\d{4,7}\b']   # format to be confirmed with HR
+  allow_list: [Bolek, Lolek, Gemini, Gemini Enterprise, RTB House, Adlook, Confluence, Slack, Google, BigQuery, Jira]

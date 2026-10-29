@@ -1,0 +1,3 @@
+[submodule "aiel-content-indexers"]
+	path = aiel-content-indexers
+	url = git@github.com:RTBHouse-OEET/aiel-content-indexers.git
