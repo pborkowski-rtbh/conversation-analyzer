@@ -27,9 +27,11 @@ The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-
 1. Done (session 5): `make coverage` 228 tests, 98.10 % (15 min). One flaky test fixed: suite run IDs had seconds +
    random suffix, so "latest run" was random for two runs in one second; IDs now carry microseconds after the seconds.
 2. `make build`: NOT run, by the user's rule: no local docker image builds. Leave it to CI or the user.
-3. Requirement sweep of design-doc.md against the code, section by section (four read-only agents started in session
-   5): §1-5 + §12.5-12.6; §6-7; §8-10 + §12.8-12.9; §11 + §12.1-4, 12.7, 12.10-17.
+3. Requirement sweep of design-doc.md against the code, section by section (done by hand in session 5; the agents
+   were stopped): [x] §1-5 + §12.5-12.6; [x] §6-7; [ ] §8-10 + §12.8-12.9; [ ] §11 + §12.1-4, 12.7, 12.10-17.
    For each gap: fix it or add a row to the deviations table below. Spec says "nothing less, nothing more".
+   Found so far: KNOWLEDGE_GAP was not shown with its miss rate (§7.5, §11.4); the digest now prints the week's
+   canary miss rate on every KNOWLEDGE_GAP cluster.
 4. Final: CLAUDE.md complete, `make help` lists every target (checked, all have descriptions), commit and push both
    repos (the submodule is unchanged).
 

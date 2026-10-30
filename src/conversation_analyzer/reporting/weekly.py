@@ -14,6 +14,7 @@ from conversation_analyzer.bq.schema import (
     CHANGE_EVENTS,
     DOCUMENT_STATS,
     EVAL_DOCUMENTS,
+    JUDGE_QUALITY,
     METRICS_DAILY,
     PROBLEM_CLUSTERS,
     RELEASE_IMPACT,
@@ -33,6 +34,7 @@ from conversation_analyzer.vocab import (
     ClusterState,
     EvalSet,
     FailureCode,
+    JudgeMeasure,
     ReleaseVerdict,
     Severity,
     SliceKind,
@@ -359,6 +361,16 @@ WHERE computed_day BETWEEN @a AND @b AND metric = 'AQR_STANDARDIZED' AND channel
             a=self.week,
             b=self.last,
         )
+        # The week's canary miss rate, reported with every KNOWLEDGE_GAP cluster (§7.5, §11.4).
+        miss = query(
+            f"""
+SELECT SUM(value * n) AS missed, SUM(n) AS n FROM {tbl(JUDGE_QUALITY)}
+WHERE measure = @m AND day BETWEEN @a AND @b""",
+            m=JudgeMeasure.KNOWLEDGE_GAP_MISS_RATE.value,
+            a=self.week,
+            b=self.last,
+        )
+        gap_miss_rate = miss[0]["missed"] / miss[0]["n"] if miss and miss[0]["n"] else None
         return messages.digest(
             self.week,
             trend,
@@ -370,6 +382,7 @@ WHERE computed_day BETWEEN @a AND @b AND metric = 'AQR_STANDARDIZED' AND channel
             releases,
             gates,
             self.baseline_top_turns(),
+            gap_miss_rate,
         )
 
     def topic_aqr(self) -> list[dict[str, Any]]:
