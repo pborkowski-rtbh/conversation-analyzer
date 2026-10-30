@@ -1,7 +1,7 @@
 # Local development and tests. Everything runs against the docker compose stack (BigQuery emulator, fake GCS,
 # stubs for Slack, GitHub and Cloud Run); the only paid targets are suite-live and index-local with EMBED=vertex.
 SHELL := /bin/bash
-COMPOSE ?= docker-compose
+COMPOSE ?= $(if $(shell command -v docker-compose),docker-compose,docker compose)
 UV ?= uv
 IMAGE ?= conversation-analyzer:local
 ENV := set -a && . ./local.env && set +a &&

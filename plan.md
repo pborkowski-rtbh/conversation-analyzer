@@ -4,7 +4,7 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-29, session 4)
+## Status (2026-10-30, session 5)
 
 - Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
   2b92f03). Both pushed; the submodule is unchanged since session 2 (48dc7ad).
@@ -20,14 +20,14 @@ unchecked item of the current milestone.
 
 ## Next steps, in order
 
-State at the end of session 4: everything below "Status" is in the working tree and committed in the "session 4" commit.
-The full `make coverage` was killed mid-run, so it has NOT been run on the session-4 changes (unit tests and the
-monitor, weekly, suite_run and assessor_e2e modules passed).
+Session 5 (2026-10-30, branch `AIENGLAB-782_v2`, fresh clone: `uv sync`, `git submodule update --init`, stack started).
+The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-compose` is missing. `make lint` and
+`make test-unit` pass.
 
-1. `make coverage` (~10 min, needs `make up`): must pass at > 90 %. Fix whatever fails.
-2. `make build` (never run: the job image `conversation-analyzer:local`); fix the Dockerfile if it fails.
-3. Requirement sweep of design-doc.md against the code, section by section (an earlier attempt with four read-only
-   agents was stopped before it reported): §1-5 + §12.5-12.6; §6-7; §8-10 + §12.8-12.9; §11 + §12.1-4, 12.7, 12.10-17.
+1. `make coverage` (~10 min, needs `make up`): must pass at > 90 %. Fix whatever fails. Started in session 5.
+2. `make build`: NOT run, by the user's rule: no local docker image builds. Leave it to CI or the user.
+3. Requirement sweep of design-doc.md against the code, section by section (four read-only agents started in session
+   5): §1-5 + §12.5-12.6; §6-7; §8-10 + §12.8-12.9; §11 + §12.1-4, 12.7, 12.10-17.
    For each gap: fix it or add a row to the deviations table below. Spec says "nothing less, nothing more".
 4. Final: CLAUDE.md complete, `make help` lists every target (checked, all have descriptions), commit and push both
    repos (the submodule is unchanged).
