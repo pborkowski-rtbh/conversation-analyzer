@@ -131,12 +131,16 @@ def _change(change_id: str | None) -> str:
     return f"`{change_id}`" if change_id and _EVENT_ID.match(change_id) else "a change"
 
 
-def _cluster(c: dict[str, Any]) -> str:
+def _cluster(c: dict[str, Any], gap_miss_rate: float | None = None) -> str:
     where = f"{c['data_store']} document {c['doc_id']}" if c["doc_id"] else f"topic {c['topic']}"
     link = f" <{c['uri']}|link>" if c.get("uri") else ""
     trend_text = f"x{c['trend']:.1f}" if c.get("trend") else "new"
+    gap = ""
+    if c["primary_failure"] == "KNOWLEDGE_GAP":  # rests on not finding something: shown with the search's miss rate
+        missed = "not measured" if gap_miss_rate is None else f"{gap_miss_rate:.0%} of canary questions"
+        gap = f", search miss rate {missed}"
     return (
-        f"`{c['primary_failure']}` {where}{link}: {turns(c['n_turns'])} ({c['n_high']} HIGH), {trend_text}, "
+        f"`{c['primary_failure']}` {where}{link}: {turns(c['n_turns'])} ({c['n_high']} HIGH), {trend_text}{gap}, "
         f"owner {c['owner']}, `{c['cluster_id']}`"
     )
 
@@ -152,6 +156,7 @@ def digest(
     releases: list[dict[str, Any]],
     gates: list[dict[str, Any]],
     baseline_top_turns: int | None,
+    gap_miss_rate: float | None = None,
 ) -> str:
     """The Monday digest (§9.2): derived values only, documents by ID and allowlisted link."""
     lines = [f":bar_chart: *Bolek quality digest*, week of {week.isoformat()}", "*AQR (standardized)*"]
@@ -159,10 +164,10 @@ def digest(
         t = trend[channel]
         lines.append(f"• {channel}: {value('AQR', t.get('now'))} (4 weeks before: {value('AQR', t.get('before'))})")
     lines.append("*Top problem clusters* (turns this week; trend against the 4 weeks before; owner)")
-    lines += [f"{c['rank']}. {_cluster(c)}" for c in clusters] or ["none"]
+    lines += [f"{c['rank']}. {_cluster(c, gap_miss_rate)}" for c in clusters] or ["none"]
     if experimental:
         lines.append("*Experimental labels* (not ranked: the judge test suite has not shown that the judge finds them)")
-        lines += [f"• {_cluster(c)}" for c in experimental]
+        lines += [f"• {_cluster(c, gap_miss_rate)}" for c in experimental]
     lines.append("*Best documents*")
     lines += [
         f"• {d['data_store']} document {d['doc_id']}"

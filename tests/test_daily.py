@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from conversation_analyzer.bq.client import client, query, tbl, write
-from conversation_analyzer.bq.external import EVAL_RESULTS
+from conversation_analyzer.bq.external import EVAL_GATE_RESULTS, EVAL_RESULTS
 from conversation_analyzer.bq.schema import (
     ACKNOWLEDGEMENTS,
     ANOMALIES,
@@ -391,9 +391,19 @@ def test_release_impact_verdicts(clean):
     )
     write(METRICS_DAILY, series_rows("FAILURE_RATE_CONTRADICTED_CLAIM", [(d, 0.05) for d in before + after], n=2000))
     eid = record("PROMPT", str(change), 10, None, None, [])
+    s = get_settings()
+    client().insert_rows_json(  # the gate's latest verdict on the change is shown with it; other values never
+        f"{s.env.bq_project}.{s.datasets.evals}.{EVAL_GATE_RESULTS.name}",
+        [
+            {"change_id": eid, "verdict": "FAIL", "created_at": f"{change}T08:00:00Z"},
+            {"change_id": eid, "verdict": "PASS", "created_at": f"{change}T09:00:00Z"},
+            {"change_id": eid, "verdict": "free text", "created_at": f"{change}T10:00:00Z"},
+        ],
+    )
     out = {(r["metric"], r["channel"]): r for r in release.impact(DAY, DAY)}
     aqr = out[("AQR_STANDARDIZED", "ALL")]
     assert aqr["event_id"] == eid and aqr["verdict"] == "IMPROVED" and aqr["diff"] == pytest.approx(0.10)
+    assert aqr["gate_verdict"] == "PASS" and release.gate_verdicts([]) == {}
     assert aqr["same_judge"] and aqr["n_before"] == 10000
     assert out[("FAILURE_RATE_CONTRADICTED_CLAIM", "ALL")]["verdict"] == "NO_DETECTABLE_CHANGE"
     assert out[("AQR_STANDARDIZED", "WEB_UI")]["verdict"] == "WAITING"  # no web UI days stored

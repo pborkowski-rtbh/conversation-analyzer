@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import time
@@ -41,7 +42,8 @@ def _emulator_latency() -> float:
 
 def _restart_emulator() -> None:
     """The emulator slows down as its job history grows; a restart empties it (and every table)."""
-    subprocess.run(["docker-compose", "restart", "bigquery"], cwd=ROOT, check=True, capture_output=True)
+    compose = ["docker-compose"] if shutil.which("docker-compose") else ["docker", "compose"]
+    subprocess.run([*compose, "restart", "bigquery"], cwd=ROOT, check=True, capture_output=True)
     for _ in range(60):
         if _up(9050):
             break

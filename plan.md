@@ -4,7 +4,7 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-29, session 4)
+## Status (2026-10-30, session 5)
 
 - Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
   2b92f03). Both pushed; the submodule is unchanged since session 2 (48dc7ad).
@@ -15,22 +15,28 @@ unchecked item of the current milestone.
   below 70 % recall (experimental). Cases that look like drafting mistakes, for the engineer review:
   `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
   judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
-- Tests: `make coverage` (~10 min), `make test-unit` 3 s.
+- Tests: `make coverage` (~15 min, 98.37 %, 229 tests), `make test-unit` 10 s.
 - Paid Vertex spend: **14.51 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
 
-State at the end of session 4: everything below "Status" is in the working tree and committed in the "session 4" commit.
-The full `make coverage` was killed mid-run, so it has NOT been run on the session-4 changes (unit tests and the
-monitor, weekly, suite_run and assessor_e2e modules passed).
+Session 5 (2026-10-30, branch `AIENGLAB-782_v2`, fresh clone: `uv sync`, `git submodule update --init`, stack started).
+The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-compose` is missing. `make lint` and
+`make test-unit` pass.
 
-1. `make coverage` (~10 min, needs `make up`): must pass at > 90 %. Fix whatever fails.
-2. `make build` (never run: the job image `conversation-analyzer:local`); fix the Dockerfile if it fails.
-3. Requirement sweep of design-doc.md against the code, section by section (an earlier attempt with four read-only
-   agents was stopped before it reported): §1-5 + §12.5-12.6; §6-7; §8-10 + §12.8-12.9; §11 + §12.1-4, 12.7, 12.10-17.
-   For each gap: fix it or add a row to the deviations table below. Spec says "nothing less, nothing more".
-4. Final: CLAUDE.md complete, `make help` lists every target (checked, all have descriptions), commit and push both
-   repos (the submodule is unchanged).
+1. Done (session 5): `make coverage` 228 tests, 98.10 % (15 min). One flaky test fixed: suite run IDs had seconds +
+   random suffix, so "latest run" was random for two runs in one second; IDs now carry microseconds after the seconds.
+2. Done (session 5, on the user's request): `make build` builds the image (1.64 GB); see Final for the checks run in it.
+3. Requirement sweep of design-doc.md against the code, section by section (done by hand in session 5; the agents
+   were stopped): [x] §1-5 + §12.5-12.6; [x] §6-7; [x] §8-10 + §12.8-12.9; [x] §11 + §12.1-4, 12.7, 12.10-17.
+   Spot checks of every concrete rule (settings, closed lists, metrics, health checks, access rules, tables) against
+   the code. Gaps found and fixed: KNOWLEDGE_GAP was not shown with its miss rate (§7.5, §11.4): the digest prints
+   the week's canary miss rate on every KNOWLEDGE_GAP cluster; quality-daily did not read the release gate verdicts
+   (§12.11): `quality_release_impact.gate_verdict` now carries them for the dashboard. New deviation rows below:
+   gate verdicts, anchor set rotation, release impact slices. Schema change: `make db-reset` before local runs.
+4. Done (session 5) except the push: CLAUDE.md complete, `make help` lists every target, `make coverage` green at
+   98.37 % (229 tests). The submodule is unchanged (48dc7ad on `origin/AIENGLAB-782`); this repo's commits are on the
+   local branch `AIENGLAB-782_v2`, not pushed yet.
 
 Budget note: 9 USD of conversation budget left when this was written; paid Vertex spend is 14.51 of 50 USD (no further
 paid runs are needed for the steps above).
@@ -269,8 +275,13 @@ coverage, lint, fmt, build`.
 
 ## Final
 
-- [ ] `CLAUDE.md` complete; `make help` lists every target; `make test` + coverage green (green at 98.35 %)
-- [ ] Requirement sweep: re-read `design-doc.md` section by section against this plan
+- [x] `CLAUDE.md` complete; `make help` lists every target (26, all described); `make coverage` green: 229 tests,
+  98.37 % (session 5, after the sweep fixes)
+- [x] Requirement sweep: re-read `design-doc.md` section by section against this plan (session 5, see Next steps)
+- [x] `make build` (session 5, on the user's request): `conversation-analyzer:local`, 1.64 GB; offline in the
+  container `ca --help`, `quality-judge-suite --check` and `pii.evaluate` (recall 1.0) work, and `quality-assessor`
+  with `--network host` writes its run record on the emulator
+- [ ] Push of `AIENGLAB-782_v2` waits for the user
 
 ---
 
@@ -311,6 +322,9 @@ coverage, lint, fmt, build`.
 | Weekly | Clusters from the week's assessed turns (per-day metric judge version); trend = turns / mean of the 4 weeks before; a fixed cluster is followed through weeks without turns and closes after 2 weeks under 25 % of its 4-week level before the fix week. Anchor set once per quarter (traffic = cited + retrieved; at least 20 per data store with traffic); focus set per active cluster with a document, a knowledge gap once a DOCUMENT fix names it. Digest = AQR trend, top clusters, best documents and topics, unusual items, release verdicts, gate verdicts (only change IDs that look like event IDs), turns still in the baseline's top clusters. |
 | Feedback after window | Off by default; matches session key + position (`questionIndex` + 1) over 30 days and rewrites the stored turn row. |
 | Suite cases | Drafted by Claude from hand-made facts of the corpus (drafting script not kept: the YAML is the source and is reviewed by hand). Stage 2 of a turn whose only evidence is an earlier turn's references starts at question 3 (no cited documents), so its cause is RETRIEVAL_MISS. Span `refs` are 0-based like the log; the judge sees reference numbers from 1 (fixed in `render_turn`). |
+| Gate verdicts | `aiel_evals.gate_results.change_id` is expected to be our change event ID. quality-daily stores the latest `PASS`/`FAIL` per change in `quality_release_impact.gate_verdict` (the dashboard reads only `bolek_quality_metrics`); the digest lists the week's verdicts. Any other verdict value is ignored, so no evaluator text reaches Slack or the tables. |
+| Anchor set rotation | Anchor rows are keyed by quarter (`period`); the old quarter's rows stay, so the evaluator can run old and new sets side by side for 2 weeks (§10.1). Question checks (answerable, no duplicate, no people directory) are the evaluator's. |
+| Release impact slices | Measured on slice ALL per channel (web UI, Slack+MCP, all). The spec's "about 8 points for a data store with 15 % of the traffic" is read as a detection limit, not a per-data-store measurement. |
 
 ## Spend log (paid Vertex calls, cap 50 USD)
 

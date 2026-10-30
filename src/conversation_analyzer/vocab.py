@@ -383,6 +383,11 @@ class ReleaseVerdict(StrEnum):
     WAITING = "WAITING"
 
 
+class GateVerdict(StrEnum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+
+
 class ClusterState(StrEnum):
     ACTIVE = "ACTIVE"
     CLOSED = "CLOSED"
@@ -586,6 +591,7 @@ def all_closed_values() -> frozenset[str]:
         ChangeSource,
         ChangeKind,
         ReleaseVerdict,
+        GateVerdict,
         ClusterState,
         EvalSet,
         DayKind,
