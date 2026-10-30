@@ -608,6 +608,7 @@ RELEASE_IMPACT = Table(
         Col("confounding_events", "STRING", "id", "REPEATED"),
         b("same_judge"),
         d("computed_day"),
+        enum("gate_verdict"),  # the release gate's verdict on the change, from aiel_evals (§12.11)
     ),
     key=("event_id", "metric", "channel"),
     writer="daily",

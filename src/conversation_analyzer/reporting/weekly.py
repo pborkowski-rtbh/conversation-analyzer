@@ -34,6 +34,7 @@ from conversation_analyzer.vocab import (
     ClusterState,
     EvalSet,
     FailureCode,
+    GateVerdict,
     JudgeMeasure,
     ReleaseVerdict,
     Severity,
@@ -357,9 +358,12 @@ WHERE computed_day BETWEEN @a AND @b AND metric = 'AQR_STANDARDIZED' AND channel
             waiting=ReleaseVerdict.WAITING.value,
         )
         gates = query(
-            f"SELECT change_id, verdict FROM {fq('evals', 'gate_results')} WHERE DATE(created_at) BETWEEN @a AND @b",
+            f"""
+SELECT change_id, verdict FROM {fq("evals", "gate_results")}
+WHERE DATE(created_at) BETWEEN @a AND @b AND verdict IN UNNEST(@verdicts)""",
             a=self.week,
             b=self.last,
+            verdicts=[v.value for v in GateVerdict],
         )
         # The week's canary miss rate, reported with every KNOWLEDGE_GAP cluster (§7.5, §11.4).
         miss = query(

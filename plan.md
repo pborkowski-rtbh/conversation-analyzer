@@ -28,10 +28,12 @@ The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-
    random suffix, so "latest run" was random for two runs in one second; IDs now carry microseconds after the seconds.
 2. `make build`: NOT run, by the user's rule: no local docker image builds. Leave it to CI or the user.
 3. Requirement sweep of design-doc.md against the code, section by section (done by hand in session 5; the agents
-   were stopped): [x] §1-5 + §12.5-12.6; [x] §6-7; [ ] §8-10 + §12.8-12.9; [ ] §11 + §12.1-4, 12.7, 12.10-17.
-   For each gap: fix it or add a row to the deviations table below. Spec says "nothing less, nothing more".
-   Found so far: KNOWLEDGE_GAP was not shown with its miss rate (§7.5, §11.4); the digest now prints the week's
-   canary miss rate on every KNOWLEDGE_GAP cluster.
+   were stopped): [x] §1-5 + §12.5-12.6; [x] §6-7; [x] §8-10 + §12.8-12.9; [x] §11 + §12.1-4, 12.7, 12.10-17.
+   Spot checks of every concrete rule (settings, closed lists, metrics, health checks, access rules, tables) against
+   the code. Gaps found and fixed: KNOWLEDGE_GAP was not shown with its miss rate (§7.5, §11.4): the digest prints
+   the week's canary miss rate on every KNOWLEDGE_GAP cluster; quality-daily did not read the release gate verdicts
+   (§12.11): `quality_release_impact.gate_verdict` now carries them for the dashboard. New deviation rows below:
+   gate verdicts, anchor set rotation, release impact slices. Schema change: `make db-reset` before local runs.
 4. Final: CLAUDE.md complete, `make help` lists every target (checked, all have descriptions), commit and push both
    repos (the submodule is unchanged).
 
@@ -314,6 +316,9 @@ coverage, lint, fmt, build`.
 | Weekly | Clusters from the week's assessed turns (per-day metric judge version); trend = turns / mean of the 4 weeks before; a fixed cluster is followed through weeks without turns and closes after 2 weeks under 25 % of its 4-week level before the fix week. Anchor set once per quarter (traffic = cited + retrieved; at least 20 per data store with traffic); focus set per active cluster with a document, a knowledge gap once a DOCUMENT fix names it. Digest = AQR trend, top clusters, best documents and topics, unusual items, release verdicts, gate verdicts (only change IDs that look like event IDs), turns still in the baseline's top clusters. |
 | Feedback after window | Off by default; matches session key + position (`questionIndex` + 1) over 30 days and rewrites the stored turn row. |
 | Suite cases | Drafted by Claude from hand-made facts of the corpus (drafting script not kept: the YAML is the source and is reviewed by hand). Stage 2 of a turn whose only evidence is an earlier turn's references starts at question 3 (no cited documents), so its cause is RETRIEVAL_MISS. Span `refs` are 0-based like the log; the judge sees reference numbers from 1 (fixed in `render_turn`). |
+| Gate verdicts | `aiel_evals.gate_results.change_id` is expected to be our change event ID. quality-daily stores the latest `PASS`/`FAIL` per change in `quality_release_impact.gate_verdict` (the dashboard reads only `bolek_quality_metrics`); the digest lists the week's verdicts. Any other verdict value is ignored, so no evaluator text reaches Slack or the tables. |
+| Anchor set rotation | Anchor rows are keyed by quarter (`period`); the old quarter's rows stay, so the evaluator can run old and new sets side by side for 2 weeks (§10.1). Question checks (answerable, no duplicate, no people directory) are the evaluator's. |
+| Release impact slices | Measured on slice ALL per channel (web UI, Slack+MCP, all). The spec's "about 8 points for a data store with 15 % of the traffic" is read as a detection limit, not a per-data-store measurement. |
 
 ## Spend log (paid Vertex calls, cap 50 USD)
 

@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any
 
-from conversation_analyzer.bq.client import query, tbl
+from conversation_analyzer.bq.client import fq, query, tbl
 from conversation_analyzer.bq.schema import CHANGE_EVENTS, METRICS_DAILY
 from conversation_analyzer.reporting.metrics import CHANNELS
 from conversation_analyzer.settings import get_settings
@@ -15,6 +15,7 @@ from conversation_analyzer.vocab import (
     FAILURE_RATE_CODES,
     ChangeKind,
     DayKind,
+    GateVerdict,
     ReleaseVerdict,
     SliceKind,
     failure_rate_metric,
@@ -51,6 +52,20 @@ def _pooled(days: list[dict[str, Any]]) -> tuple[float | None, float]:
     return (sum(d["numerator"] or 0.0 for d in days) / den if den else None), den
 
 
+def gate_verdicts(event_ids: list[str]) -> dict[str, str]:
+    """The evaluator's latest release gate verdict per change event (§10.2, §12.11); other values are ignored."""
+    if not event_ids:
+        return {}
+    rows = query(
+        f"""
+SELECT change_id, verdict FROM {fq("evals", "gate_results")}
+WHERE change_id IN UNNEST(@ids) AND verdict IN UNNEST(@verdicts) ORDER BY created_at""",
+        ids=event_ids,
+        verdicts=[v.value for v in GateVerdict],
+    )
+    return {r["change_id"]: r["verdict"] for r in rows}
+
+
 def impact(day: date, computed: date) -> list[dict[str, Any]]:
     weekdays = get_settings().metrics.release_impact.weekdays
     events = query(
@@ -72,6 +87,7 @@ WHERE slice_kind = @all AND day_kind = @weekday AND NOT incomplete AND metric IN
     series: dict[tuple[str, str], dict[date, dict[str, Any]]] = defaultdict(dict)
     for r in rows:
         series[(r["metric"], r["channel"])][r["day"]] = r
+    gates = gate_verdicts([e["event_id"] for e in events])
     complete_days = sorted({r["day"] for r in rows})
     out = []
     for e in events:
@@ -97,6 +113,7 @@ WHERE slice_kind = @all AND day_kind = @weekday AND NOT incomplete AND metric IN
                     "change_day": e["day"],
                     "confounding_events": confounding,
                     "computed_day": computed,
+                    "gate_verdict": gates.get(e["event_id"]),
                 }
                 if len(b) < weekdays or len(a) < weekdays:
                     out.append({**row, "verdict": ReleaseVerdict.WAITING.value})
