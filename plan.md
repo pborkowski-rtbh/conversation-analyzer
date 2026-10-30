@@ -26,7 +26,7 @@ The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-
 
 1. Done (session 5): `make coverage` 228 tests, 98.10 % (15 min). One flaky test fixed: suite run IDs had seconds +
    random suffix, so "latest run" was random for two runs in one second; IDs now carry microseconds after the seconds.
-2. `make build`: NOT run, by the user's rule: no local docker image builds. Leave it to CI or the user.
+2. Done (session 5, on the user's request): `make build` builds the image (1.64 GB); see Final for the checks run in it.
 3. Requirement sweep of design-doc.md against the code, section by section (done by hand in session 5; the agents
    were stopped): [x] §1-5 + §12.5-12.6; [x] §6-7; [x] §8-10 + §12.8-12.9; [x] §11 + §12.1-4, 12.7, 12.10-17.
    Spot checks of every concrete rule (settings, closed lists, metrics, health checks, access rules, tables) against
@@ -278,8 +278,10 @@ coverage, lint, fmt, build`.
 - [x] `CLAUDE.md` complete; `make help` lists every target (26, all described); `make coverage` green: 229 tests,
   98.37 % (session 5, after the sweep fixes)
 - [x] Requirement sweep: re-read `design-doc.md` section by section against this plan (session 5, see Next steps)
-- [ ] `make build` never run (no local docker builds, by the user's rule); push of `AIENGLAB-782_v2` waits for the
-  user
+- [x] `make build` (session 5, on the user's request): `conversation-analyzer:local`, 1.64 GB; offline in the
+  container `ca --help`, `quality-judge-suite --check` and `pii.evaluate` (recall 1.0) work, and `quality-assessor`
+  with `--network host` writes its run record on the emulator
+- [ ] Push of `AIENGLAB-782_v2` waits for the user
 
 ---
 
