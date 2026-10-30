@@ -15,7 +15,7 @@ unchecked item of the current milestone.
   below 70 % recall (experimental). Cases that look like drafting mistakes, for the engineer review:
   `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
   judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
-- Tests: `make coverage` (~15 min, 98.10 %), `make test-unit` 10 s.
+- Tests: `make coverage` (~15 min, 98.37 %, 229 tests), `make test-unit` 10 s.
 - Paid Vertex spend: **14.51 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
@@ -34,8 +34,9 @@ The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-
    the week's canary miss rate on every KNOWLEDGE_GAP cluster; quality-daily did not read the release gate verdicts
    (§12.11): `quality_release_impact.gate_verdict` now carries them for the dashboard. New deviation rows below:
    gate verdicts, anchor set rotation, release impact slices. Schema change: `make db-reset` before local runs.
-4. Final: CLAUDE.md complete, `make help` lists every target (checked, all have descriptions), commit and push both
-   repos (the submodule is unchanged).
+4. Done (session 5) except the push: CLAUDE.md complete, `make help` lists every target, `make coverage` green at
+   98.37 % (229 tests). The submodule is unchanged (48dc7ad on `origin/AIENGLAB-782`); this repo's commits are on the
+   local branch `AIENGLAB-782_v2`, not pushed yet.
 
 Budget note: 9 USD of conversation budget left when this was written; paid Vertex spend is 14.51 of 50 USD (no further
 paid runs are needed for the steps above).
@@ -274,8 +275,11 @@ coverage, lint, fmt, build`.
 
 ## Final
 
-- [ ] `CLAUDE.md` complete; `make help` lists every target; `make test` + coverage green (green at 98.35 %)
-- [ ] Requirement sweep: re-read `design-doc.md` section by section against this plan
+- [x] `CLAUDE.md` complete; `make help` lists every target (26, all described); `make coverage` green: 229 tests,
+  98.37 % (session 5, after the sweep fixes)
+- [x] Requirement sweep: re-read `design-doc.md` section by section against this plan (session 5, see Next steps)
+- [ ] `make build` never run (no local docker builds, by the user's rule); push of `AIENGLAB-782_v2` waits for the
+  user
 
 ---
 
