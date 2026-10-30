@@ -355,7 +355,8 @@ def run(
         raise
     summary = summarize(suite, cases, results)
 
-    run_id = f"suite-{int(started.timestamp()):010x}{uuid.uuid4().hex[:6]}"
+    # Seconds, then microseconds: "latest run" is the highest ID, also for two runs started in one second.
+    run_id = f"suite-{int(started.timestamp()):010x}{started.microsecond:05x}{uuid.uuid4().hex[:4]}"
     base = None if partial else baseline_row(suite.version, baseline)
     decision = None if partial else decide(summary, passes, version.version_id, base)
     row = {

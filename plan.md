@@ -15,7 +15,7 @@ unchecked item of the current milestone.
   below 70 % recall (experimental). Cases that look like drafting mistakes, for the engineer review:
   `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
   judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
-- Tests: `make coverage` (~10 min), `make test-unit` 3 s.
+- Tests: `make coverage` (~15 min, 98.10 %), `make test-unit` 10 s.
 - Paid Vertex spend: **14.51 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
@@ -24,7 +24,8 @@ Session 5 (2026-10-30, branch `AIENGLAB-782_v2`, fresh clone: `uv sync`, `git su
 The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-compose` is missing. `make lint` and
 `make test-unit` pass.
 
-1. `make coverage` (~10 min, needs `make up`): must pass at > 90 %. Fix whatever fails. Started in session 5.
+1. Done (session 5): `make coverage` 228 tests, 98.10 % (15 min). One flaky test fixed: suite run IDs had seconds +
+   random suffix, so "latest run" was random for two runs in one second; IDs now carry microseconds after the seconds.
 2. `make build`: NOT run, by the user's rule: no local docker image builds. Leave it to CI or the user.
 3. Requirement sweep of design-doc.md against the code, section by section (four read-only agents started in session
    5): §1-5 + §12.5-12.6; §6-7; §8-10 + §12.8-12.9; §11 + §12.1-4, 12.7, 12.10-17.
