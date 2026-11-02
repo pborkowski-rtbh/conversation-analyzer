@@ -4,13 +4,13 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-27. Sections 1-12 written. |
+| Status | Draft, 2026-10-27. Revised 2026-11-02: no document index or search of our own; the user's department in the strata; stage and prod environments. Deployment: `deployment-plan.md`. |
 
 ## 1. Goal
 
 **Raise Bolek's Answer Quality Rate (AQR) on real traffic, and prove every improvement with numbers.**
 
-AQR is the share of verifiable turns whose answer was judged good, standardized to a fixed mix of question types and data stores so that a change in what people ask does not look like a change in quality. To raise it, we close Bolek's learning loop: assess every turn, find what to fix, and verify that the fix worked.
+AQR is the share of verifiable turns whose answer was judged good, standardized to a fixed mix of question types, data stores and departments so that a change in what people ask does not look like a change in quality. To raise it, we close Bolek's learning loop: assess every turn, find what to fix, and verify that the fix worked.
 
 ### 1.1 Why now
 
@@ -70,6 +70,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Answer span** | A part of an answer's text that the log links to the references it cites. Used to count unsupported claims. |
 | **Data store** | A collection of documents Bolek searches, such as HR House or the API docs. Each reference belongs to one data store. All data stores together are the **corpus**; a **corpus owner** decides what a data store should contain. Our **indexers** load documents into the data stores and cut them into the snippets that search returns. |
 | **People directory** | The data store of employee profiles, used to answer questions about people. Its documents are personal data: they are never stored, never read by the evidence check, and dropped by the leak guard. |
+| **Department** | The company department the user works in, such as IT or Sales: the `base_function` of the user in HR's table of active associates. It is known only while the user's identity is in the log, and is stored only as a **department family**, a code from a closed list (§8.4). |
 | **Evaluator** | Our existing offline test tool. It holds sets of synthetic questions, each with an expected answer and its source document, sends them to an engine, and scores the answers. |
 | **Canary** | Evaluator questions answered by the production engine, so they pass through the same log as real turns. They are synthetic, so engineers may read them, and they are used to test the judge on the real path. They are assessed like real turns but kept apart, and never count in any metric. |
 | **Derived value** | Anything this system stores: a number, a label from a closed list, a document ID or link, a hash (such as the session key), a version. Never question or answer text, summaries, or identity. |
@@ -82,10 +83,9 @@ Terms used in this document. Each term has exactly one meaning.
 | **Judge** | The language model filling in a form, always on an EU endpoint: `gemini-3.8-flash` for stage 1 (including the evidence check), `gemini-4-argon` for stage 2 and session grades. |
 | **Assessment run** | One pass of the assessment job, every 10 minutes: it picks up eligible turns and assesses them. |
 | **Stage 1** | The assessment every eligible turn gets unless it is too large, normally 5 to 15 minutes after the turn, including the evidence check where needed. |
-| **Evidence** | The documents an answer is compared with: the turn's own references, the references of earlier turns in the same session segment, or documents found by the evidence check. A claim is wrong only when evidence says something different. |
-| **Evidence check** | A step of stage 1 for knowledge turns that have no evidence in the log: the judge searches our documents itself, reads up to 3 of them, and looks for one that contradicts the answer. The documents it reads are marked **found**, as opposed to cited. |
-| **Document index** | This system's own search over our documents: vectors of document chunks in BigQuery, written by our indexers whenever they index a document. The evidence check and stage 2 search it to find documents; Bolek's search is not used (§12.7). |
-| **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full text of the cited documents and searches our documents itself, and is the only stage that may say *why* something failed, for example that the right document exists but was not found. |
+| **Evidence** | The documents an answer is compared with: the turn's own references, the references of earlier turns in the same session segment, or documents linked in the answer text and read by the evidence check. A claim is wrong only when evidence says something different. |
+| **Evidence check** | A step of stage 1 for knowledge turns that have no evidence in the log: the judge reads up to 3 of the documents linked in the answer text and looks for one that contradicts the answer. The documents it reads are marked **found**, as opposed to cited. There is no search: an answer that links no readable document gets no check (§6.9). |
+| **Stage 2** | A deeper diagnosis of flagged turns only. The judge also reads the full text of the cited documents and of the documents linked in the answer, and is the only stage that may say *why* something failed, for example that a snippet lost content its document holds. It does not search for other documents. |
 | **Flagged turn** | A turn that goes to stage 2: relevance or groundedness 2 or lower, `HIGH` severity, a dislike, or a next turn labelled `REPHRASE` or `CORRECTION`. |
 | **Late trigger** | A signal that flags a turn after its stage 1 assessment, up to 3h30 after the turn: a dislike, or a next turn labelled `REPHRASE` or `CORRECTION`. |
 | **Rubric** | The written meaning of every value of the form, with synthetic example turns, given to the judge with every call. Versioned; results from different versions are compared only through a parallel run. |
@@ -114,8 +114,8 @@ Terms used in this document. Each term has exactly one meaning.
 | **Coverage** | The share of eligible turns that were assessed or skipped as too large. A pipeline health measure, not quality. |
 | **Too large** | A turn whose question, answer and references together are longer than 50,000 characters. It is skipped, not partly assessed, and counted in coverage. |
 | **Good answer** | A verifiable turn with relevance 4 or higher, groundedness 4 or higher (knowledge turns only), and no identified `HIGH` severity failure. Completeness, clarity and failures below `HIGH` do not decide it; such failures are counted in the failure rates. The user's reaction is not used. |
-| **AQR (Answer Quality Rate)** | Good answers divided by assessed verifiable turns, **standardized**: computed per stratum (a slice by intent family × data-store family, §8.4) and weighted by each stratum's share in the baseline, so a change in what people ask does not look like a change in quality. Also reported raw. |
-| **Slice** | A part of the turns that a metric is shown for: a channel, an intent, a topic, a data store, or a stratum of AQR. A slice with fewer turns than the **minimum slice size** (20, a setting) is not shown on its own; it is merged into a bigger slice. |
+| **AQR (Answer Quality Rate)** | Good answers divided by assessed verifiable turns, **standardized**: computed per stratum (a slice by intent family × data-store family × department family, §8.4) and weighted by each stratum's share in the baseline, so a change in what people ask does not look like a change in quality. Also reported raw. |
+| **Slice** | A part of the turns that a metric is shown for: a channel, an intent, a topic, a data store, a department family, or a stratum of AQR. A slice with fewer turns than the **minimum slice size** (20, a setting) is not shown on its own; it is merged into a bigger slice. |
 | **Failure rate** | For one failure type: turns with it as the identified primary failure, divided by assessed turns. A lower bound. |
 | **Baseline** | The first 4 weeks after assessment goes live. All numeric targets except coverage, and the AQR weights, are set from it. |
 | **Anomaly** | A day on which a metric is unusually far from its recent values, either as a sudden jump or as a slow drift. Found by the daily anomaly check and open until someone acknowledges it. |
@@ -139,7 +139,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 
 | Rule | What it means | Why |
 |---|---|---|
-| **Derived values only** | The system stores scores, closed-list labels, counts, versions, document IDs and links, and the session ID only as a keyed hash. It never stores question text, answer text, summaries, feedback comments or identity. A turn's time is kept only as its day, and alerts give no time finer than the hour. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. An exact time could match a turn to a person through other records of when people used Bolek. |
+| **Derived values only** | The system stores scores, closed-list labels, counts, versions, document IDs and links, and the session ID only as a keyed hash. It never stores question text, answer text, summaries, feedback comments or identity. The user's department is kept only as a department family; a family with fewer than 30 active associates is merged into `OTHER`, so it never narrows a turn down to a few people. A turn's time is kept only as its day, and alerts give no time finer than the hour. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. An exact time could match a turn to a person through other records of when people used Bolek. |
 | **Synthetic questions only** | Tests use questions generated from the documents that real traffic retrieves or cites. Real questions are never re-asked or copied into a test set. | Same reason: real questions stay out of anything we keep. |
 | **EU endpoints only** | Text reaches a model only on an EU endpoint (an EU region or the `eu` multi-region, never `global`). The text of conversations is PII scrubbed first. Our documents are company knowledge and are not scrubbed. | Question and answer text must not leave the EU, and personal details from conversations must not reach the model. Our documents are already processed by Google in the EU, in Bolek's data stores. Whether the security team accepts the `eu` multi-region is still open. |
 | **Slack for notifications, one dashboard for looking** | Alerts and the digest are sent only to Slack, in messages built from derived values. The dashboard shows only aggregates (daily and weekly, and per run for pipeline health), with no way down to a single turn. There are no per-session tickets. | One place to be notified and one place to look, and no path for text to leave the system. |
@@ -171,7 +171,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 | The answers disappear after 4 hours | Assess inside the window, with a target of 3 hours and a hard limit of 3h30. |
 | Text may not be stored | Keep derived values, and check every write with the leak guard. |
 | Feedback is too rare to measure quality | Assess every turn with a judge instead of waiting for feedback. |
-| Most web UI answers have no references | Also use the references of earlier turns in the same session segment, and let the judge search our documents itself for the rest. Knowledge turns with no evidence in the log are not verifiable and are reported separately. |
+| Most web UI answers have no references | Also use the references of earlier turns in the same session segment, and let the judge read the documents linked in the answer for the rest. Knowledge turns with no evidence in the log are not verifiable and are reported separately. |
 | The judge does not know what is true at our company | Count a claim as wrong only when one of our documents says something different. |
 | Nobody may read real questions or answers | Tune the judge on a suite of synthetic test cases with known right answers, and check it on the canary and by comparing it with a second model. |
 | Session IDs vanish with the answer | Group turns by a keyed hash of the session ID while it exists, and keep nothing that links the log's records to sessions. |
@@ -325,6 +325,7 @@ The 30 minutes are a starting value. A longer wait cuts fewer conversations, but
 | Gap to the previous turn, as a bucket | under 1 min, 1-5 min, 5-30 min, 30-60 min, over 60 min |
 | Resumed | yes or no |
 | Earlier text missing | yes or no |
+| Department family of the user | `ENGINEERING` |
 
 **For each segment:** the session facts, computed again each time the segment gets a new turn. A segment with a flagged turn also gets a session grade (§7.7).
 
@@ -371,10 +372,10 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 |---|---|---|
 | 1. The turn's own references | The log | 36% |
 | 2. The references of earlier turns in the same session segment | The log | 24% more, mostly follow-ups answered from what Bolek found earlier |
-| 3. Documents found by the evidence check | The judge searches our documents itself (§6.9) | The remaining 39%, when they are knowledge turns |
+| 3. Documents linked in the answer text, read by the evidence check | The links in the answer; the text from the content bucket (§6.9) | Part of the remaining 39%: knowledge turns whose answer links a document we can read |
 
 - A knowledge turn with evidence 1 or 2 is **verifiable** and gets a groundedness score.
-- A knowledge turn with neither gets the **evidence check**. It stays **not verifiable** whatever the check finds: the check can find an error, but it can never prove the answer right. An error it finds is still recorded as an identified problem.
+- A knowledge turn with neither gets the **evidence check**, if its answer links one of our documents. It stays **not verifiable** whatever the check finds: the check can find an error, but it can never prove the answer right. An error it finds is still recorded as an identified problem.
 - References to the people directory never count as evidence. They are left out of the judge's inputs in both stages (§6.6).
 
 ### 6.3 What the judge sees
@@ -385,7 +386,7 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 | The answer, split into answer spans where the log has them | yes | yes |
 | The turn's own references (snippets) | yes | (there are none) |
 | The earlier turns of the session as text (up to 60,000 characters, §5.3), and the references of all earlier turns of the segment | yes | no |
-| The full text of documents linked in the answer text or found by search | no | yes |
+| The full text of documents linked in the answer text | no | yes |
 
 - The question, the answer and the earlier turns are **PII scrubbed** first. The same person, email or phone number gets the same placeholder everywhere in them.
 - References and documents are company knowledge, so they are not scrubbed. They only get the turn's placeholders: wherever a person, email or phone number that was replaced in the conversation appears in them, it is replaced with the same placeholder. Without this, the judge would see `<PERSON_1>` in the answer and a real name in the document, and could not tell whether they match.
@@ -515,10 +516,9 @@ Stage 1 assigns the generation codes except `REASONING_ERROR`, and the question 
 | Code | Meaning | Assigned in | Usually fixed by |
 |---|---|---|---|
 | **Retrieval** | | | |
-| `RETRIEVAL_MISS` | The right document is indexed but was not found or cited. | Stage 2 | Team: search configuration, indexer |
+| `NOT_IN_CITED_SOURCES` | The right content is in none of the documents the answer cited or linked. Either Bolek's search missed the document that holds it, or no document does; without a search of our own, the two can't be told apart (§7.3). | Stage 2 | Team first: search configuration, or a corpus owner to add a source |
 | `CHUNKING_ISSUE` | The right document was used, but its snippet lost needed context. | Stage 2 | Team: indexer chunking |
 | **Corpus** | | | |
-| `KNOWLEDGE_GAP` | The information is in no source. | Stage 2 | Corpus owner: add a source |
 | `OUTDATED_SOURCE` | A cited document is out of date: a newer document says something different, or it says itself that it is replaced. | Stage 2 | Document owner |
 | `CONFLICTING_SOURCES` | Two cited documents say different things on the same point. | Stage 2 | Document owners |
 | **Generation** | | | |
@@ -547,13 +547,13 @@ Stage 1 assigns the generation codes except `REASONING_ERROR`, and the question 
 
 ### 6.9 The evidence check
 
-**What it is for.** About 4 in 10 web UI turns have no evidence in the log (39% in the sample of §6.2). Without the check, a wrong answer on such a turn could never be caught. The check lets the judge look for evidence itself: it finds our documents on the question and reads them. It can find an error, but never prove an answer right, so the turn stays not verifiable either way.
+**What it is for.** About 4 in 10 web UI turns have no evidence in the log (39% in the sample of §6.2). Without the check, a wrong answer on such a turn could never be caught. The check lets the judge look for evidence in the documents the answer links to: answers often carry links in their text without references attached. It can find an error, but never prove an answer right, so the turn stays not verifiable either way.
 
-**When it runs.** On knowledge turns with no evidence 1 or 2, right after the form is filled in.
+**When it runs.** On knowledge turns with no evidence 1 or 2 whose answer text links at least one of our documents that we can read, right after the form is filled in. Other such turns are counted as not checked, so the check's reach is measured.
 
 ```mermaid
 flowchart LR
-    A["Knowledge turn<br/>without evidence"] --> B["1. Find documents"]
+    A["Knowledge turn<br/>without evidence"] --> B["1. Take the linked documents"]
     B --> C["2. Read up to 3"]
     C --> D{"3. A document<br/>contradicts a claim?"}
     D -->|"yes"| E["4. CONTRADICTED_CLAIM,<br/>HIGH, turn flagged"]
@@ -562,17 +562,18 @@ flowchart LR
 
 | Step | What happens |
 |---|---|
-| 1. Find documents | Take the documents linked in the answer text, then search the document index (§12.7) with the scrubbed question. The index leaves out the people directory, and the search returns the top 10. |
+| 1. Take the linked documents | The documents linked in the answer text that belong to an allowlisted data store, without the people directory. There is no search. |
 | 2. Read | Read the full text of up to 3 of them, each capped in length. |
 | 3. Judge | The judge compares the answer with these documents and looks only for a specific contradiction: a different number, name, date, rule or step. It gives no scores. |
 | 4. Record | Contradiction found: `CONTRADICTED_CLAIM`, severity `HIGH`, and the turn is flagged. Nothing found: nothing is recorded. Either way, the IDs of the documents read are stored, marked *found*. |
 
 **Boundaries**
 
-- **It checks the answer against our documents, never against Bolek's answers.** It shares nothing with Bolek: it searches its own index of our documents, which our indexers write when they index a document (§12.7).
-- **Its own search, its own blind spots.** When the index can't find the right document for a question, the error is missed, but nothing false is recorded. Its misses differ from Bolek's search, so it can find documents that Bolek's search missed. The check helps most where Bolek did not search at all, which was the case for 29% of the web UI answers without references in one sample.
+- **It checks the answer against our documents, never against Bolek's answers.** It reads their full text from the content bucket, which our indexers already write (§12.7).
+- **Only what the answer links.** An answer that links no document, or only documents we can't read, is not checked; a wrong claim in it is missed, but nothing false is recorded.
+- **No search of our own, on purpose.** An earlier version of this design searched a vector index of our documents, written by the indexers. It was dropped: it needs a change to every indexer, an embedding model and a second search to keep healthy, for a check that can never prove an answer right. It can be added back later as its own step.
 - **Not every document can be read.** Our indexers keep the full text of the documents of every data store except Google Drive (about 6% of citations), and the people directory is never read.
-- **Safe by design.** The search runs inside this system, not through Gemini Enterprise, so it never appears in the log or counts in any metric. Only document IDs and codes are stored, through the leak guard.
+- **Safe by design.** The documents are read inside this system, not through Gemini Enterprise, so the reads never appear in the log or count in any metric. Only document IDs and codes are stored, through the leak guard.
 - **Cost.** One judge call with up to 3 documents per checked turn. Not measured yet; at most about the cost of stage 1 again.
 
 ### 6.10 Leak guard
@@ -595,8 +596,8 @@ Each assessment records the rubric version, the version of the closed lists (fai
 
 | Problem | Why it matters | Next step |
 |---|---|---|
-| **Does the evidence check catch enough errors, without false `HIGH`s?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. The check finds only what the document index finds. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are caught and how many correct answers are wrongly marked `HIGH`. If too many are missed, improve the search (§12.17): also search with the answer's key claims, or add a keyword search next to the vector search. |
-| **How many turns need the evidence check?** | It sets the cost. | Measure the share of knowledge intents among turns without evidence in the first week. |
+| **Does the evidence check catch enough errors, without false `HIGH`s?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. The check reads only what the answer links. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are caught and how many correct answers are wrongly marked `HIGH`. If too many are missed, reconsider a search of our own (§6.9). |
+| **How many turns does the evidence check reach?** | It sets the cost, and how many turns without evidence stay unchecked. | Measure in the first week the share of knowledge turns without evidence, and how many of them link a document we can read. |
 | **Does PII scrubbing work on Polish text?** | A name or ID it misses reaches the judge. It stays on an EU endpoint and is never stored, but it should not happen. A name in a different grammatical form ("Jan Kowalski", "Jana Kowalskiego") must also get the same placeholder in the answer and in the documents, or the judge can't compare them. | Before launch, measure on synthetic Polish and English text with planted personal data, including inflected names. |
 
 ## 7. Stage 2: finding out why
@@ -626,9 +627,9 @@ Everything stage 1 saw, plus the documents behind the answer:
 | The question, the answer, its references, the earlier turns (§5.3) | As in stage 1 |
 | The stage 1 result and the reasons for the flag | So stage 2 knows what to confirm or correct |
 | The full text of the cited documents | To see whether the snippet left out what was needed |
-| Documents found by its own search of our documents, plus those the evidence check already found | To see whether the right document exists elsewhere |
+| The full text of the documents linked in the answer text, including those the evidence check read | Bolek may have used a document it did not attach as a reference |
 
-As in stage 1, the conversation is PII scrubbed and the documents get the turn's placeholders (§6.3). Each document is capped in length. The search works as in the evidence check (§6.9): the people directory is left out, and only document IDs are kept.
+As in stage 1, the conversation is PII scrubbed and the documents get the turn's placeholders (§6.3). Each document is capped in length, the people directory is left out, and only document IDs are kept. Stage 2 runs no search of its own, so it never sees a document that the answer neither cited nor linked.
 
 ### 7.3 How the cause is found
 
@@ -647,17 +648,16 @@ flowchart TD
     B -->|"yes, and the document<br/>passed both checks"| OK["No problem:<br/>finding dropped"]
     B -->|"yes, but the document is<br/>outdated or conflicting"| OS["OUTDATED_SOURCE or<br/>CONFLICTING_SOURCES"]
     B -->|"no: the snippets hold the right facts,<br/>but the answer misread them"| AN["Answer error:<br/>no source cause"]
-    B -->|"no: the right content<br/>is not there"| C{"Is it in the full text<br/>of a cited document?"}
+    B -->|"no: the right content<br/>is not there"| C{"Is it in the full text<br/>of a cited or linked document?"}
     C -->|"yes"| CH["CHUNKING_ISSUE"]
-    C -->|"no"| D{"Is it in another<br/>document found by search?"}
-    D -->|"yes"| RM["RETRIEVAL_MISS"]
-    D -->|"no"| KG["KNOWLEDGE_GAP"]
+    C -->|"no"| NC["NOT_IN_CITED_SOURCES"]
 ```
 
-- A turn with no references starts at the third question: there is nothing cited to check.
+- A turn with no references starts at the second question, on the documents linked in its answer. With none of those either, the cause is `NOT_IN_CITED_SOURCES`.
+- Without a search of our own, stage 2 can't tell whether missing content is in a document Bolek's search failed to find, or in no document at all. Both end as `NOT_IN_CITED_SOURCES`, which has no document to fix.
 - The path decides the cause, the *why*. What is wrong with the claim, the *what*, is decided separately: contradicted, unsupported or a reasoning error (§7.5).
 
-**What and why are both kept.** The stage 1 code (for example `CONTRADICTED_CLAIM`) stays, and stage 2 adds the cause (for example `RETRIEVAL_MISS`). The cause becomes the **primary failure**, because it names who should fix it (§6.7).
+**What and why are both kept.** The stage 1 code (for example `CONTRADICTED_CLAIM`) stays, and stage 2 adds the cause (for example `CHUNKING_ISSUE`). The cause becomes the **primary failure**, because it names who should fix it (§6.7).
 
 **Stage 2 may also correct stage 1.** With the full documents in front of it, it can find that an "unsupported" claim is in fact supported, or that a `HIGH` is not a real contradiction. It then drops the finding.
 
@@ -671,7 +671,7 @@ Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts:
 |---|---|
 | Answer span | Its position in the answer, when the log splits the answer into answer spans |
 | What | `CONTRADICTED_CLAIM`, `UNSUPPORTED_CLAIM` or `REASONING_ERROR` |
-| Why | The cause from §7.3: `OUTDATED_SOURCE`, `CONFLICTING_SOURCES`, `CHUNKING_ISSUE`, `RETRIEVAL_MISS`, `KNOWLEDGE_GAP`, or none when the snippets hold the right facts and the answer misread them (the What is then `REASONING_ERROR`, or `CONTRADICTED_CLAIM` when a snippet says the opposite) |
+| Why | The cause from §7.3: `OUTDATED_SOURCE`, `CONFLICTING_SOURCES`, `CHUNKING_ISSUE`, `NOT_IN_CITED_SOURCES`, or none when the snippets hold the right facts and the answer misread them (the What is then `REASONING_ERROR`, or `CONTRADICTED_CLAIM` when a snippet says the opposite) |
 | Documents | The IDs of the documents behind the finding, each with its role: *cited*, *holds the right answer*, *contradicts the claim*, *outdated* or *conflicting* |
 
 **For the turn:**
@@ -682,12 +682,12 @@ Like stage 1, stage 2 fills in a fixed form with no free text. It has two parts:
 | Failure types, primary failure | As in stage 1, with the causes added. The primary failure is the cause of the most important claim. |
 | Severity | `LOW`, `MEDIUM`, `HIGH`, by the same rule as stage 1 (§6.8) |
 | Stage 1 findings | For each stage 1 code: *confirmed* or *dropped* |
-| Document to fix | The document a fix should start from: the cited one for `CHUNKING_ISSUE`, the one that holds the right answer for `RETRIEVAL_MISS`, and for `OUTDATED_SOURCE` or `CONFLICTING_SOURCES` the outdated or conflicting document the claim follows. Empty for `KNOWLEDGE_GAP`, which has no document. |
+| Document to fix | The document a fix should start from: the cited or linked one for `CHUNKING_ISSUE`, and for `OUTDATED_SOURCE` or `CONFLICTING_SOURCES` the outdated or conflicting document the claim follows. Empty for `NOT_IN_CITED_SOURCES`, which has no document. |
 | Confidence | 0 to 1, informational only |
 
 Relevance, completeness and clarity are not scored again: the full documents do not change them. Their stage 1 scores stay in use.
 
-Problem clusters are grouped by the document to fix, so the team sees, for example, "Document X caused 12 retrieval misses this week".
+Problem clusters are grouped by the document to fix, so the team sees, for example, "Document X lost needed content in its snippets 12 times this week".
 
 ### 7.5 The stage 2 rubric
 
@@ -713,9 +713,8 @@ Stage 2 uses the stage 1 rubric for groundedness and severity (§6.5). On top of
 | Question | Rule | Result |
 |---|---|---|
 | 1. Do the cited snippets support the claim? | "Support" means the snippet states it, or it follows directly without extra assumptions. | Supported, and the document checks found nothing: there is no problem, and the finding is dropped. Supported, but the document is outdated or conflicting: the claim is kept, and the cause is `OUTDATED_SOURCE` or `CONFLICTING_SOURCES`. Not supported, although the snippets hold the right content: the cause is the answer itself, with no "why". |
-| 2. Is it in the full text of a cited document? | The right content is in a cited document, but not in the snippet Bolek got. | `CHUNKING_ISSUE`. The document to fix is the cited one. |
-| 3. Is it in another document found by search? | A document that was not cited states it clearly. | `RETRIEVAL_MISS`. The document to fix is the one that holds the answer. |
-| 4. None of the above | Only after the search was run with at least two phrasings of the question. | `KNOWLEDGE_GAP`, shown with its measured miss rate (§11.4). No document to fix. |
+| 2. Is it in the full text of a cited or linked document? | The right content is in a document the answer cited or linked, but not in the snippet Bolek got. | `CHUNKING_ISSUE`. The document to fix is that document. |
+| 3. None of the above | The right content is in none of the documents stage 2 read. | `NOT_IN_CITED_SOURCES`. No document to fix; the cluster is by topic. |
 
 **Confirming or dropping stage 1 findings.** A finding is **dropped** only if stage 2 can point to a passage that supports the claim in a document that passed both document checks, or to a passage that shows the contradiction is about a different case (another country, year or product). Otherwise it is **confirmed**. A dropped `HIGH` gets its severity set again by the stage 1 rules.
 
@@ -726,8 +725,8 @@ Stage 2 uses the stage 1 rubric for groundedness and severity (§6.5). On top of
 | Situation | What | Why | Document to fix |
 |---|---|---|---|
 | The answer says 6 days of on-demand leave. The cited snippet is about sick leave; the full text of the same document says 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | The cited leave policy |
-| Same answer, no references. Search finds the leave policy, which says 4. | `CONTRADICTED_CLAIM` | `RETRIEVAL_MISS` | The leave policy |
-| The answer says 6 days, as the cited 2024 leave policy does. A 2026 policy found by search says 4. | `CONTRADICTED_CLAIM` | `OUTDATED_SOURCE` | The 2024 leave policy |
+| Same answer, no references and no links. No document stage 2 reads says anything about it. | `UNSUPPORTED_CLAIM` | `NOT_IN_CITED_SOURCES` | (none) |
+| The answer says 6 days, as the cited 2024 leave policy does. The 2026 policy, also cited, says 4. | `CONTRADICTED_CLAIM` | `OUTDATED_SOURCE` | The 2024 leave policy |
 | The snippet says trips outside Europe need finance approval; the answer says all trips do. | `REASONING_ERROR` | (none) | (none) |
 
 The session grade has its own rubric: the outcome meanings in §7.7.
@@ -778,7 +777,7 @@ An alert shows the grade it had when it was sent and says whether it was provisi
 
 | Problem | Why it matters | Next step |
 |---|---|---|
-| **`KNOWLEDGE_GAP` rests on not finding something** | Search can miss a document that exists, so this is the least certain code. | Measure on the canary, whose questions come with the document that holds the answer (§11.4); report the code with that miss rate. |
+| **`NOT_IN_CITED_SOURCES` mixes two owners** | A retrieval miss (the team) and a missing source (a corpus owner) look the same without a search of our own. | Watch its share per topic. If it is large, reconsider a search of our own (§6.9). |
 | **Share of flagged turns** | Sets the cost; expected under 20%. | Measure in the first weeks. |
 
 ## 8. Metrics
@@ -857,16 +856,22 @@ Raw AQR rose by 9 points, but no answer got better. Standardized AQR shows that 
 
 **How.**
 
-1. Turns are split into **strata**: intent family × data-store family. A family is a group of similar intents, or of similar data stores. The families are chosen before the baseline starts (§8.9), giving about 10 to 20 strata.
+1. Turns are split into **strata**: intent family × data-store family × department family. A family is a group of similar intents, of similar data stores, or of departments. The starting families are 4 intent families, 3 data-store families and 3 to 5 department families, frozen when the baseline starts (§8.9). That allows up to about 60 strata; most are small and merged (step 4), so about 10 to 20 carry weight.
 2. AQR is computed per stratum and day.
 3. The stratum AQRs are added up, each weighted by the stratum's share of turns in the baseline.
 4. A stratum below the minimum slice size on a day is merged into a bigger slice (§8.5).
+
+**Department.** People in different departments ask different things, from different data stores, and the mix changes, for example when a department starts using Bolek. Without the department in the strata, such a change would look like a change in quality.
+
+- The assessor reads `Email` and `base_function` from HR's table of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`, the table the people directory's indexer already reads) once per run, in memory.
+- While a turn's user identity is still in the log, it maps the user to a department family through a setting (`base_function` → family). Users not in the table, such as service accounts, get `UNKNOWN`.
+- Only the family is stored, never `base_function` or the identity. A family with fewer than 30 active associates is merged into `OTHER`.
 
 The weights stay fixed. They change only by a deliberate rebase, for example when a new data store is added, and the rebase is recorded as a change event.
 
 ### 8.5 Slices and the minimum size
 
-Every metric exists per channel and for all channels together, and can be split further by intent, topic and data store. Each such part is a **slice**.
+Every metric exists per channel and for all channels together, and can be split further by intent, topic, data store and department family. Each such part is a **slice**.
 
 A small slice jumps around by chance. With 20 turns, one bad answer moves its rate by 5 points. So a slice with fewer turns than the **minimum slice size** in the period shown is not shown on its own: it is merged into a bigger slice (its family, or "other"), and can be looked at per week instead of per day.
 
@@ -906,12 +911,12 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 
 ### 8.8 The dashboard
 
-**What it is for.** Slack tells the team when something needs attention now (§9). The dashboard is where the team looks every morning: is the pipeline healthy, is anything unusual, and is quality moving after the last fixes. It is built in the team's existing **Grafana**, is visible to the team only, and reads the aggregates from BigQuery.
+**What it is for.** Slack tells the team when something needs attention now (§9). The dashboard is where the team looks every morning: is the pipeline healthy, is anything unusual, and is quality moving after the last fixes. It is built in the company's **Central Grafana**, as dashboard files in the `infra-grafana-dashboards` repository (folder `AI-Engineering-Lab/Conversation-Analyzer`: the test instance shows stage, the prod instance shows prod). It is visible to the team only and reads the aggregates from BigQuery.
 
 **Layout.** One page, read from top to bottom. The first rows answer "can I trust yesterday's numbers?", the last ones "what should we work on?". Values below are made up.
 
 ```text
-┌─ Filters: channel ▾  period ▾  weekdays / weekends ▾      Markers: change events, judge switches ─┐
+┌─ Filters: channel ▾  department ▾  period ▾  weekdays / weekends ▾      Markers: changes, judges ─┐
 │ 1. IS THE PIPELINE HEALTHY?                                                                       │
 │  [Coverage 99.2%]  [Missed 9]  [Oldest waiting 42 min]  [Too large 0.3%]  [Log complete: yes]     │
 │  [Resumed without text 4%]  [Resumed and continued 31%]                                           │
@@ -943,7 +948,7 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 | 2. Anomalies | Open anomalies with their change events and acknowledgement | See what the anomaly check found, and acknowledge it or start work on it. |
 | 3. Quality | Standardized and raw AQR with the reference band; not verifiable share; evidence mix; contradicted claims yesterday | See the trend. If raw and standardized AQR move apart, the question mix changed, not quality. |
 | 4. Failures | Failure rates per type; contradicted and unsupported claims | Find which kind of problem moved. |
-| 5. Where | AQR per topic and week; question mix per intent | Find where it moved: which topic or data store. |
+| 5. Where | AQR per topic and week; AQR per department family; question mix per intent | Find where it moved: which topic or data store. |
 | 6. Users | Negative reaction rate, dislikes, volume, active users | Check that users see the same as the judge, and that usage does not drop. |
 | 7. Fix and verify | Top problem clusters; change events with release impact; weekly turns still in the top clusters of the baseline | Pick the next fix, and see whether the last one helped. |
 
@@ -967,7 +972,7 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 
 | Problem | Why it matters | Next step |
 |---|---|---|
-| **The strata are not defined** | Standardized AQR needs the intent families and data-store families before the baseline starts. | Define 10 to 20 strata from the first days of data, then freeze them with the baseline. |
+| **The strata are not final** | Standardized AQR needs the intent, data-store and department families before the baseline starts. | Set the department families from the `base_function` values and their associate counts, check all strata on the first days of data, then freeze them with the baseline. |
 | **Slack Bolek and MCP can't be told apart yet** | Both call Bolek the same way, and the log does not yet show which one sent a turn. Until a rule is found, they are reported together as one channel. | Inspect the request fields of these turns to find a rule. |
 | **Slack feedback (optional)** | Where Slack emoji are recorded, and how they are matched to a turn, is not known. Until a way is found, the dislike rate covers the web UI only. | Added only if the Slack Bolek owner finds a way to collect them. |
 | **False alarms** | At the starting limits, about 50 daily checks give up to about 10 false alarms a month. That many would cost the team's trust in alerts. | Measure the false alarm rate during the baseline, then raise the limits or check fewer series, for example failure rates only for all channels together. |
@@ -986,9 +991,9 @@ flowchart LR
     D --> E["Digest and<br/>dashboard"]
 ```
 
-- **A problem cluster** holds the failures with the same primary failure and the same document: for turns that went through stage 2, the document to fix (§7.4); for other turns, the cited document. When there is no single document, because the turn cites none or several, or as for a knowledge gap, the topic is used instead.
+- **A problem cluster** holds the failures with the same primary failure and the same document: for turns that went through stage 2, the document to fix (§7.4); for other turns, the cited document. When there is no single document, because the turn cites none or several, or as for `NOT_IN_CITED_SOURCES`, the topic is used instead.
 - **Ranking:** by the cluster's turns of the week, each weighted by its severity. The starting weights are 3 for `HIGH`, 2 for `MEDIUM` and 1 for `LOW`; they are tuned after the baseline. Each cluster also shows its trend against the 4 weeks before.
-- **Owner:** follows from the failure type (§6.7): the team for prompt, model, search and indexer problems and for communication to users, a document owner for outdated or conflicting documents, a corpus owner for missing knowledge.
+- **Owner:** follows from the failure type (§6.7): the team for prompt, model, search and indexer problems and for communication to users, a document owner for outdated or conflicting documents, a corpus owner for missing knowledge. `NOT_IN_CITED_SOURCES` goes to the team first, which finds out whether search or the corpus is at fault.
 
 Example entry: *"HR House, document X: outdated source in 12 turns this week, up from 3. Owner: the document owner."*
 
@@ -1029,7 +1034,7 @@ The evaluator generates questions from our documents, each with the document it 
 | Set | Size | Built from | Purpose |
 |---|---|---|---|
 | **Anchor set** | 300 to 500 questions | Documents of every data store, in proportion to how often real traffic cites or retrieves them (at least 20 per data store). Fixed for a quarter. | Must not get worse. |
-| **Focus set** | 10 to 20 questions per active problem cluster | The cluster's document. A knowledge gap gets one once the missing document is added. | Must get better. |
+| **Focus set** | 10 to 20 questions per active problem cluster | The cluster's document. A `NOT_IN_CITED_SOURCES` cluster gets one once a document that holds the answer is named or added. | Must get better. |
 
 Before a question is used, it is checked automatically: it can be answered from its document, it is not a duplicate, and it contains nothing from the people directory. When the anchor set is replaced each quarter, the old and new sets run side by side for 2 weeks so the results stay comparable.
 
@@ -1065,7 +1070,7 @@ Nobody may read real conversations, so nobody can check the judge on them. The j
 
 The suite works like unit tests for the judge. Each **case** has:
 
-- **A fixed input:** a question, an answer, its references, the earlier turns, and the documents a search would return. Because the search results are part of the case, the evidence check and stage 2 get the same documents on every run.
+- **A fixed input:** a question, an answer, its references, the earlier turns, and the full text of the documents it cites or links. Because the documents are part of the case, the evidence check and stage 2 get the same documents on every run.
 - **The expected form:** what a perfect judge fills in. That is the stage 1 form, the evidence check result, the stage 2 form, and, for conversations, the session grade.
 
 Cases are fed straight to the judge. Bolek and the log are not involved, so between two runs only the judge changes. The cases are synthetic, so engineers may read and write them, in Polish and English.
@@ -1126,8 +1131,7 @@ The first version of the suite exists before launch, and the rubric is tuned on 
 The canary checks what the suite can't: the real path from Bolek's answer through the log to the stored assessment.
 
 - **Agreement:** canary turns are assessed like real turns, and the results are compared with the evaluator's own scores, which use the expected answers. The agreement per field is tracked over time.
-- **Planted errors:** known errors are put into canary answers, such as a swapped number, a dropped step or a wrong name, with and without references. This measures how many of them stage 1 catches (the form when the answer has references, the evidence check with its real search when it has none), and how many correct answers it wrongly marks `HIGH` (§6.12).
-- **Knowledge gap miss rate:** each canary question comes with the document that holds its answer. The search that stage 2 uses is run for every canary question, and how often it fails to find that document is the miss rate reported with `KNOWLEDGE_GAP` (§7.8).
+- **Planted errors:** known errors are put into canary answers, such as a swapped number, a dropped step or a wrong name, with and without references. This measures how many of them stage 1 catches (the form when the answer has references, the evidence check when it has none but links documents), and how many correct answers it wrongly marks `HIGH` (§6.12).
 - **Schedule:** the evaluator runs once a day on a schedule, so the real path is checked every day.
 - **Limits:** its questions are single turns in English, so sessions are tested only by the judge test suite.
 
@@ -1145,7 +1149,7 @@ The canary checks what the suite can't: the real path from Bolek's answer throug
 
 ## 12. Proposed architecture
 
-This section describes how we build and run the system. Everything runs in the GCP project `rtbhouse-agentspace`, where the log and Bolek's data stores already are. The processing is done by **Cloud Run jobs**, and all results are stored in **BigQuery**. There are no services waiting for requests. Each job is started by a schedule or by hand, does its work and exits.
+This section describes how we build and run the system. Production runs in the GCP project `rtbhouse-agentspace`, where the log and Bolek's data stores already are. A stage copy runs in `rtb-aiel-core-stage` and reads the same log (§12.14). The processing is done by **Cloud Run jobs**, and all results are stored in **BigQuery**. There are no services waiting for requests. Each job is started by a schedule or by hand, does its work and exits.
 
 ### 12.1 Overview
 
@@ -1166,7 +1170,8 @@ flowchart TB
     BUCKET[("Content bucket<br/>full text of our documents")] --> SYS
     EVAL -->|"results in aiel_evals"| SYS
     GH["GitHub<br/>prompt and data store settings"] --> SYS
-    SYS <-->|"scrubbed conversations,<br/>documents"| VX["Vertex AI, EU<br/>judge and embeddings"]
+    SYS <-->|"scrubbed conversations,<br/>documents"| VX["Vertex AI, EU<br/>judge"]
+    HR[("HR table<br/>active associates")] -->|"department"| SYS
     SYS --> SLACK["Slack<br/>alerts, digest"]
     SYS --> GRAFANA["Grafana<br/>dashboard"]
     SYS -.->|"failures, no text"| SENTRY["Sentry"]
@@ -1174,25 +1179,15 @@ flowchart TB
 
 **The assessment path**
 
-Two parts of the system handle text: the assessor, and our indexers, which already process our documents today.
+Only the assessor handles text. Our indexers keep writing the full text of our documents to the content bucket, as they do today; this system only reads it, and the indexers are not changed.
 
-Each time an indexer writes a document, it also writes the document's vectors to the document index. The full text goes to the content bucket, as it does today.
-
-```mermaid
-flowchart LR
-    SRC["Document sources<br/>Confluence, HR House, ..."] -->|"new and changed<br/>documents"| IDX["Our indexers<br/>delta runs"]
-    IDX -->|"documents"| DS[("Bolek's data stores")]
-    IDX -->|"full text, encrypted"| BUCKET[("Content bucket")]
-    IDX -->|"vectors and IDs,<br/>no text"| DOC[("Document index<br/>bolek_quality_doc_index")]
-```
-
-Every 10 minutes, the assessor assesses the turns in the window. It uses the document index to find documents that match a question, and reads their full text from the content bucket.
+Every 10 minutes, the assessor assesses the turns in the window. It reads the full text of the documents an answer cites or links from the content bucket, and the department of each user from HR's table of active associates.
 
 ```mermaid
 flowchart LR
     LOG[("The log")] -->|"turns in the window"| A["quality-assessor<br/>every 10 min"]
-    DOC[("Document index")] -->|"which documents<br/>match a question"| A
-    BUCKET[("Content bucket")] -->|"full text of up to<br/>3 documents"| A
+    BUCKET[("Content bucket")] -->|"full text of cited<br/>and linked documents"| A
+    HR[("HR table")] -->|"department of each user"| A
     A -->|"derived values only"| T[("bolek_quality_turns")]
 ```
 
@@ -1224,23 +1219,25 @@ flowchart LR
 
 Two more jobs don't belong to either path. `quality-judge-suite` runs the judge test suite on synthetic cases, and `quality-record` lets us record a change by hand (§12.3).
 
-In short, **only the assessor ever reads what users asked and what Bolek answered**. It keeps that text in memory, and only while a run lasts. The indexers handle document text, as they already do. All other parts work only with derived values or aggregates.
+In short, **only the assessor ever reads what users asked and what Bolek answered**. It keeps that text in memory, and only while a run lasts. The indexers handle document text, as they already do, and are not part of this system. All other parts work only with derived values or aggregates.
 
 ### 12.2 Building blocks
 
 | Service | What we use it for | Already used in this project? |
 |---|---|---|
 | **Cloud Run jobs** | All processing | Yes, by the indexers and by the jobs that replace the old Composer DAGs |
-| **BigQuery** | Reading the log, and storing every result, the document index and the evaluator's results | Yes, the log is there |
+| **BigQuery** | Reading the log, the HR table of active associates and the evaluator's results, and storing every result | Yes, the log is there |
 | Cloud Scheduler | Starting jobs on schedule, in UTC | Yes, by the indexers |
 | Secret Manager | The hashing key for session and turn keys, the secrets that decrypt the content bucket, the Slack and GitHub tokens, the Sentry DSN | Yes, by the indexers and the MCP server |
 | Artifact Registry | Storing the container image | Yes, by the indexers |
-| Vertex AI, EU | The judge models, `gemini-3.8-flash` and `gemini-4-argon`, on the `eu` multi-region. An embedding model for Polish and English text, in an EU region, for the document index. | Yes |
+| Vertex AI, EU | The judge models, `gemini-3.8-flash` and `gemini-4-argon`, on the `eu` multi-region | Yes |
 | Content bucket (GCS) | The full text of our documents. Our indexers write it, encrypted. | Yes, the MCP server reads it |
-| Our indexers | They also write the document index, from the code they all share (§12.7) | Yes, they are Cloud Run jobs in this project |
+| Our indexers | Unchanged: they write the full text of our documents to the content bucket, which the assessor reads (§12.7) | Yes, they are Cloud Run jobs in this project |
+| HR table of active associates | The user's department (§8.4) | Yes, the people directory's indexer reads it |
 | Sentry | Reporting job failures, with no text in them | Yes, by the indexers |
 | Slack app | Posting alerts and the digest, and reading ✅ reactions on alerts | New app, in our existing Slack workspace |
-| Grafana | The dashboard (§8.8) | Yes, the team already uses it |
+| Central Grafana | The dashboard (§8.8), defined in the `infra-grafana-dashboards` repository | Yes, the company's shared Grafana |
+| GitHub Actions | Testing every change, building the image and pushing it to Artifact Registry | Yes, by the indexers |
 | Terraform in the `infrastructure` repo | Defining all of the above | Yes, for the indexers |
 | Evaluator (AIENGLAB-519) | Asking canary questions on the production engine, and running the release gate. It writes its results to the BigQuery dataset `aiel_evals`. | Being rebuilt in AIENGLAB-519 |
 
@@ -1259,9 +1256,10 @@ We don't add anything else. Two things are left out on purpose:
 | `quality-weekly` | Mondays at 06:00 UTC | Builds and ranks problem clusters, closes clusters that were fixed, computes document stats, picks documents for the anchor and focus sets, and sends the digest | 30 minutes | `quality-reporter` |
 | `quality-judge-suite` | By hand, for every change to the judge | Runs the judge test suite (§11.1-11.3) | 60 minutes | `quality-judge-suite` |
 | `quality-record` | By hand, with arguments | Records a change event that no source collects on its own, such as a document fix or a rebase of the AQR weights | 5 minutes | `quality-reporter` |
+| `quality-db-init` | By hand, after a deploy that changes the schema | Creates missing tables and views and adds new columns, from the schema in the code; with `--check`, only compares | 10 minutes | `quality-schema` |
 
 - All jobs use the same container image, built from one repository. Each job runs a different command.
-- The document index doesn't need its own job, because the indexers write it (§12.7).
+- Tables are never dropped or recreated by a job; schema changes only add.
 - As with the indexers, the schedules use UTC and Cloud Scheduler never retries a start. A retry would start a second run in parallel with the first.
 - A day in this system is a UTC day. A day's numbers can still change until its last answers are erased, which happens by about 04:22 UTC the next day (§8.1). That is why the daily job runs at 05:00 UTC, which is still before the team starts work.
 
@@ -1271,7 +1269,6 @@ We don't add anything else. Two things are left out on purpose:
 flowchart TB
     subgraph Z1["Sees text"]
         A["quality-assessor<br/>questions, answers, identity, documents,<br/>in memory during a run"]
-        I["Our indexers<br/>documents only"]
     end
     subgraph Z2["Derived values per turn"]
         R["quality-monitor, quality-daily,<br/>quality-weekly, quality-record"]
@@ -1282,8 +1279,6 @@ flowchart TB
         S["Slack"]
     end
     A -->|"leak guard"| T[("bolek_quality_turns")]
-    I --> X[("bolek_quality_doc_index<br/>IDs and vectors, no text")]
-    X --> A
     T --> R
     T --> TEAM
     R --> M[("bolek_quality_metrics")]
@@ -1295,16 +1290,17 @@ Each job has its own service account, with only the access it needs:
 
 | Service account | Can read | Can write | Can call |
 |---|---|---|---|
-| `quality-assessor` | Only the `audit_logs` table in `analytics`; `bolek_quality_turns`; `bolek_quality_doc_index`; the content bucket; `aiel_evals` | `bolek_quality_turns` | Vertex AI. In Secret Manager: the hashing key and the content secrets. |
-| `content-indexers`, our indexers' existing account | Same as today | Same as today, plus `bolek_quality_doc_index` | Same as today, plus the embedding model on Vertex AI |
+| `quality-assessor` | Only the `audit_logs` table in `analytics`; `bolek_quality_turns`; the content bucket; `aiel_evals`; `Email` and `base_function` of the HR table of active associates | `bolek_quality_turns` | Vertex AI. In Secret Manager: the hashing key and the content secrets. |
 | `quality-reporter` | `bolek_quality_turns`; `bolek_quality_log_views`; `analytics.ge_metrics`; `aiel_evals`; the run history of the indexer jobs | `bolek_quality_metrics` and the alert tables | Slack. GitHub, read only. |
 | `quality-judge-suite` | Nothing outside its image, which contains the suite | `bolek_quality_metrics.quality_judge_suite_runs` | Vertex AI |
+| `quality-schema` | | The tables and views of the three datasets | |
 | Grafana's account | `bolek_quality_metrics` | | |
 | The team | `bolek_quality_turns`, `bolek_quality_metrics` | | |
 
 - The assessor gets access to the `audit_logs` table only, not to the whole `analytics` dataset. That dataset also has tables with e-mail addresses, such as hourly activity per user.
 - The reporting jobs never read the log directly. They need three things from it: turn counts per hour, feedback counts and engine changes. They get them through **authorized views** in `bolek_quality_log_views`. The views return only counts and change records, and whoever reads them doesn't need access to the log table itself.
 - Only the assessor has the hashing key used for session and turn keys (§12.5).
+- In stage, every account exists again with a `stage-` prefix and the same access, on the `stage_` datasets. The stage assessor reads the same prod log table, content bucket and HR table as the prod one (§12.14).
 
 ### 12.5 Turn and session keys
 
@@ -1330,29 +1326,27 @@ sequenceDiagram
     participant A as quality-assessor
     participant LOG as audit_logs
     participant T as bolek_quality_turns
-    participant IDX as Document index
+    participant HR as HR table
     participant GCS as Content bucket
     participant V as Vertex AI, EU
     SCH->>A: start, every 10 minutes
     A->>LOG: turns of the last 4h30, feedback since the last run, searches
     A->>T: stored state of the sessions in the window
+    A->>HR: department of each user, once per run
     A->>A: keys, sessions, segments, marks, the work list
     loop Phase 1: each session, oldest turn first
         A->>A: PII scrubbing of the conversation, its placeholders applied to the references
         A->>V: stage 1 form, gemini-3.8-flash
         V-->>A: form
     end
-    opt Phase 2: knowledge turns without evidence
-        A->>V: embed the scrubbed questions
-        A->>IDX: one VECTOR_SEARCH for all of them
-        A->>GCS: full text, up to 3 documents per turn
+    opt Phase 2: knowledge turns without evidence whose answer links documents
+        A->>GCS: full text, up to 3 linked documents per turn
         A->>A: the turn's placeholders applied to the documents
         A->>V: evidence check, gemini-3.8-flash
         V-->>A: a contradiction, or nothing
     end
     opt Phase 3: flagged turns, while time remains
-        A->>IDX: search with two phrasings
-        A->>GCS: cited and found documents
+        A->>GCS: cited and linked documents
         A->>A: the turn's placeholders applied to the documents
         A->>V: stage 2 and session grade, gemini-4-argon
         V-->>A: diagnosis and grade
@@ -1366,57 +1360,26 @@ sequenceDiagram
 | Step | What happens |
 |---|---|
 | Read the window | One query reads the production engine's turns from the last 4h30 on all channels, the feedback records that arrived since the last run, and the search records still in the window. |
-| Work out the sessions | In memory, the assessor computes session and turn keys and groups the turns into sessions and segments. It marks canary turns (by the evaluator's prompt prefix and accounts), turns from users who are too fast to be human (more than 10 turns in 10 minutes), and turns that are too large. |
+| Work out the sessions | In memory, the assessor computes session and turn keys and groups the turns into sessions and segments. It marks canary turns (by the evaluator's prompt prefix and accounts), turns from users who are too fast to be human (more than 10 turns in 10 minutes), and turns that are too large. It maps each user to a department family, in memory. |
 | Load what was stored | For the sessions in the window, it loads what earlier runs stored: each turn's fingerprint, its flags and whether stage 2 is pending, and the segment numbers, segment states and session grades. Segment numbers must come from storage, because the first segments of a long session may already be erased. |
 | Build the work list | The list holds new turns, turns whose fingerprint changed, turns flagged by a late trigger, closed segments that need their final grade, and the 5% sample for the second-model check. During a parallel run, every turn is on the list twice. Turns that reached 3h30 without an assessment are recorded as missed. |
 | Phase 1 | Stage 1 for every turn on the list, oldest first. Different sessions are processed in parallel, but the turns of one session go in order, because each turn's form depends on the turns before it. |
-| Phase 2 | The evidence check (§6.9) for knowledge turns without evidence. One search of the document index covers all of these turns, followed by one judge call per turn. |
+| Phase 2 | The evidence check (§6.9) for knowledge turns without evidence whose answer links documents we can read: one judge call per turn. |
 | Phase 3 | Stage 2 and session grades for flagged turns, oldest first, for as long as the run has time. |
 | Write | The leak guard checks every row (§6.10). Then one `MERGE` per table writes the results. Rows are keyed by turn key, stage and judge version, so writing the same result twice replaces the row instead of adding a second one. |
 
 - Stage 1 always goes first. After 7 minutes, the run stops starting new judge calls. A flagged turn that didn't get to stage 2 is marked as pending and goes first in the next run. If it is still pending when the turn is 3h30 old, we give up on its stage 2 and count it, because the turn's text is about to be erased.
 - The assessor also counts retrievals. The anchor set gives more weight to documents that traffic often cites or retrieves (§10.1). The documents returned by Bolek's searches are erased together with the answers, so the assessor counts them per document and day while they still exist. Searches made by canary accounts are not counted.
 
-### 12.7 The document index
+### 12.7 Reading our documents
 
-The evidence check and stage 2 need to find documents related to a question. They can't use Bolek's search for that. Our data stores only return documents the caller is allowed to see, and a service account has no Google Workspace identity, so it gets nothing back. That is why the system has its own search. The indexers build it from the same text they write to the content bucket.
+The evidence check and stage 2 read the full text of our documents. They can't use Bolek's search for that: our data stores only return documents the caller is allowed to see, and a service account has no Google Workspace identity, so it gets nothing back. They read from the content bucket instead.
 
-```mermaid
-flowchart LR
-    A["A document the indexer<br/>writes in this run"] --> B{"Its text<br/>changed?"}
-    B -->|"no"| Z["Vectors kept"]
-    B -->|"yes"| C["Cut into chunks<br/>at headings"]
-    C --> D["Embedded<br/>Vertex AI, EU"]
-    D -->|"new chunks added"| E[("Document index<br/>document ID, chunk number, vector")]
-    R["End of a complete run"] -->|"one delete: old chunks of changed<br/>documents, all chunks of removed ones"| E
-```
-
-**How it is written**
-
-- All our indexers write documents through one shared piece of code, the sink. Today the sink puts each document into its data store and its full text into the content bucket. We add one more step: it also writes the document's vectors to BigQuery. The indexers only process documents that changed, so each run embeds just a few documents.
-- Gemini Enterprise splits documents into chunks inside the data store, but those chunks can only be reached through its search, which a service account can't use. So the sink does its own chunking, on the same text it writes to the bucket. It splits at markdown headings first. Sections longer than about 2,000 characters are split again at paragraph breaks, with a small overlap. Every chunk starts with the document's title. Our chunks don't have to match Gemini Enterprise's: the index only needs to find the right document, and the assessor then reads that document's full text from the bucket.
-- For each chunk we store the document ID, link and data store, the chunk number, the vector, a hash of the document's text and the name of the embedding model. The text itself is never stored in BigQuery.
-- Each data store has its own table, and only that data store's indexer writes to it. A run adds the new chunks of the documents it wrote. At the end of the run, one statement deletes the old chunks of the documents that changed and all chunks of the documents that were removed. This happens in the step where the sink already cleans up the bucket, and it follows the same rule: after a partial run, nothing is deleted. The assessor searches all the tables together.
-- New chunks are added before old ones are deleted, so a run that stops halfway never leaves a document out of the index. At worst, the old and new chunks of a document are both there for a while. That does no harm, because the search groups chunks by document and the full text is always read from the bucket. One delete per run is also much cheaper in BigQuery than one per document.
-- Embedding must never break indexing. If it fails, the document still goes into its data store and the bucket, and the failure is reported like any other indexer failure. The next scheduled full reindex fixes it: it embeds every document that has no vectors for its current text and skips the rest. The first full reindex also fills the index from scratch.
-- The people directory's indexer skips this step, so people's profiles never get into the index.
-
-**How it is searched**
-
-- The assessor embeds the scrubbed question and uses BigQuery `VECTOR_SEARCH` to find the closest chunks. It groups them by document, keeps the top 10 documents, and reads the full text of up to 3 of them from the bucket. Stage 2 searches with at least two phrasings (§7.5): the question and the problem claim.
-- The index is small: about 7,800 documents in 12 data stores, not counting the people directory, or roughly 30,000 to 50,000 chunks. At that size it can be searched without a special vector index.
-- These searches never go through Gemini Enterprise, so they don't appear in the log and don't count in any metric.
-
-**What it covers**
-
-- The same documents whose full text we can read: everything in the data stores filled by our Cloud Run indexers, except the people directory. Google Drive documents have no text in the bucket and no vectors. The BigQuery docs are covered once their indexer starts writing their text (§6.9). A data store that is still filled by an older indexer has no vectors until it moves to the Cloud Run indexers.
-- The indexers are moving to new data stores and a new bucket. Which bucket holds a data store's text is a setting, based on the data stores the production engine uses.
-
-**How we know it works**
-
-- We measure it on the canary. Every canary question comes with the document that holds its answer, and the index should return that document in its top 10. The index finds different documents than Bolek's search does, so it can also catch documents that Bolek's search missed.
-- There is no minimum hit rate before launch. We measure the rate on the canary in the first weeks and then set the rate the index has to keep (§12.17).
-- If a document's embedding fails, that document is missing from the index until the next full reindex. The check may then miss an error, but it won't record a false one. If the whole index breaks, the canary's daily hit rate drops.
+- **Which documents.** Only those a turn points at: its cited documents (stage 2) and the documents linked in its answer text (evidence check and stage 2). This system has no search of its own (§6.9).
+- **Where from.** Our Cloud Run indexers already write the full text of every document they index to the content bucket, encrypted, for the MCP server. The assessor reads it with the content secrets, at a path derived from the document's link. Which bucket holds a data store's text is a setting, based on the data stores the production engine uses.
+- **What it covers.** Every data store filled by our Cloud Run indexers, except the people directory, which is never read. Google Drive documents have no text in the bucket (about 6% of citations). A data store still filled by an older indexer has no text until it moves to the Cloud Run indexers.
+- **What is kept.** Only the IDs of the documents read, through the leak guard. The text exists only in memory during the run.
+- **Nothing changes for the indexers.** An earlier version of this design added a step to the indexers that wrote vectors of every document to a document index in BigQuery. It was dropped together with the search (§6.9).
 
 ### 12.8 Alerts, digest and acknowledgement
 
@@ -1486,16 +1449,16 @@ flowchart TB
 
 ### 12.10 Data model
 
-All datasets are in the EU, the same location as `analytics`. Per-turn tables are partitioned by day and kept for 1 year. Aggregates are kept without a limit.
+All datasets are in the EU, the same location as `analytics`. Their tables and views are created by `quality-db-init` from the schema in the code. Per-turn tables are partitioned by day and kept for 1 year. Aggregates are kept without a limit.
 
 | Dataset | Table | One row per | Written by |
 |---|---|---|---|
-| `bolek_quality_turns` | `quality_turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
+| `bolek_quality_turns` | `quality_turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, department family, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
 | | `quality_stage1_results` | Turn and judge version: the form (§6.4), fingerprint, versions (§6.11) | Assessor |
 | | `quality_stage2_results` | Flagged turn and judge version: the stage 2 form (§7.4), with up to 3 problem claims | Assessor |
 | | `quality_segments` | Session segment: its session facts, and whether it is open or closed | Assessor |
 | | `quality_session_grades` | Graded segment (§7.7) | Assessor |
-| | `quality_canary_results` | Canary turn, as answered or with a planted error: its forms, a hash of the question, the planted error, whether it was caught, whether the index found the expected document | Assessor |
+| | `quality_canary_results` | Canary turn, as answered or with a planted error: its forms, a hash of the question, the planted error, whether it was caught | Assessor |
 | | `quality_judge_checks` | Day and field: second-model disagreements (§11.5) | Assessor |
 | | `quality_retrieval_counts` | Day and document: how often Bolek's searches returned it | Assessor |
 | | `quality_judge_versions` | Judge version: what it consists of, when it started, its parallel run | Assessor |
@@ -1507,10 +1470,9 @@ All datasets are in the EU, the same location as `analytics`. Per-turn tables ar
 | | `quality_problem_clusters`, `quality_document_stats` | Week and cluster; week and document | Weekly |
 | | `quality_release_impact` | Change and metric (§10.3) | Daily |
 | | `quality_change_events` | Change event | Daily, `quality-record` |
-| | `quality_judge_quality`, `quality_judge_suite_runs` | Day and measure (canary agreement, planted errors caught, index hit rate, second-model disagreement); suite run | Daily; judge suite |
+| | `quality_judge_quality`, `quality_judge_suite_runs` | Day and measure (canary agreement, planted errors caught, second-model disagreement); suite run | Daily; judge suite |
 | | `quality_eval_documents` | Set and document: documents to generate anchor and focus questions from | Weekly |
 | `bolek_quality_log_views` | `quality_turn_counts_hourly`, `quality_feedback_counts_daily`, `quality_engine_changes` | Authorized views over the log that return only counts and change records | (views) |
-| `bolek_quality_doc_index` | `quality_chunks_<data store>` | Chunk of a document: document ID, link, chunk number, vector, text hash, embedding model | That data store's indexer |
 
 **How the per-turn tables connect.** The diagram shows only the main columns. `PK` marks the columns that identify a row, and `FK` marks columns that point to another table.
 
@@ -1593,7 +1555,7 @@ erDiagram
     }
 ```
 
-The document index tables are separate from all of this: one table per data store, with one row per chunk (§12.7).
+In stage, the same three datasets exist in `rtb-aiel-core-stage`, named with a `stage_` prefix (§12.14).
 
 Each table is written by exactly one job. Two jobs never change the same table at the same time, so BigQuery's limits on concurrent changes to a table don't apply. And when a table looks wrong, there is only one job to check.
 
@@ -1606,15 +1568,13 @@ The evaluator is being rebuilt in AIENGLAB-519. The new version uses promptfoo, 
 | **Canary** (§11.4) | The evaluator, once a day, on the production engine | Its questions land in the log like real ones. The assessor recognises them by the evaluator's prompt prefix and accounts, assesses them like real turns, and writes the results to `quality_canary_results`. They never count in the metrics. |
 | Planted errors | The assessor | It makes changed copies of canary answers, for example with a number swapped, a step removed or a name changed, and assesses those too. This is allowed because canary turns are synthetic. |
 | Agreement with the evaluator | `quality-daily` | It matches canary results to the evaluator's scores in `aiel_evals` by a hash of the question text. |
-| Knowledge gap miss rate (§7.8) | The assessor | It searches the document index with each canary question and checks whether the expected document is in the top 10. |
 | **Judge test suite** (§11.1) | `quality-judge-suite`, for every change to the judge | The test cases are files in the repository. The job runs the suite 3 times and stores the distances in `quality_judge_suite_runs`. The rule in §11.3 decides whether the change is kept. |
 | **Release gate** (§10.2) | The evaluator, for every change | `quality-daily` and `quality-weekly` read its verdicts from `aiel_evals` and show them on the dashboard and in the digest. |
 | Anchor and focus sets (§10.1) | `quality-weekly` picks the documents, and the evaluator writes the questions | The list of documents is passed through the `quality_eval_documents` table. |
 
-We need four things from the evaluator, and we agree them with its owner in milestone 0:
+We need three things from the evaluator, and we agree them with its owner in milestone 0:
 
 - a daily run on the production engine, for the canary;
-- the expected document of each question in `aiel_evals`;
 - gate results that name the change they test;
 - generating questions from `quality_eval_documents`.
 
@@ -1643,8 +1603,10 @@ The leak guard (§6.10) protects what we store. Logs, error reports and outside 
 
 ### 12.14 Deployment and versions
 
-- One repository holds the code, the rubrics, the prompts, the closed lists, the judge test suite and the settings. The settings include the 30-minute segment close, the size cap, the minimum slice size, the alert bar and the ranking weights. The team's build pipeline builds the image and stores it in Artifact Registry.
-- Terraform in `infrastructure/terraform/rtbhouse-agentspace` defines the datasets, views, service accounts, permissions, secrets, jobs and schedules. As with the indexers, a new image version is deployed separately from Terraform.
+- One repository, `RTBHouse-OEET/aiel-conversation-analyzer`, holds the code, the rubrics, the prompts, the closed lists, the judge test suite, the table schema and the settings. The settings include the 30-minute segment close, the size cap, the minimum slice size, the alert bar and the ranking weights. GitHub Actions tests every change, builds the image on every merge and stores it in the Artifact Registry of both projects.
+- Terraform in `infrastructure/terraform/rtbhouse-agentspace` (prod) and `infrastructure/terraform/rtb-aiel-core-stage` (stage) defines the datasets, service accounts, permissions, secrets, jobs and schedules. The tables and views are created by `quality-db-init` from the schema in the code, so the two can't drift apart. Jobs name their image by digest, so a deploy and a rollback are each a one-line change.
+- **Two environments.** Prod runs in `rtbhouse-agentspace` and writes `bolek_quality_*`. Stage runs in `rtb-aiel-core-stage` with its own service accounts, its own hashing key (so stage and prod rows can never be joined), its own Slack channel and the test instance of Grafana, and writes `stage_bolek_quality_*` there. It reads the prod log, content bucket and HR table, so every change is tried on real traffic before prod. A change goes to stage first, then the same image to prod; the steps are in `deployment-plan.md`.
+- **Stage runs only when switched on.** Stage assesses full traffic, which costs as much as prod. Every scheduled stage job first reads a control object in a stage bucket that holds an end time; after that time, the job records a paused run and exits at once, with no judge call and no message. Opening stage for some hours sets the end time, so stage closes by itself. Paused periods raise no pipeline health alerts and are marked on the stage dashboard. Prod has no such switch.
 - A judge version is identified by a hash of its rubric, prompt, model and form. The settings name the current version. During the 5 weekdays of a parallel run, they also name the previous one, and the assessor assesses every new turn with both (§6.11). The parallel run ends with a change to the settings.
 
 ### 12.15 Cost
@@ -1657,9 +1619,9 @@ These are estimates, based on the input sizes we measured in the window and on t
 | Evidence check | At most about as much as stage 1 (§6.9). How many turns need it is measured in the first week (§6.12). |
 | Stage 2 and session grades on `gemini-4-argon` | Up to about 10M input tokens per weekday. The price isn't known yet. |
 | Second-model check on 5% of turns | Small |
-| Embeddings for the document index | A few dollars for the first fill, then cents a day |
-| BigQuery: reading the window every 10 minutes, searching the index, computing the daily metrics | About 10 to 20 USD |
+| BigQuery: reading the window every 10 minutes, computing the daily metrics | About 10 to 20 USD |
 | Cloud Run, Cloud Scheduler, Secret Manager, Artifact Registry | About 20 to 40 USD |
+| Stage | As much as prod for every hour it is switched on, nothing while it is paused (§12.14) |
 
 ### 12.16 Build plan
 
@@ -1681,14 +1643,16 @@ flowchart LR
 
 | # | Milestone | What it includes | Done when | Engineer-weeks |
 |---|---|---|---|---|
-| 0 | Checks first | The feedback numbering check (§12.17), the audit log check (§12.13), the Polish PII test set, a first index hit rate on the evaluator's questions, approval of the Slack app, and the agreement with AIENGLAB-519 (§12.11) | Each check is answered, or the design is changed | 1 |
+| 0 | Checks first | The feedback numbering check (§12.17), the audit log check (§12.13), the Polish PII test set, approval of the Slack app, and the agreement with AIENGLAB-519 (§12.11) | Each check is answered, or the design is changed | 1 |
 | 1 | Foundations | The repository and image; Terraform for all datasets, views, service accounts, secrets, jobs and schedules; the logging wrapper, Sentry, the leak guard and its tests | An empty assessor run writes its run record | 1 |
 | 2 | Stage 1 in shadow | Reading the window; keys, sessions and segments; PII scrubbing; stage 1; too-large and missed turns; feedback; the pace check; the monitor with pipeline health alerts | Coverage stays at 98% or more for 5 weekdays | 3 |
-| 3 | Documents and stage 2 | Chunking and vectors in the indexers' shared sink, and one full reindex to fill the index; the evidence check, stage 2, session grades and late triggers | The index hit rate and the share of flagged turns are measured | 2 to 3 |
+| 3 | Documents and stage 2 | Reading the content bucket; the evidence check, stage 2, session grades and late triggers | The share of flagged turns and the evidence check's reach are measured | 2 to 3 |
 | 4 | Judge trust | The judge test suite and its job, rubric tuning, the canary, planted errors and the second-model check | The tuned judge passes §11.3, and the canary runs every day | 2 to 3, mostly spent writing expected forms |
 | 5 | Metrics and dashboard | `quality-daily` (log completeness, change events, metrics) and the Grafana page | The team reads the dashboard every morning | 2 |
 | 6 | Alerts, clusters, digest | `quality-weekly`, `HIGH` alerts, anomaly alerts with ✅ acknowledgement, and release impact | The first digest goes out. Anomaly checks start when the baseline ends (§8.6). | 2 |
 | 7 | Closed loop | Picking documents for the anchor and focus sets, and showing gate results in the digest | Every production change has a gate result and a release impact | 1, plus the evaluator's part |
+
+The build is done in a private repository (`plan.md`). It moves to the official repository and to GCP step by step, stage before prod, as described in `deployment-plan.md`.
 
 In total, this is about 14 to 16 engineer-weeks. Assessment goes live, and the 4-week baseline starts, once stage 1, the evidence check and stage 2 run with the tuned judge. Milestones 5 and 6 can be built during the baseline. Metrics are computed from stored rows, so starting them later doesn't lose any days.
 
@@ -1697,4 +1661,3 @@ In total, this is about 14 to 16 engineer-weeks. Assessment goes live, and the 4
 | Problem | Why it matters | Next step |
 |---|---|---|
 | **Does the question index in a feedback record match the turn's position in the session?** | Feedback that arrives after the window is matched to its turn by that position (§12.5). | Check it on synthetic chats in milestone 0. Until it is confirmed, feedback that arrives after the window is only counted. |
-| **What hit rate must the document index keep?** | A weak index misses contradictions and produces too many `KNOWLEDGE_GAP` findings. | Measure the rate on the canary in the first weeks after launch, then set it. If it is too low, try a different chunk size, or add a keyword search alongside the vector search. |
