@@ -1,0 +1,837 @@
+# General tasks, chitchat, vague and out-of-scope questions, people lookups, tool errors. Drafted against the
+# judge_versions/v1 rubric; reviewed: false until an engineer has checked the expected forms (§11.1). Every 5th case
+# is in the held-out part.
+- id: general-task-1
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Write a SQL query that counts rows per day in a table called events with a timestamp column created_at.
+    answer: |-
+      ```sql
+      SELECT DATE(created_at) AS day, COUNT(*) AS n
+      FROM events
+      GROUP BY day
+      ORDER BY day;
+      ```
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-2
+  part: TUNING
+  reviewed: false
+  turn:
+    question: 'Summarize in one sentence: "Our team moved the weekly sync from Monday to Wednesday because two people are
+      off on Mondays. The agenda stays the same."'
+    answer: The weekly sync moves to Wednesday because two team members are off on Mondays; the agenda is unchanged.
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-3
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Write a short, polite e-mail to a customer saying that their monthly report will be one day late.
+    answer: |-
+      Subject: Your monthly report
+
+      Dear Customer,
+
+      Your monthly report will be ready one day later than planned. We apologise for the delay and will send it to you tomorrow.
+
+      Best regards
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-4
+  part: TUNING
+  reviewed: false
+  turn:
+    question: 'Rewrite this to sound more formal: "hey, can u send me the deck asap?"'
+    answer: Could you please send me the presentation at your earliest convenience?
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-5
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: How many minutes are 2 hours and 45 minutes?
+    answer: 2 hours and 45 minutes are 165 minutes.
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-6
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Write a regular expression that matches Polish postal codes such as 00-950.
+    answer: '`^\d{2}-\d{3}$` matches two digits, a hyphen and three digits, for example 00-950.'
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-7
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Napisz krótkie podziękowanie dla zespołu za pomoc przy wdrożeniu.
+    answer: Dziękuję Wam za ogromną pomoc przy wdrożeniu! Bez Waszego zaangażowania nie udałoby się tego zrobić tak sprawnie.
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-8
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Hi Bolek!
+    answer: Hi! How can I help you today?
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-9
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Thanks, that's all I needed.
+    answer: You're welcome! Have a great day.
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-10
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Good morning, how are you?
+    answer: Good morning! I'm doing well, thank you. What can I help you with?
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-11
+  part: TUNING
+  reviewed: false
+  language: pl
+  turn:
+    question: Cześć Bolku!
+    answer: Cześć! W czym mogę pomóc?
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-12
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Are you a robot?
+    answer: I'm Bolek, the RTB House assistant. I answer questions from our internal documents.
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-13
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Tell me a joke.
+    answer: Why did the developer go broke? Because he used up all his cache.
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-14
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Have a nice weekend!
+    answer: Thanks, you too!
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: chitchat-15
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Good night!
+    answer: Good night! See you tomorrow.
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: general-task-incomplete
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Write a Python function that returns the median of a list, and a unit test for it.
+    answer: |-
+      ```python
+      def median(xs):
+          s = sorted(xs)
+          n = len(s)
+          mid = n // 2
+          return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+      ```
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 3
+      clarity: 5
+      failure_types: [INCOMPLETE_ANSWER]
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+- id: general-task-misunderstood
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Give me three title ideas for a blog post about our new office.
+    answer: Our new office is a bright, open space with room for the whole team. We moved in last month and everyone enjoys
+      the new kitchen and the meeting rooms.
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 1
+      completeness: 1
+      clarity: 5
+      failure_types: [MISUNDERSTOOD_QUERY]
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+- id: general-task-broken-format
+  part: TUNING
+  reviewed: false
+  turn:
+    question: List the four seasons as a bulleted list.
+    answer: '&lt;ul&gt;&lt;li&gt;Spring&lt;/li&gt;&lt;li&gt;Summer&lt;/li&gt;&lt;li&gt;Autumn&lt;/li&gt;&lt;li&gt;Winter&lt;/li&gt;&lt;/ul&gt;'
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 2
+      failure_types: [PRESENTATION_ISSUE]
+      primary_failure: PRESENTATION_ISSUE
+      severity: LOW
+- id: general-task-wrong-language
+  part: TUNING
+  reviewed: false
+  tags: [wrong_language]
+  turn:
+    question: Write a one-sentence birthday wish for a colleague.
+    answer: Wszystkiego najlepszego z okazji urodzin, dużo zdrowia i sukcesów!
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 1
+      language_matches: false
+      failure_types: [PRESENTATION_ISSUE]
+      primary_failure: PRESENTATION_ISSUE
+      severity: LOW
+- id: chitchat-wrong-language
+  part: HELD_OUT
+  reviewed: false
+  language: pl
+  tags: [wrong_language]
+  turn:
+    question: Dzięki!
+    answer: Thank you! Happy to help.
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 5
+      completeness: 5
+      clarity: 1
+      language_matches: false
+      failure_types: [PRESENTATION_ISSUE]
+      primary_failure: PRESENTATION_ISSUE
+      severity: LOW
+- id: chitchat-empty
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Hello
+    answer: ''
+    state: FAILED
+  expected:
+    stage1:
+      intent: CHITCHAT
+      relation: FIRST
+      relevance: 1
+      completeness: 1
+      clarity: 1
+      refusal_or_empty: true
+      failure_types: [AGENT_OR_TOOL_ERROR]
+      primary_failure: AGENT_OR_TOOL_ERROR
+      severity: MEDIUM
+- id: general-task-failed
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Summarize the text I pasted above in three bullet points.
+    answer: ''
+    state: FAILED
+  expected:
+    stage1:
+      intent: GENERAL_TASK
+      relation: FIRST
+      relevance: 1
+      completeness: 1
+      clarity: 1
+      refusal_or_empty: true
+      failure_types: [AGENT_OR_TOOL_ERROR]
+      primary_failure: AGENT_OR_TOOL_ERROR
+      severity: MEDIUM
+- id: ambiguous-guess-1
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What's the limit?
+    answer: Keep the receipt of every expense above 20 EUR, and settle your expenses within 14 days after the trip.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 2
+      completeness: 2
+      clarity: 4
+      failure_types: [AMBIGUOUS_QUESTION]
+      primary_failure: AMBIGUOUS_QUESTION
+      severity: MEDIUM
+- id: ambiguous-guess-2
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long do I have?
+    answer: You have 14 days after the trip to settle your expenses.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 2
+      completeness: 2
+      clarity: 4
+      failure_types: [AMBIGUOUS_QUESTION]
+      primary_failure: AMBIGUOUS_QUESTION
+      severity: MEDIUM
+- id: ambiguous-guess-3
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: Who approves it?
+    answer: Your manager approves your leave requests in Workday.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 2
+      completeness: 2
+      clarity: 4
+      failure_types: [AMBIGUOUS_QUESTION]
+      primary_failure: AMBIGUOUS_QUESTION
+      severity: MEDIUM
+- id: ambiguous-guess-4
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Make it shorter.
+    answer: 'Here is a shorter version: "Please send the report by Friday."'
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 2
+      completeness: 2
+      clarity: 4
+      failure_types: [AMBIGUOUS_QUESTION]
+      primary_failure: AMBIGUOUS_QUESTION
+      severity: MEDIUM
+- id: ambiguous-guess-5
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Can you do the same for March?
+    answer: In March the Warsaw office is open from 7:00 to 20:00 on working days.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 2
+      completeness: 2
+      clarity: 4
+      failure_types: [AMBIGUOUS_QUESTION]
+      primary_failure: AMBIGUOUS_QUESTION
+      severity: MEDIUM
+- id: asking-back-1
+  part: TUNING
+  reviewed: false
+  turn:
+    question: What's the limit?
+    answer: Which limit do you mean, for example the API rate limit or an expense limit?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: asking-back-2
+  part: TUNING
+  reviewed: false
+  turn:
+    question: Is it still valid?
+    answer: Which document or rule do you mean? Tell me and I'll check it.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: asking-back-3
+  part: HELD_OUT
+  reviewed: false
+  turn:
+    question: asdfgh
+    answer: I'm not sure what you mean. Could you rephrase your question?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: out-of-scope-1
+  part: TUNING
+  reviewed: false
+  tags: [refusal]
+  turn:
+    question: Book me a flight to Paris for next Monday.
+    answer: I can't book trips. Book business trips yourself in Travel Tool; trips inside Europe need your manager's approval.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      refusal_or_empty: true
+      failure_types: [OUT_OF_SCOPE]
+      primary_failure: OUT_OF_SCOPE
+      severity: LOW
+- id: out-of-scope-2
+  part: TUNING
+  reviewed: false
+  tags: [refusal]
+  turn:
+    question: Check my calendar for tomorrow.
+    answer: I can't see your calendar. Please check it in Google Calendar.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      refusal_or_empty: true
+      failure_types: [OUT_OF_SCOPE]
+      primary_failure: OUT_OF_SCOPE
+      severity: LOW
+- id: out-of-scope-3
+  part: TUNING
+  reviewed: false
+  tags: [refusal]
+  turn:
+    question: Approve my leave request in Workday.
+    answer: I can't approve requests in Workday. Your manager approves leave requests there.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      refusal_or_empty: true
+      failure_types: [OUT_OF_SCOPE]
+      primary_failure: OUT_OF_SCOPE
+      severity: LOW
+- id: out-of-scope-4
+  part: TUNING
+  reviewed: false
+  tags: [refusal]
+  turn:
+    question: Send a Slack message to my team that I'll be late.
+    answer: I can't send Slack messages. You can post it in your team's channel yourself.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      refusal_or_empty: true
+      failure_types: [OUT_OF_SCOPE]
+      primary_failure: OUT_OF_SCOPE
+      severity: LOW
+- id: out-of-scope-5
+  part: HELD_OUT
+  reviewed: false
+  language: pl
+  tags: [refusal]
+  turn:
+    question: Zarezerwuj mi salę konferencyjną na jutro.
+    answer: Nie mogę rezerwować sal. Zarezerwuj ją w Kalendarzu Google.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FIRST
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      refusal_or_empty: true
+      failure_types: [OUT_OF_SCOPE]
+      primary_failure: OUT_OF_SCOPE
+      severity: LOW
+- id: people-1
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Who is the Head of Finance Operations?
+    answer: Anna Nowak is the Head of Finance Operations, in the Finance team in the Warsaw office.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-2
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Which team is Anna Nowak in?
+    answer: Anna Nowak is in the Finance team.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-3
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Where does Anna Nowak work?
+    answer: Anna Nowak works in the Warsaw office.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-4
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Who should I ask about my travel expenses?
+    answer: 'Ask Finance: Anna Nowak is the Head of Finance Operations.'
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-5
+  part: HELD_OUT
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Who is Anna Nowak?
+    answer: Anna Nowak is the Head of Finance Operations in the Finance team, based in the Warsaw office.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-6
+  part: TUNING
+  reviewed: false
+  language: pl
+  tags: [people_lookup]
+  turn:
+    question: Kto jest szefem Finance Operations?
+    answer: Szefową Finance Operations jest Anna Nowak z zespołu Finance.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-7
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Who owns the leave policy?
+    answer: You can take up to 4 days of on-demand leave per year and request leave in Workday.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 2
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-private-1
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup, private_details, refusal]
+  turn:
+    question: What's Anna Nowak's private phone number?
+    answer: I can't share private contact details of colleagues.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 4
+      refusal_or_empty: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-private-2
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup, private_details, refusal]
+  turn:
+    question: What's Anna Nowak's home address?
+    answer: I can't share private details such as home addresses.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 4
+      refusal_or_empty: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-private-3
+  part: HELD_OUT
+  reviewed: false
+  tags: [people_lookup, private_details, refusal]
+  turn:
+    question: How much does Anna Nowak earn?
+    answer: I can't share salary information.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 4
+      refusal_or_empty: true
+      failure_types: [NONE]
+      primary_failure: NONE
+- id: people-failed
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  turn:
+    question: Who leads the traffic team?
+    answer: ''
+    state: FAILED
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FIRST
+      relevance: 1
+      refusal_or_empty: true
+      failure_types: [AGENT_OR_TOOL_ERROR]
+      primary_failure: AGENT_OR_TOOL_ERROR
+      severity: MEDIUM
+- id: leave_ondemand-failed
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How many days of on-demand leave can I take per year?
+    answer: ''
+    state: FAILED
+  documents: [leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FIRST
+      relevance: 1
+      completeness: 1
+      clarity: 1
+      needs_internal_knowledge: true
+      refusal_or_empty: true
+      failure_types: [AGENT_OR_TOOL_ERROR, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: AGENT_OR_TOOL_ERROR
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: vpn_loop-failed
+  part: TUNING
+  reviewed: false
+  turn:
+    question: My VPN sign-in keeps looping. How do I fix it?
+    answer: ''
+    state: FAILED
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FIRST
+      relevance: 1
+      completeness: 1
+      clarity: 1
+      needs_internal_knowledge: true
+      refusal_or_empty: true
+      failure_types: [AGENT_OR_TOOL_ERROR, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: AGENT_OR_TOOL_ERROR
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false
+- id: bq_retention-failed
+  part: TUNING
+  reviewed: false
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: ''
+    state: FAILED
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FIRST
+      relevance: 1
+      completeness: 1
+      clarity: 1
+      needs_internal_knowledge: true
+      refusal_or_empty: true
+      failure_types: [AGENT_OR_TOOL_ERROR, UNGROUNDED_INTERNAL_ANSWER]
+      primary_failure: AGENT_OR_TOOL_ERROR
+      severity: MEDIUM
+    evidence_check:
+      contradiction_found: false

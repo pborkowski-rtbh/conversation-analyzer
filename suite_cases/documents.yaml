@@ -1,0 +1,264 @@
+# The suite's corpus: made-up documents in the shape of our data stores. Searches in a case return the documents it
+# lists; reading a document returns its text. Facts here are invented; only their consistency matters.
+leave:
+  doc_id: sites_google_com_rtbhouse_com_hr-house_leave
+  data_store: rtb-crj-hr-house
+  uri: https://sites.google.com/rtbhouse.com/hr-house/leave
+  title: Leave policy (2026)
+  text: |
+    # Leave policy (2026)
+
+    ## Annual leave
+    Employees with less than 10 years of seniority have 20 days of annual leave per year; from 10 years on, 26 days.
+    Request annual leave in Workday at least 3 working days in advance.
+    Unused days can be taken until 30 September of the next year.
+
+    ## On-demand leave
+    You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    Request on-demand leave in Workday no later than the start of the working day.
+
+    ## Sick leave
+    Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+leave_2024:
+  doc_id: confluence_HR_88_v7
+  data_store: rtb-crj-confluence
+  uri: https://rtbhouseproduct.atlassian.net/wiki/spaces/HR/pages/88
+  title: Leave rules (2024)
+  text: |
+    # Leave rules (2024)
+
+    Last updated: March 2024.
+
+    ## On-demand leave
+    You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+
+    ## Annual leave
+    Request annual leave at least 7 days in advance.
+leave_pl:
+  doc_id: sites_google_com_rtbhouse_com_hr-house_urlopy
+  data_store: rtb-crj-hr-house
+  uri: https://sites.google.com/rtbhouse.com/hr-house/urlopy
+  title: Urlopy (2026)
+  text: |
+    # Urlopy (2026)
+
+    ## Urlop wypoczynkowy
+    Pracownik ze stażem krótszym niż 10 lat ma 20 dni urlopu w roku, od 10 lat – 26 dni.
+    Wniosek składamy w Workday co najmniej 3 dni robocze wcześniej.
+
+    ## Urlop na żądanie
+    Przysługują maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
+trips:
+  doc_id: confluence_TRAVEL_120_v12
+  data_store: rtb-crj-confluence
+  uri: https://rtbhouseproduct.atlassian.net/wiki/spaces/TRAVEL/pages/120
+  title: Business trips (2026)
+  text: |
+    # Business trips (2026)
+
+    ## Booking
+    Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+
+    ## Approval
+    Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+
+    ## Expenses
+    Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above 20 EUR.
+trips_2023:
+  doc_id: knowhow_post_311
+  data_store: rtb-crj-knowhow
+  uri: https://knowhow.rtbhouse.com/posts/311
+  title: Travel FAQ (2023)
+  text: |
+    # Travel FAQ (2023)
+
+    Every business trip needs approval from Finance before booking.
+    Settle your expenses within 30 days after the trip.
+vpn:
+  doc_id: sites_google_com_rtbhouse_com_hdqa_vpn
+  data_store: rtb-crj-helpdesk-qa
+  uri: https://sites.google.com/rtbhouse.com/hdqa/vpn
+  title: VPN
+  text: |
+    # VPN
+
+    Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+    ## Troubleshooting
+    If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+    If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+    If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+vpn_kh:
+  doc_id: knowhow_post_204
+  data_store: rtb-crj-knowhow
+  uri: https://knowhow.rtbhouse.com/posts/204
+  title: VPN setup
+  text: |
+    # VPN setup
+
+    Install GlobalProtect and enter the portal address vpn.rtbhouse.com. Confirm the sign-in with Okta Verify.
+laptop_hdqa:
+  doc_id: sites_google_com_rtbhouse_com_hdqa_laptop
+  data_store: rtb-crj-helpdesk-qa
+  uri: https://sites.google.com/rtbhouse.com/hdqa/laptop
+  title: New laptop
+  text: |
+    # New laptop
+
+    Order a new laptop with a Hardware request in Jira Service Desk. IT prepares it within 10 working days after your
+    manager approves the request.
+laptop:
+  doc_id: knowhow_post_150
+  data_store: rtb-crj-knowhow
+  uri: https://knowhow.rtbhouse.com/posts/150
+  title: Getting a new laptop
+  text: |
+    # Getting a new laptop
+
+    ## Steps
+    1. Open a request in Jira Service Desk with the type Hardware.
+    2. Your manager approves the request.
+    3. IT prepares the laptop within 5 working days.
+    4. Pick it up at the IT desk on the 3rd floor.
+
+    ## Returning the old laptop
+    Return the old laptop to the IT desk within 10 working days.
+campaigns_api:
+  doc_id: web_api_campaigns_list
+  data_store: rtb-crj-api-docs
+  uri: https://api.rtbhouse.com/docs/campaigns
+  title: Campaigns API
+  text: |
+    # GET /v5/advertisers/{hash}/campaigns
+
+    Returns at most 100 campaigns per page. Use the `page` parameter to get the next page.
+
+    ## Authentication
+    Send the header `Authorization: Bearer <token>`.
+
+    ## Rate limits
+    10 requests per second per token. HTTP 429 means the limit was exceeded: wait for the number of seconds in the
+    `Retry-After` header, then retry.
+bq_impressions:
+  doc_id: bq_doc_analytics_impressions_daily
+  data_store: rtb-crj-bq-documentation
+  uri: https://console.cloud.google.com/bigquery?d=analytics&t=impressions_daily
+  title: analytics.impressions_daily
+  text: |
+    # analytics.impressions_daily
+
+    Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+
+    ## Columns
+    - day DATE
+    - advertiser_hash STRING
+    - impressions INT64
+    - clicks INT64
+    - spend_usd NUMERIC
+
+    ## Retention
+    Data is kept for 400 days.
+bq_clicks:
+  doc_id: bq_doc_analytics_clicks_hourly
+  data_store: rtb-crj-bq-documentation
+  uri: https://console.cloud.google.com/bigquery?d=analytics&t=clicks_hourly
+  title: analytics.clicks_hourly
+  text: |
+    # analytics.clicks_hourly
+
+    Hourly clicks per campaign. Partitioned by `hour`.
+
+    ## Columns
+    - hour TIMESTAMP (UTC)
+    - campaign_id STRING
+    - clicks INT64
+    - conversions INT64
+
+    A click is counted once per user and campaign within 30 seconds.
+ctr:
+  doc_id: biztech_ctr_metric
+  data_store: rtb-crj-biztech
+  uri: https://biztech.rtbhouse.com/wiki/ctr
+  title: CTR
+  text: |
+    # CTR
+
+    CTR (click-through rate) = clicks / impressions, shown in percent.
+    The Panel computes CTR per day in the advertiser's time zone.
+attribution:
+  doc_id: biztech_attribution_window
+  data_store: rtb-crj-biztech
+  uri: https://biztech.rtbhouse.com/wiki/attribution-window
+  title: Attribution window
+  text: |
+    # Attribution window
+
+    The default post-click window is 30 days and the default post-view window is 1 day.
+    Advertisers can change both in the Panel under Settings > Attribution.
+office:
+  doc_id: inhouse_office_warsaw
+  data_store: rtb-crj-inhouse
+  uri: https://inhouse.rtbhouse.net/office/warsaw
+  title: Warsaw office
+  text: |
+    # Warsaw office
+
+    The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    Book a parking space in Parkanizer the day before. Guests sign in at the reception on the ground floor.
+office_kh:
+  doc_id: knowhow_post_412
+  data_store: rtb-crj-knowhow
+  uri: https://knowhow.rtbhouse.com/posts/412
+  title: Warsaw office FAQ
+  text: |
+    # Warsaw office FAQ
+
+    The Warsaw office at Złota 61 is open from 8:00 to 18:00 on working days. Outside these hours the building is
+    closed.
+passwords_pl:
+  doc_id: docrepo_34_7
+  data_store: rtb-crj-doc-repo
+  uri: https://docrepo.rtbhouse.biz/repository/34/document/7
+  title: Polityka haseł
+  text: |
+    # Polityka haseł
+
+    Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    Nie wolno używać tego samego hasła w dwóch systemach. Hasła przechowujemy w menedżerze haseł 1Password.
+floor_prices:
+  doc_id: traffic_wiki_floor_prices
+  data_store: rtb-crj-traffic-wiki
+  uri: https://traffic-wiki.rtbhouse.biz/floor-prices
+  title: Floor prices
+  text: |
+    # Floor prices
+
+    Change floor prices in the Floor Manager tool. Changes are applied within 15 minutes.
+    A change of more than 30% needs approval from the traffic team lead.
+budget_hint:
+  doc_id: app_hint_budget_tab
+  data_store: rtb-crj-app-hints
+  uri: https://api.apps-tools.rtbhouse.biz/hints/budget-tab
+  title: Budget tab
+  text: |
+    # Budget tab
+
+    The Budget tab in the Panel shows the daily budget pacing and a forecast of the spend at the end of the month.
+about_bolek:
+  doc_id: about_bolek_sources
+  data_store: rtb-crj-about-bolek
+  uri: https://about.bolek.rtbhouse.net/sources
+  title: What Bolek knows
+  text: |
+    # What Bolek knows
+
+    Bolek answers from internal documents: Confluence, HR House, Helpdesk QA, KnowHow and others.
+    It cannot see your calendar, your mailbox or Slack.
+person_finance:
+  doc_id: associate-0042
+  data_store: rtb-crj-associates
+  uri: null
+  title: Anna Nowak
+  text: |
+    Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.

@@ -1,0 +1,22 @@
+name: conversation-analyzer
+
+services:
+  bigquery:
+    image: ghcr.io/goccy/bigquery-emulator:latest
+    command: ["--project=local-project", "--log-level=warn"]
+    ports:
+      - "9050:9050"
+      - "9060:9060"
+
+  gcs:
+    image: fsouza/fake-gcs-server:latest
+    command: ["-scheme", "http", "-port", "4443", "-public-host", "localhost:4443", "-backend", "memory"]
+    ports:
+      - "4443:4443"
+
+  stubs:
+    build:
+      context: .
+      dockerfile: docker/stubs.Dockerfile
+    ports:
+      - "8088:8088"

@@ -1,0 +1,2014 @@
+# Conversations of 3 to 5 turns with a session grade; earlier turns carry their fixed stage 1 labels. Drafted against
+# the judge_versions/v1 rubric; reviewed: false until an engineer has checked the expected forms (§11.1). Every 5th
+# case is in the held-out part.
+- id: resolved-leave_ondemand
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: How do I request annual leave?
+    answer: Request annual leave in Workday at least 3 working days in advance.
+    references:
+    - doc: leave
+      snippet: Request annual leave in Workday at least 3 working days in advance.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Until when can I use my unused annual leave days?
+    answer: Unused days can be taken until 30 September of the next year.
+    references:
+    - doc: leave
+      snippet: Unused days can be taken until 30 September of the next year.
+    spans:
+    - text: Unused days can be taken until 30 September of the next year.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: resolved-trips_booking
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Who has to approve my business trip to New York?
+    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+    references:
+    - doc: trips
+      snippet: Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    spans:
+    - text: Settle your expenses in Travel Tool within 14 days after the trip.
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: resolved-bq_partition
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I query analytics.impressions_daily without scanning the whole table?
+    answer: 'The table is partitioned by `day`: filter on `day` in every query.'
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Which column of analytics.impressions_daily holds the spend?
+    answer: The spend is in `spend_usd` (NUMERIC).
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 400 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 400 days.
+      refs: [0]
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: resolved-clicks_partition
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Which column is analytics.clicks_hourly partitioned by?
+    answer: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
+    references:
+    - doc: bq_clicks
+      snippet: |-
+        Hourly clicks per campaign. Partitioned by `hour`.
+
+        ## Columns
+        - hour TIMESTAMP (UTC)
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: How are repeated clicks counted in analytics.clicks_hourly?
+    answer: A click is counted once per user and campaign within 30 seconds.
+    references:
+    - doc: bq_clicks
+      snippet: A click is counted once per user and campaign within 30 seconds.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How is CTR computed in the Panel?
+    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in the advertiser's time zone.
+    references:
+    - doc: ctr
+      snippet: |-
+        CTR (click-through rate) = clicks / impressions, shown in percent.
+        The Panel computes CTR per day in the advertiser's time zone.
+    spans:
+    - text: CTR = clicks / impressions, shown in percent.
+      refs: [0]
+    - text: The Panel computes it per day in the advertiser's time zone.
+      refs: [0]
+  documents: [ctr]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: resolved-after-correction-leave_ondemand
+  part: HELD_OUT
+  reviewed: false
+  earlier:
+  - question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That's not right, please check the policy again.
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How do I request annual leave?
+    answer: Request annual leave in Workday at least 3 working days in advance.
+    references:
+    - doc: leave
+      snippet: Request annual leave in Workday at least 3 working days in advance.
+    spans:
+    - text: Request annual leave in Workday at least 3 working days in advance.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: 1
+      recovered: 'YES'
+- id: resolved-after-correction-trips_expenses
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 60 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That's not right, please check the policy again.
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    spans:
+    - text: Book the hotel through Travel Tool, like every part of a business trip.
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: 1
+      recovered: 'YES'
+- id: resolved-after-correction-vpn_gateway
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: GlobalProtect says "Gateway not responding". What should I do?
+    answer: Switch the gateway to US-East and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    references:
+    - doc: vpn
+      snippet: If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect. If it still
+        fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That gateway doesn't exist. Please check again.
+    answer: Switch the gateway to Europe-2 and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    references:
+    - doc: vpn
+      snippet: If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect. If it still
+        fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: My VPN sign-in keeps looping. How do I fix it?
+    answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
+      queue in OTRS.'
+    references:
+    - doc: vpn
+      snippet: 'If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket
+        in the IT Helpdesk queue in OTRS.'
+    spans:
+    - text: 'Reset GlobalProtect: Settings > Troubleshooting > Reset.'
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: 1
+      recovered: 'YES'
+- id: resolved-after-correction-password_length
+  part: TUNING
+  reviewed: false
+  language: pl
+  earlier:
+  - question: Ile znaków musi mieć hasło?
+    answer: Hasło musi mieć co najmniej 8 znaków.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: To nieprawda, sprawdź jeszcze raz.
+    answer: Hasło musi mieć co najmniej 12 znaków.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Jak często trzeba zmieniać hasło?
+    answer: Hasło zmieniamy co 90 dni.
+    references:
+    - doc: passwords_pl
+      snippet: Hasło musi mieć co najmniej 12 znaków. Hasło zmieniamy co 90 dni.
+    spans:
+    - text: Hasło zmieniamy co 90 dni.
+      refs: [0]
+  documents: [passwords_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: 1
+      recovered: 'YES'
+- id: resolved-after-rephrase-laptop_steps
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Laptop?
+    answer: Return the old laptop to the IT desk within 10 working days.
+    references:
+    - doc: laptop
+      snippet: |-
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+    stage1:
+      relation: FIRST
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  - question: 'I mean: how do I get a new laptop?'
+    answer: |-
+      1. Open a Hardware request in Jira Service Desk.
+      2. Your manager approves the request.
+      3. IT prepares the laptop within 5 working days.
+      4. Pick it up at the IT desk on the 3rd floor.
+    references:
+    - doc: laptop
+      snippet: |-
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+    stage1:
+      relation: REPHRASE
+      relevance: 5
+      primary_failure: NONE
+  - question: Can I choose the model?
+    answer: The document doesn't say; ask IT when you open the request.
+    references:
+    - doc: laptop
+      snippet: |-
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 10 working days.
+    references:
+    - doc: laptop
+      snippet: Return the old laptop to the IT desk within 10 working days.
+    spans:
+    - text: Return the old laptop to the IT desk within 10 working days.
+      refs: [0]
+  documents: [laptop]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: resolved-after-rephrase-parking
+  part: HELD_OUT
+  reviewed: false
+  earlier:
+  - question: Parking at the office?
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days.
+    references:
+    - doc: office
+      snippet: Book a parking space in Parkanizer the day before.
+    stage1:
+      relation: FIRST
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  - question: How do I book a parking space at the Warsaw office?
+    answer: Book a parking space in Parkanizer the day before.
+    references:
+    - doc: office
+      snippet: Book a parking space in Parkanizer the day before.
+    stage1:
+      relation: REPHRASE
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    spans:
+    - text: The Warsaw office is open from 7:00 to 20:00 on working days.
+      refs: [0]
+  documents: [office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: RESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: partial-unmet-trips_booking
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: What is the daily meal allowance in London?
+    answer: It is 45 GBP per day.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+  turn:
+    question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    spans:
+    - text: Settle your expenses in Travel Tool within 14 days after the trip.
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 2
+      recovered: NO_CORRECTION
+- id: partial-unmet-office_hours
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: What's the guest Wi-Fi password?
+    answer: The guest Wi-Fi password is RTBguest2026.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+  turn:
+    question: How do I book a parking space at the Warsaw office?
+    answer: Book a parking space in Parkanizer the day before.
+    references:
+    - doc: office
+      snippet: Book a parking space in Parkanizer the day before.
+    spans:
+    - text: Book a parking space in Parkanizer the day before.
+      refs: [0]
+  documents: [office]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 2
+      recovered: NO_CORRECTION
+- id: partial-unmet-laptop_steps
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I get a new laptop?
+    answer: |-
+      1. Open a Hardware request in Jira Service Desk.
+      2. Your manager approves the request.
+      3. IT prepares the laptop within 5 working days.
+      4. Pick it up at the IT desk on the 3rd floor.
+    references:
+    - doc: laptop
+      snippet: |-
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: How many monitors can I order?
+    answer: You can order up to two monitors.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+  turn:
+    question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 10 working days.
+    references:
+    - doc: laptop
+      snippet: Return the old laptop to the IT desk within 10 working days.
+    spans:
+    - text: Return the old laptop to the IT desk within 10 working days.
+      refs: [0]
+  documents: [laptop]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 2
+      recovered: NO_CORRECTION
+- id: partial-unmet-leave_ondemand
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Do I get extra days off for my wedding?
+    answer: Yes, you get 5 extra days off for your wedding.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+  turn:
+    question: What do I have to do when I'm sick and can't come to work?
+    answer: Inform your manager on the first day of absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
+    references:
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+    spans:
+    - text: Inform your manager on the first day of absence.
+      refs: [0]
+    - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 2
+      recovered: NO_CORRECTION
+- id: partial-unmet-bq_partition
+  part: HELD_OUT
+  reviewed: false
+  earlier:
+  - question: How do I query analytics.impressions_daily without scanning the whole table?
+    answer: 'The table is partitioned by `day`: filter on `day` in every query.'
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Is there a table with hourly impressions?
+    answer: 'Yes: analytics.impressions_hourly.'
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: UNGROUNDED_INTERNAL_ANSWER
+      severity: MEDIUM
+  turn:
+    question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 400 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 400 days.
+      refs: [0]
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 2
+      recovered: NO_CORRECTION
+- id: partial-incomplete-annual_request
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: What do I have to do when I'm sick and can't come to work?
+    answer: Inform your manager on the first day of absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
+    references:
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How do I request annual leave, and until when can I use unused days?
+    answer: Request annual leave in Workday at least 3 working days in advance.
+    references:
+    - doc: leave
+      snippet: Request annual leave in Workday at least 3 working days in advance.
+    - doc: leave
+      snippet: Unused days can be taken until 30 September of the next year.
+    spans:
+    - text: Request annual leave in Workday at least 3 working days in advance.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 3
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [INCOMPLETE_ANSWER]
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 3
+      recovered: NO_CORRECTION
+- id: partial-incomplete-trips_approval
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Who approves a trip to New York, and do I need receipts for small expenses?
+    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+    references:
+    - doc: trips
+      snippet: Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+    spans:
+    - text: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 3
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [INCOMPLETE_ANSWER]
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 3
+      recovered: NO_CORRECTION
+- id: partial-incomplete-vpn_loop
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: GlobalProtect says "Gateway not responding". What should I do?
+    answer: Switch the gateway to Europe-2 and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    references:
+    - doc: vpn
+      snippet: If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect. If it still
+        fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: By when do I have to return my old laptop?
+    answer: Return the old laptop to the IT desk within 10 working days.
+    references:
+    - doc: laptop
+      snippet: Return the old laptop to the IT desk within 10 working days.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How do I fix a VPN sign-in loop, and what's the portal address?
+    answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
+      queue in OTRS.'
+    references:
+    - doc: vpn
+      snippet: 'If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket
+        in the IT Helpdesk queue in OTRS.'
+    spans:
+    - text: 'Reset GlobalProtect: Settings > Troubleshooting > Reset.'
+      refs: [0]
+    - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+      refs: [0]
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 3
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [INCOMPLETE_ANSWER]
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 3
+      recovered: NO_CORRECTION
+- id: partial-incomplete-bq_retention
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I query analytics.impressions_daily without scanning the whole table?
+    answer: 'The table is partitioned by `day`: filter on `day` in every query.'
+    references:
+    - doc: bq_impressions
+      snippet: Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Which column of analytics.impressions_daily holds the spend?
+    answer: The spend is in `spend_usd` (NUMERIC).
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How long is data kept in analytics.impressions_daily, and is there an hourly table?
+    answer: Data in analytics.impressions_daily is kept for 400 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 400 days.
+      refs: [0]
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 3
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [INCOMPLETE_ANSWER]
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 3
+      recovered: NO_CORRECTION
+- id: partial-incomplete-ctr
+  part: HELD_OUT
+  reviewed: false
+  earlier:
+  - question: Which column is analytics.clicks_hourly partitioned by?
+    answer: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
+    references:
+    - doc: bq_clicks
+      snippet: |-
+        Hourly clicks per campaign. Partitioned by `hour`.
+
+        ## Columns
+        - hour TIMESTAMP (UTC)
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: How are repeated clicks counted in analytics.clicks_hourly?
+    answer: A click is counted once per user and campaign within 30 seconds.
+    references:
+    - doc: bq_clicks
+      snippet: A click is counted once per user and campaign within 30 seconds.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: How is CTR computed, and where do I see it in the Panel?
+    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in the advertiser's time zone.
+    references:
+    - doc: ctr
+      snippet: |-
+        CTR (click-through rate) = clicks / impressions, shown in percent.
+        The Panel computes CTR per day in the advertiser's time zone.
+    spans:
+    - text: CTR = clicks / impressions, shown in percent.
+      refs: [0]
+    - text: The Panel computes it per day in the advertiser's time zone.
+      refs: [0]
+  documents: [ctr]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FOLLOW_UP
+      relevance: 5
+      completeness: 3
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [INCOMPLETE_ANSWER]
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+    session:
+      outcome: PARTIALLY_RESOLVED
+      first_bad_turn: 3
+      recovered: NO_CORRECTION
+- id: unresolved-off-target-trips
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I book a business trip to New York, and who approves it?
+    answer: Book it in Travel Tool, hotels included.
+    references:
+    - doc: trips
+      snippet: |-
+        ## Booking
+        Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+
+        ## Approval
+        Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+
+        ## Expenses
+        Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above 20 EUR.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+  - question: And the approval?
+    answer: Keep the receipt of every expense above 20 EUR.
+    references:
+    - doc: trips
+      snippet: |-
+        ## Booking
+        Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+
+        ## Approval
+        Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+
+        ## Expenses
+        Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above 20 EUR.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  turn:
+    question: This is useless. Who approves a trip to New York?
+    answer: Book every business trip in Travel Tool.
+    references:
+    - doc: trips
+      snippet: |-
+        ## Booking
+        Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+
+        ## Approval
+        Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+
+        ## Expenses
+        Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above 20 EUR.
+    spans:
+    - text: Book every business trip in Travel Tool.
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FRUSTRATION
+      relevance: 1
+      completeness: 1
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [MISUNDERSTOOD_QUERY]
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: unresolved-off-target-leave
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How many on-demand days do I have and how do I request them?
+    answer: You can take up to 4 days of on-demand leave per year.
+    references:
+    - doc: leave
+      snippet: |-
+        ## On-demand leave
+        You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+        Request on-demand leave in Workday no later than the start of the working day.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+  - question: And how do I request them?
+    answer: On-demand days are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: |-
+        ## On-demand leave
+        You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+        Request on-demand leave in Workday no later than the start of the working day.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  turn:
+    question: Forget the details, just tell me how to request on-demand leave!
+    answer: You can take up to 4 days of on-demand leave per year.
+    references:
+    - doc: leave
+      snippet: |-
+        ## On-demand leave
+        You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+        Request on-demand leave in Workday no later than the start of the working day.
+    spans:
+    - text: You can take up to 4 days of on-demand leave per year.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: HOW_TO
+      relation: FRUSTRATION
+      relevance: 1
+      completeness: 1
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [MISUNDERSTOOD_QUERY]
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: unresolved-off-target-laptop
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How do I get a new laptop and when do I return the old one?
+    answer: Open a request in Jira Service Desk with the type Hardware.
+    references:
+    - doc: laptop
+      snippet: |-
+        ## Steps
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+
+        ## Returning the old laptop
+        Return the old laptop to the IT desk within 10 working days.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+  - question: And the old one?
+    answer: IT prepares the new laptop within 5 working days.
+    references:
+    - doc: laptop
+      snippet: |-
+        ## Steps
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+
+        ## Returning the old laptop
+        Return the old laptop to the IT desk within 10 working days.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  turn:
+    question: You keep ignoring my question. When do I return the old laptop?
+    answer: Pick up the new laptop at the IT desk on the 3rd floor.
+    references:
+    - doc: laptop
+      snippet: |-
+        ## Steps
+        1. Open a request in Jira Service Desk with the type Hardware.
+        2. Your manager approves the request.
+        3. IT prepares the laptop within 5 working days.
+        4. Pick it up at the IT desk on the 3rd floor.
+
+        ## Returning the old laptop
+        Return the old laptop to the IT desk within 10 working days.
+    spans:
+    - text: Pick up the new laptop at the IT desk on the 3rd floor.
+      refs: [0]
+  documents: [laptop]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: FRUSTRATION
+      relevance: 1
+      completeness: 1
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [MISUNDERSTOOD_QUERY]
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: unresolved-off-target-bq
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Which column holds the spend in analytics.impressions_daily, and how long is data kept?
+    answer: The spend is in `spend_usd`.
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+
+        ## Columns
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+
+        ## Retention
+        Data is kept for 400 days.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+  - question: And the retention?
+    answer: The table is partitioned by `day`.
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+
+        ## Columns
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+
+        ## Retention
+        Data is kept for 400 days.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  turn:
+    question: Seriously? How long is the data kept?
+    answer: Every query must filter on `day`.
+    references:
+    - doc: bq_impressions
+      snippet: |-
+        Daily impressions per advertiser. Partitioned by `day`; every query must filter on `day`.
+
+        ## Columns
+        - day DATE
+        - advertiser_hash STRING
+        - impressions INT64
+        - clicks INT64
+        - spend_usd NUMERIC
+
+        ## Retention
+        Data is kept for 400 days.
+    spans:
+    - text: Every query must filter on `day`.
+      refs: [0]
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: FRUSTRATION
+      relevance: 1
+      completeness: 1
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [MISUNDERSTOOD_QUERY]
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: unresolved-off-target-vpn
+  part: HELD_OUT
+  reviewed: false
+  earlier:
+  - question: What's the VPN portal and what do I do when the gateway doesn't respond?
+    answer: The portal is vpn.rtbhouse.net.
+    references:
+    - doc: vpn
+      snippet: |-
+        Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+        ## Troubleshooting
+        If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+        If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+        If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: INCOMPLETE_ANSWER
+      severity: MEDIUM
+  - question: And the gateway problem?
+    answer: Sign in with your Google account and confirm with Okta Verify.
+    references:
+    - doc: vpn
+      snippet: |-
+        Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+        ## Troubleshooting
+        If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+        If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+        If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 1
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+  turn:
+    question: Not helpful at all. What do I do when it says Gateway not responding?
+    answer: Use GlobalProtect with the portal vpn.rtbhouse.net.
+    references:
+    - doc: vpn
+      snippet: |-
+        Use GlobalProtect with the portal vpn.rtbhouse.net. Sign in with your Google account and confirm with Okta Verify.
+
+        ## Troubleshooting
+        If GlobalProtect shows "Gateway not responding", switch the gateway to Europe-2 and reconnect.
+        If the sign-in loops, reset GlobalProtect: Settings > Troubleshooting > Reset.
+        If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
+    spans:
+    - text: Use GlobalProtect with the portal vpn.rtbhouse.net.
+      refs: [0]
+  documents: [vpn]
+  expected:
+    stage1:
+      intent: TROUBLESHOOTING
+      relation: FRUSTRATION
+      relevance: 1
+      completeness: 1
+      clarity: 5
+      groundedness: 5
+      unsupported_spans: 0
+      needs_internal_knowledge: true
+      failure_types: [MISUNDERSTOOD_QUERY]
+      primary_failure: MISUNDERSTOOD_QUERY
+      severity: MEDIUM
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: NO_CORRECTION
+- id: unresolved-still-wrong-leave_ondemand
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How many days of on-demand leave can I take per year?
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That's not right, please check again.
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  turn:
+    question: Still wrong. What does the policy say?
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
+    references:
+    - doc: leave
+      snippet: You can take up to 4 days of on-demand leave per year. They are taken from your annual leave.
+    spans:
+    - text: You can take up to 6 days of on-demand leave per year.
+      refs: [0]
+    - text: They are taken from your annual leave.
+      refs: [0]
+  documents: [leave]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: CORRECTION
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: 'NO'
+- id: unresolved-still-wrong-trips_expenses
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 60 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That's not right, it's much shorter.
+    answer: Settle your expenses in Travel Tool within 60 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  turn:
+    question: Wrong again, please read the policy.
+    answer: Settle your expenses in Travel Tool within 60 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    spans:
+    - text: Settle your expenses in Travel Tool within 60 days after the trip.
+      refs: [0]
+  documents: [trips]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: CORRECTION
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: 'NO'
+- id: unresolved-still-wrong-bq_retention
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: How long is data kept in analytics.impressions_daily?
+    answer: Data in analytics.impressions_daily is kept for 90 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That's wrong, I can see older data.
+    answer: Data in analytics.impressions_daily is kept for 90 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  turn:
+    question: No, that's still wrong.
+    answer: Data in analytics.impressions_daily is kept for 90 days.
+    references:
+    - doc: bq_impressions
+      snippet: Data is kept for 400 days.
+    spans:
+    - text: Data in analytics.impressions_daily is kept for 90 days.
+      refs: [0]
+  documents: [bq_impressions]
+  expected:
+    stage1:
+      intent: DATA_QUESTION
+      relation: CORRECTION
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: 'NO'
+- id: unresolved-still-wrong-office_hours
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: When is the Warsaw office open?
+    answer: The Warsaw office is open from 9:00 to 17:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: That's not right, I was there at 8:00.
+    answer: The Warsaw office is open from 9:00 to 17:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  turn:
+    question: Still wrong, check the office page.
+    answer: The Warsaw office is open from 9:00 to 17:00 on working days.
+    references:
+    - doc: office
+      snippet: The office is at Złota 61 in Warsaw. It is open from 7:00 to 20:00 on working days.
+    spans:
+    - text: The Warsaw office is open from 9:00 to 17:00 on working days.
+      refs: [0]
+  documents: [office]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: CORRECTION
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: 'NO'
+- id: unresolved-still-wrong-leave_pl_ondemand
+  part: HELD_OUT
+  reviewed: false
+  language: pl
+  earlier:
+  - question: Ile dni urlopu na żądanie mi przysługuje?
+    answer: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    references:
+    - doc: leave_pl
+      snippet: Przysługują maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  - question: To nieprawda, sprawdź jeszcze raz.
+    answer: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    references:
+    - doc: leave_pl
+      snippet: Przysługują maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    stage1:
+      relation: CORRECTION
+      relevance: 5
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+  turn:
+    question: Nadal źle. Co mówi regulamin?
+    answer: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    references:
+    - doc: leave_pl
+      snippet: Przysługują maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+    spans:
+    - text: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
+      refs: [0]
+  documents: [leave_pl]
+  expected:
+    stage1:
+      intent: FACT_LOOKUP
+      relation: CORRECTION
+      relevance: 5
+      completeness: 5
+      clarity: 5
+      groundedness: 1
+      unsupported_spans: 1
+      needs_internal_knowledge: true
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
+    session:
+      outcome: UNRESOLVED
+      first_bad_turn: 1
+      recovered: 'NO'
+- id: unclear-vague-1
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Hi
+    answer: Hi! How can I help?
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: I have a question about the thing from yesterday.
+    answer: Sure, which topic do you mean?
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: The other one.
+    answer: Could you tell me which document or topic you mean?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-vague-2
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Hello Bolek
+    answer: Hello! What can I do for you?
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Can you help me with something?
+    answer: Of course. What do you need?
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: That thing we talked about.
+    answer: I don't see an earlier conversation about it. What is it about?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-vague-3
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Hey
+    answer: Hi! How can I help?
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Quick question.
+    answer: Sure, go ahead.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: Never mind, it's the same as before.
+    answer: No problem. If you tell me what it is about, I can help.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-vague-4
+  part: TUNING
+  reviewed: false
+  language: pl
+  earlier:
+  - question: Cześć
+    answer: Cześć! W czym mogę pomóc?
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Mam pytanie o tamto.
+    answer: Jasne, o co chodzi?
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: No o to z wczoraj.
+    answer: Nie widzę wcześniejszej rozmowy. Czego dotyczy pytanie?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-people-trips_booking
+  part: HELD_OUT
+  reviewed: false
+  tags: [people_lookup]
+  earlier:
+  - question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: Who has to approve my business trip to New York?
+    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
+    references:
+    - doc: trips
+      snippet: Trips inside Europe need your manager's approval. Trips outside Europe also need approval from Finance.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Who in Finance should I contact about it?
+    answer: Anna Nowak, the Head of Finance Operations.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-people-trips_expenses
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  earlier:
+  - question: How long do I have to settle my travel expenses?
+    answer: Settle your expenses in Travel Tool within 14 days after the trip.
+    references:
+    - doc: trips
+      snippet: Settle your expenses in Travel Tool within 14 days after the trip. Keep the receipt of every expense above
+        20 EUR.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: How do I book a hotel for a business trip?
+    answer: Book the hotel through Travel Tool, like every part of a business trip.
+    references:
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Who in Finance handles questions about expenses?
+    answer: Anna Nowak, the Head of Finance Operations.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-people-budget_tab
+  part: TUNING
+  reviewed: false
+  tags: [people_lookup]
+  earlier:
+  - question: What does the Budget tab in the Panel show?
+    answer: It shows the daily budget pacing and a forecast of the spend at the end of the month.
+    references:
+    - doc: budget_hint
+      snippet: The Budget tab in the Panel shows the daily budget pacing and a forecast of the spend at the end of the month.
+    stage1:
+      relation: FIRST
+      relevance: 5
+      primary_failure: NONE
+  - question: What is the default post-view attribution window?
+    answer: The default post-view window is 1 day.
+    references:
+    - doc: attribution
+      snippet: The default post-click window is 30 days and the default post-view window is 1 day.
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 5
+      primary_failure: NONE
+  turn:
+    question: Who in Finance can explain the spend forecast?
+    answer: Anna Nowak, the Head of Finance Operations.
+    references:
+    - doc: person_finance
+      snippet: Anna Nowak, Head of Finance Operations, team Finance, Warsaw office.
+  expected:
+    stage1:
+      intent: PEOPLE_LOOKUP
+      relation: FOLLOW_UP
+      relevance: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-unstated-1
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: Can you help me with Workday?
+    answer: Sure, what do you need help with in Workday?
+    stage1:
+      relation: FIRST
+      relevance: 4
+      primary_failure: NONE
+  - question: It doesn't work.
+    answer: 'What exactly doesn''t work: signing in, a request, or something else?'
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: It just doesn't work.
+    answer: Could you tell me what you see on the screen, for example an error message?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-unstated-2
+  part: TUNING
+  reviewed: false
+  earlier:
+  - question: I need help with my account.
+    answer: Which account do you mean?
+    stage1:
+      relation: FIRST
+      relevance: 4
+      primary_failure: NONE
+  - question: The usual one.
+    answer: Do you mean your Google account, Workday or something else?
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: Whatever, the main one.
+    answer: I can help once I know which system you mean. Could you name it?
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
+- id: unclear-unstated-3
+  part: HELD_OUT
+  reviewed: false
+  earlier:
+  - question: Something is broken.
+    answer: I'm sorry to hear that. What is broken?
+    stage1:
+      relation: FIRST
+      relevance: 4
+      primary_failure: NONE
+  - question: The tool.
+    answer: Which tool do you mean?
+    stage1:
+      relation: FOLLOW_UP
+      relevance: 4
+      primary_failure: NONE
+  turn:
+    question: The one we use every day.
+    answer: Could you tell me its name? Then I can look for help in our documents.
+  expected:
+    stage1:
+      intent: OTHER
+      relation: FOLLOW_UP
+      relevance: 4
+      completeness: 4
+      clarity: 5
+      failure_types: [NONE]
+      primary_failure: NONE
+    session:
+      outcome: UNCLEAR
+      first_bad_turn: null
+      recovered: NO_CORRECTION
