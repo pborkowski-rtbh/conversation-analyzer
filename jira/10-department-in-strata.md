@@ -30,4 +30,4 @@ Stratum = intent family × data-store family × department family. The departmen
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §2.1, §3.1, §5.4, §8.4, §8.5, §12.6. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §2.1, §3.1, §5.4, §8.4, §8.5, §12.6.

@@ -31,4 +31,4 @@ Decided on 2026-11-02: PII scrubbing is not necessary (`design-doc.md`, revised 
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §3.1, §6.3, §6.10, §12.12, §12.13. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §3.1, §6.3, §6.10, §12.12, §12.13.

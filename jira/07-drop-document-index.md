@@ -29,4 +29,4 @@ The design now has no document index (`design-doc.md`, revised 2026-11-02). Stag
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §6.7, §6.9, §7.2-§7.5, §11.4, §12.7. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §6.7, §6.9, §7.2-§7.5, §11.4, §12.7.

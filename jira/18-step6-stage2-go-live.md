@@ -30,4 +30,4 @@ Moves: `judge/evidence.py`, `judge/stage2.py`, `judge/session.py`, `docs/content
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §6.9, §7, §8.6, §12.6, §12.7. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §6.9, §7, §8.6, §12.6, §12.7.

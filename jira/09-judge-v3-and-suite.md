@@ -27,4 +27,4 @@ Judge v2 (current) was kept by the suite on 2026-10-29 with search results in it
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §7.3-§7.5, §11.1-§11.3. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §7.3-§7.5, §11.1-§11.3.

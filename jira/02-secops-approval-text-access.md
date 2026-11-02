@@ -28,4 +28,4 @@ The assessor reads questions and answers from `rtbhouse-agentspace.analytics.aud
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §3.1, §6.10, §12.4, §12.13. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §3.1, §6.10, §12.4, §12.13.

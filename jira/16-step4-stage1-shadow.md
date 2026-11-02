@@ -30,4 +30,4 @@ Moves: `judge/` (forms, version, case, client, fake, stage1), the kept judge ver
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §6, §8.3 (pipeline health), §12.6, §12.12, §12.13, §12.15. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §6, §8.3 (pipeline health), §12.6, §12.12, §12.13, §12.15.

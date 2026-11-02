@@ -27,4 +27,4 @@ Moves: `reporting/weekly.py`, `anomaly.py`, `release.py`, `record.py`, the diges
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §8.6, §8.7, §9, §10.3, §12.9. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §8.6, §8.7, §9, §10.3, §12.9.

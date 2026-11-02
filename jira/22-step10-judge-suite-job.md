@@ -25,4 +25,4 @@ Moves: `suite/`, `suite_cases/`. Without a full suite run in an environment ever
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §11.1-§11.3, §12.3. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §11.1-§11.3, §12.3.

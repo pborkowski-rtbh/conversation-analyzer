@@ -26,4 +26,4 @@ The department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bol
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §2.1 (Department), §3.1, §8.4. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §2.1 (Department), §3.1, §8.4.

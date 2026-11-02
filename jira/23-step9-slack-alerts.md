@@ -26,4 +26,4 @@ Moves: `reporting/lookup.py`, HIGH cluster alerts, ✅ acknowledgements; Slack s
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §7.7, §9.2, §12.8. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §7.7, §9.2, §12.8.
