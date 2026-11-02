@@ -27,4 +27,4 @@ The evaluator is being rebuilt in AIENGLAB-519 and writes to the BigQuery datase
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §10.2, §11.4, §12.11. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §10.2, §11.4, §12.11.

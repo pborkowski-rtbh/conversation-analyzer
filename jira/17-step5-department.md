@@ -27,4 +27,4 @@ Moves: `people/directory.py` and the stratum code. Must be live in prod before g
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §8.4. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §8.4.

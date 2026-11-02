@@ -27,4 +27,4 @@ Moves: `settings`, `vocab`, `safe_log`, `errors`, `secrets`, `keys`, `leak_guard
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §12.14. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §12.14.

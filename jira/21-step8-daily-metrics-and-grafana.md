@@ -28,4 +28,4 @@ Moves: `reporting/daily.py`, `metrics.py`, `changes.py`, `judge_quality.py`, `re
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §8, §12.9. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §8, §12.9.

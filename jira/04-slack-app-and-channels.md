@@ -26,4 +26,4 @@ The jobs post alerts and the weekly digest through the Slack Web API and read �
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §9.2, §12.8. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §9.2, §12.8.

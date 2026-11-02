@@ -24,4 +24,4 @@ Needs the evaluator's gate results naming our change event IDs and question gene
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §9.3, §10, §12.11. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §9.3, §10, §12.11.

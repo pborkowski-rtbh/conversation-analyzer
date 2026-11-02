@@ -25,4 +25,4 @@ The dashboard's source lives in `infra-grafana-dashboards`; this repository only
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §8.8. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §8.8.

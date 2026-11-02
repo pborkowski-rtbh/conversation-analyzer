@@ -25,4 +25,4 @@ Moves: `assessor/canary.py` and the second-model check. Canary turns are recogni
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §11.4, §11.5, §12.11. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §11.4, §11.5, §12.11.

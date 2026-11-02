@@ -27,4 +27,4 @@ Moves: `reporting/monitor.py`, `reporting/completeness.py`, `reporting/messages.
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §8.2, §9.2, §12.4, §12.8, §12.12. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §8.2, §9.2, §12.4, §12.8, §12.12.

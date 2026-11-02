@@ -26,4 +26,4 @@ Terraform creates datasets, service accounts, IAM and the `quality-db-init` job;
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §12.4, §12.10. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §12.4, §12.10.

@@ -27,4 +27,4 @@ Dashboards live in `RTBHouse-Platform-Engineering/infra-grafana-dashboards` (Cen
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §8.8, §12.4. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §8.8, §12.4.

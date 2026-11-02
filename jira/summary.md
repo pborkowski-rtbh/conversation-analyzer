@@ -2,7 +2,7 @@
 
 27 issues, one file each in this directory, in execution order. Every file uses the Story template (user story,
 context, acceptance criteria), starts with a field table (epic AIENGLAB-543, order, dependencies, plan section) and
-ends with the rule: look at `design-doc.md` first; if still not clear, ask Paweł Borkowski; don't assume. The order
+ends with the rule: look at `design-doc.md` first. The order
 and dependencies come from `deployment-plan.md`.
 
 | # | Issue | Kind | Depends on |

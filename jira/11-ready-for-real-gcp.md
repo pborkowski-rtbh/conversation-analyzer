@@ -32,4 +32,4 @@ Stage (`rtb-aiel-core-stage`, datasets `stage_bolek_quality_*`) reads the prod l
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §12.3, §12.10, §12.12, §12.14. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §12.3, §12.10, §12.12, §12.14.

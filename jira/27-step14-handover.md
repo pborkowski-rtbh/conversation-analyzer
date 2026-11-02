@@ -25,4 +25,4 @@ As a Conversation Analyzer maintainer, when everything runs from the official re
 
 ### If something is not clear
 
-Look at `design-doc.md` first. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first.

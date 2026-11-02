@@ -25,4 +25,4 @@ Feedback after the window is matched by session key and position (`questionIndex
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §12.5, §12.17. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §12.5, §12.17.

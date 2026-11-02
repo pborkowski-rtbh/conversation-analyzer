@@ -30,4 +30,4 @@ Moves: `log/`, `assessor/sessions.py`, `assessor/state.py`, `assessor/run.py` (d
 
 ### If something is not clear
 
-Look at `design-doc.md` first, starting with §12.5, §12.6, §12.12, §12.13. If it is still not clear, ask Paweł Borkowski. Don't assume.
+Look at `design-doc.md` first, starting with §12.5, §12.6, §12.12, §12.13.
