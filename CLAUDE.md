@@ -103,6 +103,6 @@ The tests load `local.env` themselves; for `uv run ca ...` by hand run `set -a; 
 
 ## Git
 
-Work for the deployment happens on branches off `release-v1`, one per ticket in `jira/`, merged by PR. Update
+Work for the deployment happens on branches off `main`, one per ticket in `jira/`, merged by PR. Update
 `deployment-plan.md` (checkboxes, Status, Spend log) in the same PR. The `aiel-content-indexers` submodule is gone:
 there is no document index any more.
