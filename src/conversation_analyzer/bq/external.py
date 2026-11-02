@@ -52,8 +52,8 @@ GE_METRICS = Table(
     writer="google",
 )
 
-# What we expect from the evaluator (AIENGLAB-519): one row per run, question and metric, with the question's hash
-# and expected document, and gate results that name the change they test.
+# What we expect from the evaluator (AIENGLAB-519): one row per run, question and metric, with the question's hash,
+# and gate results that name the change they test. Without our own search, the expected document is not needed.
 EVAL_RESULTS = Table(
     "evals",
     "results",
@@ -66,8 +66,6 @@ EVAL_RESULTS = Table(
         raw("repeat", "INT64"),
         raw("question_set", "STRING"),
         raw("question_sha256", "STRING"),
-        raw("expected_doc_id", "STRING"),
-        raw("expected_data_store", "STRING"),
         raw("cluster_id", "STRING"),
         raw("metric", "STRING"),
         raw("score", "FLOAT64"),

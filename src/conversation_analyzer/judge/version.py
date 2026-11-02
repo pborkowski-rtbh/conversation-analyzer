@@ -15,7 +15,7 @@ from conversation_analyzer.judge import forms
 from conversation_analyzer.settings import REPO_ROOT, get_settings
 
 VERSIONS_DIR = REPO_ROOT / "judge_versions"
-FORMS = (forms.Stage1Form, forms.EvidenceCheckForm, forms.Stage2Phrasings, forms.Stage2Form, forms.SessionGradeForm)
+FORMS = (forms.Stage1Form, forms.EvidenceCheckForm, forms.Stage2Form, forms.SessionGradeForm)
 
 
 def _hash(*parts: str) -> str:

@@ -7,7 +7,7 @@ from google.cloud import bigquery
 
 from conversation_analyzer.bq.client import client, execute, fq, retry
 from conversation_analyzer.bq.external import EXTERNAL_TABLES
-from conversation_analyzer.bq.schema import TABLES, Table, chunk_table, ddl
+from conversation_analyzer.bq.schema import TABLES, Table, ddl
 from conversation_analyzer.bq.views import views
 from conversation_analyzer.settings import get_settings
 
@@ -21,7 +21,7 @@ def create_all() -> list[str]:
     """Create what is missing; existing tables are left alone (the emulator is slow to refuse a duplicate)."""
     s = get_settings()
     created: list[str] = []
-    datasets = ["turns", "metrics", "log_views", "doc_index"]
+    datasets = ["turns", "metrics", "log_views"]
     if s.env.emulator:
         datasets += ["log", "evals"]
     for key in datasets:
@@ -35,7 +35,6 @@ def create_all() -> list[str]:
     tables = list(TABLES)
     if s.env.emulator:
         tables += list(EXTERNAL_TABLES)
-        tables += [chunk_table(d.id) for d in s.data_stores if d.has_content]
     existing = {
         (t.dataset_id, t.table_id)
         for key in datasets

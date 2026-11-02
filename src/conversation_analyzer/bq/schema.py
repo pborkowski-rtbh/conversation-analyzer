@@ -210,7 +210,6 @@ STAGE2_RESULTS = Table(
         struct("stage1_findings", enum("code"), enum("verdict"), repeated=True),
         doc("document_to_fix"),
         f("confidence"),
-        i("searched_phrasings"),
     ),
     key=("turn_key", "judge_version"),
     writer="assessor",
@@ -279,8 +278,6 @@ CANARY_RESULTS = Table(
         ver("judge_version"),
         d("day"),
         h("question_hash"),
-        Col("expected_doc_id", "STRING", "doc_id"),
-        Col("expected_data_store", "STRING", "data_store"),
         enum("intent"),
         i("relevance"),
         i("completeness"),
@@ -293,8 +290,6 @@ CANARY_RESULTS = Table(
         enum("stage2_primary_failure"),
         b("caught"),
         b("false_high"),
-        b("index_found_expected"),
-        i("index_rank"),
     ),
     key=("turn_key", "planted_error", "with_references", "judge_version"),
     writer="assessor",
@@ -374,6 +369,7 @@ RUNS = Table(
         i("canary_assessed"),
         i("pace_marked"),
         i("evidence_checks"),
+        i("evidence_no_documents"),  # knowledge turns without evidence whose answer links no readable document
         i("stage2_done"),
         i("stage2_pending"),
         i("stage2_gave_up"),
@@ -724,33 +720,6 @@ TABLES: tuple[Table, ...] = (
     SUITE_RUNS,
     EVAL_DOCUMENTS,
 )
-
-# ---------------------------------------------------------------- document index (written by the indexers, §12.7)
-
-CHUNK_COLS = (
-    Col("doc_id", "STRING", "doc_id"),
-    Col("uri", "STRING", "link"),
-    Col("data_store", "STRING", "data_store"),
-    i("chunk_no"),
-    Col("embedding", "FLOAT64", "float", "REPEATED"),
-    h("text_hash"),
-    ver("embedding_model"),
-    ts("indexed_at"),
-)
-
-
-def chunk_table_name(data_store_id: str) -> str:
-    return "quality_chunks_" + data_store_id.replace("-", "_")
-
-
-def chunk_table(data_store_id: str) -> Table:
-    return Table(
-        "doc_index",
-        chunk_table_name(data_store_id),
-        CHUNK_COLS,
-        key=("doc_id", "chunk_no", "text_hash"),
-        writer="indexer",
-    )
 
 
 def ddl(table: Table, emulator: bool, name_override: str | None = None) -> str:

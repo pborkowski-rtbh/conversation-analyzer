@@ -59,7 +59,7 @@ def cluster_key(row: dict[str, Any]) -> ClusterKey:
     """Stage 2 turns cluster by the document to fix, others by the one cited document; else by topic (§9.1)."""
     failure = row["primary_failure"]
     doc: dict[str, Any] | None = None
-    if failure != FailureCode.KNOWLEDGE_GAP:
+    if failure != FailureCode.NOT_IN_CITED_SOURCES:  # no document to fix: clustered by topic
         if row.get("has_stage2"):
             if row.get("fix_doc_id"):
                 doc = {"doc_id": row["fix_doc_id"], "data_store": row["fix_data_store"], "uri": row.get("fix_uri")}

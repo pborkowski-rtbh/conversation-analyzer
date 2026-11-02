@@ -15,7 +15,6 @@
       refs: [0]
     - text: They are taken from your annual leave.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -45,7 +44,6 @@
     spans:
     - text: Return the old laptop to the IT desk within 30 working days.
       refs: [0]
-  documents: [laptop, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -78,7 +76,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -108,7 +105,6 @@
     spans:
     - text: Data in analytics.impressions_daily is kept for 90 days.
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -138,7 +134,6 @@
     spans:
     - text: The default post-view window is 7 days.
       refs: [0]
-  documents: [attribution, ctr]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -169,7 +164,6 @@
     spans:
     - text: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
       refs: [0]
-  documents: [leave_pl, leave]
   expected:
     stage1:
       intent: HOW_TO
@@ -199,7 +193,6 @@
     spans:
     - text: Settle your expenses in Travel Tool within 60 days after the trip.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -214,9 +207,9 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: trips
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: office_hours-retrieval-miss
   part: TUNING
   reviewed: false
@@ -229,7 +222,6 @@
     spans:
     - text: The Warsaw office is open from 9:00 to 17:00 on working days.
       refs: [0]
-  documents: [office, about_bolek]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -244,9 +236,9 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: office
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: password_length-retrieval-miss
   part: TUNING
   reviewed: false
@@ -260,7 +252,6 @@
     spans:
     - text: Hasło musi mieć co najmniej 8 znaków.
       refs: [0]
-  documents: [passwords_pl, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -275,9 +266,9 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: passwords_pl
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: rate_limit-retrieval-miss
   part: HELD_OUT
   reviewed: false
@@ -293,7 +284,6 @@
       refs: [0]
     - text: Wait for the number of seconds in the `Retry-After` header, then retry.
       refs: [0]
-  documents: [campaigns_api, bq_impressions]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -308,9 +298,9 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: campaigns_api
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: floor_prices-retrieval-miss
   part: TUNING
   reviewed: false
@@ -326,7 +316,6 @@
       refs: [0]
     - text: A change of more than 30% needs approval from the traffic team lead.
       refs: [0]
-  documents: [floor_prices, campaigns_api]
   expected:
     stage1:
       intent: HOW_TO
@@ -341,9 +330,9 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: floor_prices
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: click_dedup-retrieval-miss
   part: TUNING
   reviewed: false
@@ -356,7 +345,6 @@
     spans:
     - text: A click is counted once per user and campaign within 24 hours.
       refs: [0]
-  documents: [bq_clicks, ctr]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -371,9 +359,9 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: bq_clicks
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: leave_ondemand-outdated
   part: TUNING
   reviewed: false
@@ -386,7 +374,6 @@
     spans:
     - text: You can take up to 6 days of on-demand leave per year.
       refs: [0]
-  documents: [leave, leave_2024]
   flag_reasons: [DISLIKE]
   expected:
     stage1:
@@ -416,7 +403,6 @@
     spans:
     - text: Request annual leave at least 7 days in advance.
       refs: [0]
-  documents: [leave, leave_2024]
   flag_reasons: [NEXT_CORRECTION]
   expected:
     stage1:
@@ -446,7 +432,6 @@
     spans:
     - text: Request it by e-mail to your manager.
       refs: [0]
-  documents: [leave, leave_2024]
   flag_reasons: [NEXT_REPHRASE]
   expected:
     stage1:
@@ -476,7 +461,6 @@
     spans:
     - text: Settle your expenses within 30 days after the trip.
       refs: [0]
-  documents: [trips, trips_2023]
   flag_reasons: [DISLIKE]
   expected:
     stage1:
@@ -507,7 +491,6 @@
     spans:
     - text: Przysługuje Ci do 6 dni urlopu na żądanie w roku.
       refs: [0]
-  documents: [leave_pl, leave_2024]
   flag_reasons: [DISLIKE]
   expected:
     stage1:
@@ -540,7 +523,6 @@
     spans:
     - text: Enter the portal address vpn.rtbhouse.com.
       refs: [1]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: HOW_TO
@@ -574,7 +556,6 @@
     spans:
     - text: Adres portalu to vpn.rtbhouse.com.
       refs: [1]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -606,7 +587,6 @@
     spans:
     - text: The Warsaw office is open until 18:00 on working days.
       refs: [1]
-  documents: [office, office_kh]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -638,7 +618,6 @@
     spans:
     - text: No, the office opens at 8:00 on working days.
       refs: [1]
-  documents: [office, office_kh]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -672,7 +651,6 @@
     spans:
     - text: IT prepares a new laptop within 10 working days after your manager approves the request.
       refs: [1]
-  documents: [laptop, laptop_hdqa]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -702,7 +680,6 @@
     spans:
     - text: 'Yes: every business trip needs approval from Finance.'
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -732,7 +709,6 @@
     spans:
     - text: Yes, every floor price change needs approval from the traffic team lead.
       refs: [0]
-  documents: [floor_prices, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -762,7 +738,6 @@
     spans:
     - text: Yes, keep the receipts of all your expenses.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -792,7 +767,6 @@
     spans:
     - text: Yes, an advertiser can have at most 100 campaigns.
       refs: [0]
-  documents: [campaigns_api, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -823,7 +797,6 @@
     spans:
     - text: 'One click: clicks within 30 seconds are counted once.'
       refs: [0]
-  documents: [bq_clicks, office]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -853,7 +826,6 @@
     spans:
     - text: The daily meal allowance in London is 45 GBP.
       refs: [0]
-  documents: [trips, trips_2023]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -868,8 +840,8 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: KNOWLEDGE_GAP
-      cause: KNOWLEDGE_GAP
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
 - id: guest-wifi-gap
   part: TUNING
@@ -883,7 +855,6 @@
     spans:
     - text: The guest Wi-Fi password is RTBguest2026.
       refs: [0]
-  documents: [office, office_kh]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -898,8 +869,8 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: KNOWLEDGE_GAP
-      cause: KNOWLEDGE_GAP
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
 - id: monitors-gap
   part: HELD_OUT
@@ -913,7 +884,6 @@
     spans:
     - text: You can order up to two monitors with a new laptop.
       refs: [0]
-  documents: [laptop, laptop_hdqa]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -928,8 +898,8 @@
       primary_failure: UNSUPPORTED_CLAIM
       severity: MEDIUM
     stage2:
-      primary_failure: KNOWLEDGE_GAP
-      cause: KNOWLEDGE_GAP
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
 - id: dress-code-gap
   part: TUNING
@@ -937,7 +907,6 @@
   turn:
     question: Is there a dress code at RTB House?
     answer: Yes, business casual is expected in the office from Monday to Thursday.
-  documents: [office, about_bolek]
   flag_reasons: [DISLIKE]
   expected:
     stage1:
@@ -953,8 +922,8 @@
     evidence_check:
       contradiction_found: false
     stage2:
-      primary_failure: KNOWLEDGE_GAP
-      cause: KNOWLEDGE_GAP
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
 - id: christmas-party-gap
   part: TUNING
@@ -963,7 +932,6 @@
   turn:
     question: Kiedy jest firmowa Wigilia?
     answer: Firmowa Wigilia odbędzie się 18 grudnia w biurze na Złotej.
-  documents: [office, leave_pl]
   flag_reasons: [NEXT_CORRECTION]
   expected:
     stage1:
@@ -979,6 +947,6 @@
     evidence_check:
       contradiction_found: false
     stage2:
-      primary_failure: KNOWLEDGE_GAP
-      cause: KNOWLEDGE_GAP
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
       document_to_fix: null

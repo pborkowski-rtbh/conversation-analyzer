@@ -1,4 +1,4 @@
-"""What the judge fills in. No free text in any stored form; only the stage 2 search phrasings are text, in memory."""
+"""What the judge fills in. No form has a free-text field."""
 
 from __future__ import annotations
 
@@ -72,12 +72,6 @@ class EvidenceCheckForm(BaseModel):
     confidence: float = Field(ge=0, le=1)
 
 
-class Stage2Phrasings(BaseModel):
-    """Problem claims as search phrasings; used for the search only, never stored (§7.5, §12.7)."""
-
-    claims: list[str] = Field(default_factory=list, max_length=3)
-
-
 class DocumentRole(BaseModel):
     document: int = Field(ge=1)
     role: RoleL
@@ -90,8 +84,7 @@ class ClaimForm(BaseModel):
     what: WhatL
     snippets_support_claim: bool
     snippets_hold_right_content: bool
-    in_cited_full_text: bool
-    in_other_found_document: bool
+    in_full_text: bool  # in the full text of a cited or linked document
     documents: list[DocumentRole] = Field(default_factory=list)
 
 

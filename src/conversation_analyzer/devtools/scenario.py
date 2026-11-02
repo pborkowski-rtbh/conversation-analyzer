@@ -12,9 +12,9 @@ from conversation_analyzer.devtools.synthetic import (
     Ref,
     SynthDoc,
     SynthTurn,
-    index_documents,
     insert_log,
     search_row,
+    store_documents,
     turn_rows,
 )
 from conversation_analyzer.judge.version import current
@@ -74,13 +74,13 @@ def turns() -> list[SynthTurn]:
             "That's wrong, it's 4 days. [[fake relation=CORRECTION]]",
             "You are right: up to 4 days of on-demand leave per year.",
         ),
-        # A knowledge turn without evidence: the evidence check finds a contradicting document.
+        # A knowledge turn without evidence: the evidence check reads the linked document, which contradicts it.
         SynthTurn(
             "S2",
             30,
             "How do I get a business trip approved?",
-            "Book it in the Travel Tool; all business trips need finance approval. "
-            "[[fake intent=HOW_TO contradiction=1 why=RETRIEVAL_MISS]]",
+            f"Book it in the Travel Tool; all business trips need finance approval. See {TRIP.uri} "
+            "[[fake intent=HOW_TO contradiction=1 why=CHUNKING_ISSUE]]",
             principal="user:piotr@rtbhouse.com",
         ),
         # Slack Bolek or MCP: a general task, disliked by the user.
@@ -156,6 +156,7 @@ def canary_question_hash() -> str:
 
 
 # Label recall of the judge suite's v2 run (suite-006ae3961f390f5f): every label reliable except REASONING_ERROR.
+# NOT_IN_CITED_SOURCES takes RETRIEVAL_MISS's recall until judge v3 has a full run (ticket 08).
 SUITE_RECALL = {
     "AGENT_OR_TOOL_ERROR": 1.0,
     "AMBIGUOUS_QUESTION": 1.0,
@@ -163,13 +164,12 @@ SUITE_RECALL = {
     "CONFLICTING_SOURCES": 1.0,
     "CONTRADICTED_CLAIM": 1.0,
     "INCOMPLETE_ANSWER": 1.0,
-    "KNOWLEDGE_GAP": 1.0,
     "MISUNDERSTOOD_QUERY": 1.0,
+    "NOT_IN_CITED_SOURCES": 0.93,
     "OUTDATED_SOURCE": 1.0,
     "OUT_OF_SCOPE": 1.0,
     "PRESENTATION_ISSUE": 1.0,
     "REASONING_ERROR": 0.2,
-    "RETRIEVAL_MISS": 0.93,
     "UNGROUNDED_INTERNAL_ANSWER": 1.0,
     "UNSUPPORTED_CLAIM": 0.85,
 }
@@ -198,7 +198,7 @@ def seed(now: datetime) -> None:
     rows.append(search_row("user:anna.test@rtbhouse.com", 55.5, [LEAVE.doc_id], now))
     rows.append(search_row("user:evaluator@rtbhouse.com", 50.5, [LEAVE.doc_id], now))
     insert_log(rows)
-    index_documents(DOCUMENTS, now)
+    store_documents(DOCUMENTS)
     write(SUITE_RUNS, [suite_run(now.date())])
     s = get_settings()
     client().insert_rows_json(
@@ -209,8 +209,6 @@ def seed(now: datetime) -> None:
                 "run_kind": "CANARY",
                 "engine": s.production_engine,
                 "question_sha256": canary_question_hash(),
-                "expected_doc_id": LEAVE.doc_id,
-                "expected_data_store": LEAVE.data_store,
                 "metric": "correctness",
                 "score": 1.0,
                 "created_at": now.isoformat(),

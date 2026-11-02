@@ -31,7 +31,7 @@ from conversation_analyzer.bq.schema import (
     STAGE2_RESULTS,
     Table,
 )
-from conversation_analyzer.docs.index import DocumentIndex, SessionDocuments
+from conversation_analyzer.docs.source import RunDocuments, SessionDocuments
 from conversation_analyzer.errors import AnalyzerError, JudgeOutputError, LeakGuardError, classify
 from conversation_analyzer.judge import evidence, session, stage1, stage2
 from conversation_analyzer.judge.case import EarlierTurn, JudgeCase
@@ -125,7 +125,7 @@ def _fingerprint(*parts: Any) -> str:
 
 
 class AssessmentRun:
-    def __init__(self, now: datetime, judge: Judge, docs: DocumentIndex) -> None:
+    def __init__(self, now: datetime, judge: Judge, docs: RunDocuments) -> None:
         s = get_settings()
         self.s = s
         self.now = now
@@ -360,7 +360,7 @@ class AssessmentRun:
                 self.counters.disagreements[f.value][1] += getattr(base, attr) != getattr(other, attr)
 
     def phase2(self, states: list[TurnState]) -> None:
-        """The evidence check: one index search for all turns that need it, then one judge call each (§12.6)."""
+        """The evidence check: one judge call for each turn whose answer links documents we can read (§6.9, §12.6)."""
         todo = [
             (ts, v)
             for ts in states
@@ -369,15 +369,15 @@ class AssessmentRun:
         ]
         if not todo:
             return
-        self.docs.prefetch([ts.case.question for ts, _ in todo])
 
         def one(item: tuple[TurnState, JudgeVersion]) -> None:
             ts, v = item
             if not self.has_time():
                 return
             result = ts.new_s1[v.version_id]
-            self._call(lambda: evidence.check(ts.case, result, v, self.judge, self.usage, self.docs_view(ts)))
-            self.counters.add("evidence_checks")
+            ran = self._call(lambda: evidence.check(ts.case, result, v, self.judge, self.usage, self.docs_view(ts)))
+            if ran is not None:  # None: the call failed and was counted as a failure
+                self.counters.add("evidence_checks" if ran else "evidence_no_documents")
 
         with ThreadPoolExecutor(max_workers=self.s.judge.concurrency) as pool:
             list(pool.map(one, todo))
@@ -494,29 +494,17 @@ class AssessmentRun:
         self.counters.add("session_grades")
 
     def run_canary(self, states: list[TurnState]) -> None:
-        """Canary results, planted errors and the index hit rate (§11.4)."""
+        """Canary results and planted errors (§11.4)."""
         canaries = [ts for ts in states if ts.turn.is_canary and self.cur.version_id in ts.new_s1]
         if not canaries:
             return
-        hashes = {ts.key: canary_mod.question_hash(ts.turn.question) for ts in canaries}
-        expected = canary_mod.expected_documents(sorted(set(hashes.values())))
-        self.docs.prefetch([canary_mod.bare_question(ts.turn.question) for ts in canaries])
         for ts in canaries:
             r = ts.new_s1[self.cur.version_id]
-            exp = expected.get(hashes[ts.key])
-            found_rank = None
-            if exp:
-                refs = self.docs.search(canary_mod.bare_question(ts.turn.question))
-                found_rank = next((i + 1 for i, d in enumerate(refs) if d.doc_id == exp[0]), None)
             base = {
                 "turn_key": ts.key,
                 "judge_version": self.cur.version_id,
                 "day": ts.turn.timestamp.date(),
-                "question_hash": hashes[ts.key],
-                "expected_doc_id": exp[0] if exp else None,
-                "expected_data_store": exp[1] if exp else None,
-                "index_found_expected": (found_rank is not None) if exp else None,
-                "index_rank": found_rank,
+                "question_hash": canary_mod.question_hash(ts.turn.question),
             }
             s2 = ts.new_s2.get(self.cur.version_id)
             self.canary_rows.append(
@@ -832,6 +820,7 @@ class AssessmentRun:
             "canary_assessed": c["canary_assessed"],
             "pace_marked": c["pace_marked"],
             "evidence_checks": c["evidence_checks"],
+            "evidence_no_documents": c["evidence_no_documents"],
             "stage2_done": c["stage2_done"],
             "stage2_pending": c["stage2_pending"],
             "stage2_gave_up": c["stage2_gave_up"],
@@ -898,6 +887,7 @@ class AssessmentRun:
             )
             search_cutoff, feedback_cutoff = self.now - timedelta(minutes=15), self.now
             self.window = read_window(self.now, feedback_since, search_since, search_cutoff)
+            self.docs.register([r for t in self.window.turns for r in t.references])
             stored = state_mod.load(sorted({t.session_key for t in self.window.turns}), self.today)
             stored.versions = run_info.versions
             states = self.plan(stored)
@@ -930,5 +920,5 @@ class AssessmentRun:
         return record
 
 
-def run(now: datetime | None = None, judge: Judge | None = None, docs: DocumentIndex | None = None) -> dict[str, Any]:
-    return AssessmentRun(now or utc_now(), judge or default_judge(), docs or DocumentIndex()).execute()
+def run(now: datetime | None = None, judge: Judge | None = None, docs: RunDocuments | None = None) -> dict[str, Any]:
+    return AssessmentRun(now or utc_now(), judge or default_judge(), docs or RunDocuments()).execute()

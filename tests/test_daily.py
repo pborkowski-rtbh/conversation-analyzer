@@ -439,13 +439,10 @@ def test_judge_quality_measures(clean):
                 "judge_version": v,
                 "day": DAY,
                 "question_hash": "a" * 64,
-                "expected_doc_id": "hr_leave",
-                "expected_data_store": "rtb-crj-hr-house",
                 "relevance": 5,
                 "groundedness": 5,
                 "severity": None,
                 "false_high": False,
-                "index_found_expected": True,
             },
             {
                 "turn_key": stored.key(),
@@ -454,13 +451,10 @@ def test_judge_quality_measures(clean):
                 "judge_version": v,
                 "day": DAY,
                 "question_hash": "b" * 64,
-                "expected_doc_id": "hr_leave",
-                "expected_data_store": "rtb-crj-hr-house",
                 "relevance": 2,
                 "groundedness": None,
                 "severity": "HIGH",
                 "false_high": True,
-                "index_found_expected": False,
             },
             {
                 "turn_key": stored.key(),
@@ -532,7 +526,7 @@ def test_judge_quality_measures(clean):
     got = {(m["measure"], m["field"]): (m["value"], m["n"]) for m in judge_quality.measures(DAY, v)}
     assert got[("PLANTED_CAUGHT", "SWAPPED_NUMBER")] == (0.5, 2)
     assert got[("PLANTED_FALSE_HIGH", "ALL")] == (0.5, 2)
-    assert got[("INDEX_HIT_RATE", "ALL")] == (0.5, 2) and got[("KNOWLEDGE_GAP_MISS_RATE", "ALL")] == (0.5, 2)
+    assert not any(m in got for m in (("INDEX_HIT_RATE", "ALL"), ("KNOWLEDGE_GAP_MISS_RATE", "ALL")))
     assert got[("CANARY_AGREEMENT", "RELEVANCE")] == (0.5, 2)  # 5 vs 0.9 agree; 2 vs 0.8 do not
     assert got[("CANARY_AGREEMENT", "SEVERITY")] == (0.0, 1)  # HIGH, while the evaluator found it correct
     assert got[("SECOND_MODEL_DISAGREEMENT", "RELEVANCE")] == (0.15, 20)

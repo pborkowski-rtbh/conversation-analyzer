@@ -22,7 +22,7 @@ from conversation_analyzer.bq.schema import (
     TABLES,
 )
 from conversation_analyzer.devtools import scenario
-from conversation_analyzer.docs.index import DocumentIndex
+from conversation_analyzer.docs.source import RunDocuments, link_doc_id
 from conversation_analyzer.judge.fake import FakeJudge
 from conversation_analyzer.settings import get_settings
 from tests.conftest import rows, wipe
@@ -43,7 +43,7 @@ def first_run(emulator):
     s.canary.planted_share = 1.0
     scenario.seed(NOW)
     judge = FakeJudge()
-    record = run(now=NOW, judge=judge, docs=DocumentIndex())
+    record = run(now=NOW, judge=judge, docs=RunDocuments())
     yield record, judge
     s.evaluator.accounts = accounts
     s.judge.second_model_share = share
@@ -97,7 +97,7 @@ def test_contradiction_flags_stage2_and_reaction(first_run):
     assert s1["total_spans"] == 1 and s1["topic"] == "HR_HOUSE" and s1["topic_source"] == "REFERENCES"
     s2 = rows(STAGE2_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
     assert s2["primary_failure"] == "CHUNKING_ISSUE" and s2["document_to_fix"]["data_store"] == "rtb-crj-hr-house"
-    assert s2["claims"][0]["why"] == "CHUNKING_ISSUE" and s2["searched_phrasings"] >= 2
+    assert s2["claims"][0]["why"] == "CHUNKING_ISSUE" and "searched_phrasings" not in s2
     grade = rows(SESSION_GRADES, f"session_key = '{t['session_key']}'")[0]
     assert grade["outcome"] == "RESOLVED" and grade["recovered"] == "YES" and grade["rephrases_corrections"] == "1"
 
@@ -111,10 +111,13 @@ def test_evidence_check_finds_contradiction(first_run):
     s1 = rows(STAGE1_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
     assert s1["verifiable"] is False and s1["evidence_check_contradiction"] is True
     assert set(s1["failure_types"]) == {"CONTRADICTED_CLAIM", "UNGROUNDED_INTERNAL_ANSWER"}
-    assert t["found_docs"] and t["found_docs"][0]["data_store"] == "rtb-crj-confluence"
+    # The answer links the trips page and no reference in the window names it: its ID is a hash of the link.
+    assert t["found_docs"] == [
+        {"doc_id": link_doc_id(scenario.TRIP.uri), "data_store": "rtb-crj-confluence", "uri": scenario.TRIP.uri}
+    ]
     s2 = rows(STAGE2_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
-    assert s2["primary_failure"] == "RETRIEVAL_MISS"
-    assert s2["document_to_fix"]["doc_id"] == scenario.TRIP.doc_id
+    assert s2["primary_failure"] == "CHUNKING_ISSUE"  # no references: the path starts at question 2, the linked page
+    assert s2["document_to_fix"]["doc_id"] == link_doc_id(scenario.TRIP.uri)
 
 
 def test_dislike_and_feedback(first_run):
@@ -124,7 +127,7 @@ def test_dislike_and_feedback(first_run):
     s1 = rows(STAGE1_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
     assert s1["groundedness"] is None and s1["needs_internal_knowledge"] is None and s1["verifiable"] is True
     s2 = rows(STAGE2_RESULTS, f"turn_key = '{t['turn_key']}'")[0]
-    assert s2["primary_failure"] == "KNOWLEDGE_GAP"  # no references: the cause path starts at question 3 (§7.3)
+    assert s2["primary_failure"] == "NOT_IN_CITED_SOURCES"  # no references and no links: nothing to read (§7.3)
 
 
 def test_segments(first_run):
@@ -139,8 +142,7 @@ def test_segments(first_run):
 def test_canary_and_planted(first_run):
     canary = rows(CANARY_RESULTS)
     original = [c for c in canary if c["planted_error"] == "NONE"][0]
-    assert original["index_found_expected"] is True and original["index_rank"] == 1
-    assert original["expected_doc_id"] == scenario.LEAVE.doc_id
+    assert "index_found_expected" not in original and "expected_doc_id" not in original
     planted = {(c["planted_error"], c["with_references"]) for c in canary if c["planted_error"] != "NONE"}
     assert ("SWAPPED_NUMBER", True) in planted and ("SWAPPED_NUMBER", False) in planted
     assert rows(QUALITY_TURNS, "is_canary")[0]["status"] == "ASSESSED"
@@ -175,7 +177,7 @@ def test_no_text_is_stored(first_run):
 def test_second_run_is_idempotent(first_run):
     _, judge = first_run
     calls = len(judge.calls)
-    record = run(now=NOW + timedelta(minutes=10), judge=judge, docs=DocumentIndex())
+    record = run(now=NOW + timedelta(minutes=10), judge=judge, docs=RunDocuments())
     assert record["assessed"] == 1  # only the turn that just became eligible
     new_calls = [c for c in judge.calls[calls:] if c[1] == "Stage1Form"]
     assert len(new_calls) == 2  # the new turn, and its second-model check

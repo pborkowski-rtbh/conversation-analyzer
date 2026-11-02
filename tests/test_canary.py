@@ -34,10 +34,6 @@ def test_bare_question_and_hash():
     assert canary.question_hash(prompted) == hashlib.sha256(b"What is X?").hexdigest()
 
 
-def test_expected_documents_without_hashes_needs_no_query():
-    assert canary.expected_documents([]) == {}
-
-
 def test_swap_number():
     assert canary.swap_number("You get 4 days and 26 weeks.", "") == "You get 6 days and 26 weeks."
     assert canary.swap_number("Limit is 5000.", "") == "Limit is 10000."
