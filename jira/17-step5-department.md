@@ -1,11 +1,11 @@
-# 16 · Step 5: department family on real traffic
+# 17 · Step 5: department family on real traffic
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 16 |
-| Depends on | 03, 09, 15 |
+| Order | 17 |
+| Depends on | 03, 10, 16 |
 | Plan | `deployment-plan.md` Step 5 |
 
 ### User story
@@ -14,7 +14,7 @@ As a team member, before the baseline starts, I want every real turn to carry it
 
 ### Context
 
-Moves: `people/directory.py` and the stratum code. Must be live in prod before go-live (ticket 17), because the strata freeze with the baseline.
+Moves: `people/directory.py` and the stratum code. Must be live in prod before go-live (ticket 18), because the strata freeze with the baseline.
 
 ### Acceptance criteria
 

@@ -64,7 +64,7 @@ judge:
   location: eu                          # EU multi-region, never global
   allowed_locations: [eu, europe-west1, europe-west3, europe-west4, europe-central2, europe-north1, europe-southwest1, europe-west8, europe-west9]
   vertex_project: rtb-ai-engineering-indexers
-  current_version: v3                   # draft without search (ticket 07); kept only after its suite run (ticket 08)
+  current_version: v3                   # draft without search (ticket 07); kept only after its suite run (ticket 09)
   previous_version: null                # set during a parallel run
   parallel_run_until: null              # last day (UTC) of the parallel run, 5 weekdays after the change
   concurrency: 8

@@ -6,7 +6,7 @@
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
 | Order | 03 |
 | Depends on | — |
-| Plan | `deployment-plan.md` G2, A4 input |
+| Plan | `deployment-plan.md` G2, A5 input |
 
 ### User story
 

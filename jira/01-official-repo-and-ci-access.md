@@ -21,7 +21,7 @@ The code lives in the private repository `pborkowski-rtbh/conversation-analyzer`
 * `RTBHouse-OEET/aiel-conversation-analyzer` exists, with CODEOWNERS and branch protection on `main` (PR, at least 1 review, green CI required)
 * A Workload Identity provider and a CI service account exist for both projects; their names are stored as repository secrets, like `GCP_RESTRICTED_PROVIDER_NAME` / `GCP_RESTRICTED_SA_EMAIL` in `aiel-content-indexers`
 * A throwaway workflow run authenticates to both projects through WIF (log of the run linked in the ticket)
-* The CI service account has no BigQuery, Secret Manager or Cloud Run admin rights; image push rights come with ticket 12
+* The CI service account has no BigQuery, Secret Manager or Cloud Run admin rights; image push rights come with ticket 13
 * G6 in `deployment-plan.md` is ticked with the date
 
 ### If something is not clear

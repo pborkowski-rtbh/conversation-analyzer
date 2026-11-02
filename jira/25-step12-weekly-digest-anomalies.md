@@ -1,11 +1,11 @@
-# 24 · Step 12: weekly clusters, digest, anomalies, release impact and quality-record
+# 25 · Step 12: weekly clusters, digest, anomalies, release impact and quality-record
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 24 |
-| Depends on | 20, 22 |
+| Order | 25 |
+| Depends on | 21, 23 |
 | Plan | `deployment-plan.md` Step 12 |
 
 ### User story

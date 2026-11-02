@@ -1,11 +1,11 @@
-# 15 · Step 4: stage 1 in shadow on real traffic
+# 16 · Step 4: stage 1 in shadow on real traffic
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 15 |
-| Depends on | 02, 08, 14 |
+| Order | 16 |
+| Depends on | 02, 09, 15 |
 | Plan | `deployment-plan.md` Step 4 |
 
 ### User story
@@ -14,7 +14,7 @@ As a Conversation Analyzer maintainer, when stage 1 runs on real traffic, I want
 
 ### Context
 
-Moves: `pii/`, `judge/` (forms, version, case, client, fake, stage1), the kept judge version, assessor phase 1. Judge calls go to Vertex in the job's own project, location `eu`. No Slack yet. Stage token limit is about a tenth of prod's.
+Moves: `judge/` (forms, version, case, client, fake, stage1), the kept judge version, assessor phase 1. Judge calls go to Vertex in the job's own project, location `eu`. No Slack yet. Stage token limit is about a tenth of prod's.
 
 ### Acceptance criteria
 

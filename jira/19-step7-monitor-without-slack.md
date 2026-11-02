@@ -1,11 +1,11 @@
-# 18 · Step 7: monitor and authorized log views, alerts stored but not posted
+# 19 · Step 7: monitor and authorized log views, alerts stored but not posted
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 18 |
-| Depends on | 15 |
+| Order | 19 |
+| Depends on | 16 |
 | Plan | `deployment-plan.md` Step 7 |
 
 ### User story

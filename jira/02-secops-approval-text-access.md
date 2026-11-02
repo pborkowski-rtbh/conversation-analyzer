@@ -14,14 +14,15 @@ As the Conversation Analyzer owner, before any judge call on real traffic, I wan
 
 ### Context
 
-The assessor reads questions and answers from `rtbhouse-agentspace.analytics.audit_logs` inside the 4-hour window, PII-scrubs them and sends them to Vertex AI on the `eu` multi-region. It also reads full document text from the content bucket `rtbhouse-agentspace-mcp-document-content` with the content secrets. Stage (`rtb-aiel-core-stage`) reads the same prod data with its own service accounts. §3.1 lists the `eu` multi-region as still open with the security team. Before launch we must check whether the cloud audit logs of our calls contain content, and possibly exclude our accounts from the 7-year log copy.
+The assessor reads questions and answers from `rtbhouse-agentspace.analytics.audit_logs` inside the 4-hour window and sends them, without PII scrubbing, to Vertex AI on the `eu` multi-region. It also reads full document text from the content bucket `rtbhouse-agentspace-mcp-document-content` with the content secrets. Stage (`rtb-aiel-core-stage`) reads the same prod data with its own service accounts. §3.1 lists the `eu` multi-region as still open with the security team. Before launch we must check whether the cloud audit logs of our calls contain content, and possibly exclude our accounts from the 7-year log copy.
 
 ### Acceptance criteria
 
 * Written SECOPS approval (link in the ticket) for `quality-assessor@rtbhouse-agentspace` and `stage-quality-assessor@rtb-aiel-core-stage` to read the `audit_logs` table (table-level grant, not the `analytics` dataset)
+* Approval for sending conversation text to the judge without PII scrubbing (EU endpoint only, nothing stored)
 * Approval for both assessor accounts to read the content bucket and the `mcp-content-encryption-*` secrets
 * Decision on the `eu` multi-region for the judge recorded (accepted, or a named EU region instead)
-* The audit-log content check procedure (§12.13) agreed: which logs are checked, by whom, in ticket 15
+* The audit-log content check procedure (§12.13) agreed: which logs are checked, by whom, in ticket 16
 * Decision recorded on excluding our service accounts' entries from the 7-year log copy, if the check finds content
 * G1 in `deployment-plan.md` is ticked with the date and link
 

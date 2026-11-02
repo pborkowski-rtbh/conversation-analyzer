@@ -1,11 +1,11 @@
-# 20 · Step 8: daily metrics and the Grafana dashboard
+# 21 · Step 8: daily metrics and the Grafana dashboard
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 20 |
-| Depends on | 05, 11, 17, 18 |
+| Order | 21 |
+| Depends on | 05, 12, 18, 19 |
 | Plan | `deployment-plan.md` Step 8 |
 
 ### User story
@@ -14,7 +14,7 @@ As a team member, every morning, I want the daily metrics in a Grafana dashboard
 
 ### Context
 
-Moves: `reporting/daily.py`, `metrics.py`, `changes.py`, `judge_quality.py`, `results.py`, `bq/views.py`. The dashboard file lives in `infra-grafana-dashboards` (`test/` reads stage, `prod/` reads prod). Row 7 of §8.8 waits for ticket 24.
+Moves: `reporting/daily.py`, `metrics.py`, `changes.py`, `judge_quality.py`, `results.py`, `bq/views.py`. The dashboard file lives in `infra-grafana-dashboards` (`test/` reads stage, `prod/` reads prod). Row 7 of §8.8 waits for ticket 25.
 
 ### Acceptance criteria
 

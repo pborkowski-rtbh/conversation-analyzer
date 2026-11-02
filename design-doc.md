@@ -4,7 +4,7 @@
 |---|---|
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer), task AIENGLAB-782 |
 | Owner | Paweł Borkowski |
-| Status | Draft, 2026-10-27. Revised 2026-11-02: no document index or search of our own; the user's department in the strata; stage and prod environments. Deployment: `deployment-plan.md`. |
+| Status | Draft, 2026-10-27. Revised 2026-11-02: no document index or search of our own; the user's department in the strata; stage and prod environments; no PII scrubbing. Deployment: `deployment-plan.md`. |
 
 ## 1. Goal
 
@@ -102,7 +102,6 @@ Terms used in this document. Each term has exactly one meaning.
 | **Fingerprint** | A hash of the IDs and versions an assessment depended on (the turn, its context turns, triggers, the judge's version). Never built from text. A turn is assessed again only when its fingerprint changes, so the same input is never assessed twice. |
 | **Session facts** | Counts per session segment: number of turns, of rephrases, corrections and frustrations, the duration bucket, whether it was resumed or forced closed. Facts only. |
 | **Session grade** | The judge's grade of a whole session segment, made when one of its turns is flagged: outcome (`RESOLVED`, `PARTIALLY_RESOLVED`, `UNRESOLVED`, `UNCLEAR`), the turn where it first went wrong, how often the user had to rephrase or correct, whether the answers recovered after a correction. **Provisional** while the segment is open, **final** once graded on the closed segment, **not gradable** when part of the segment's text is already erased. Informational only: no metric or ranking uses it; it is shown in alerts. |
-| **PII scrubbing** | Removing personally identifiable information (PII) from conversations: replacing names, emails, phone numbers and similar details in questions and answers with placeholders such as `<PERSON_1>` before they reach the judge. The same value gets the same placeholder within a turn and its context. Our documents are not scrubbed; they only get the placeholders found in the conversation, so the judge can compare the two (§6.3). |
 | **Leak guard** | The final check before anything is stored or sent: only numbers, closed-list values, hashes and allowlisted document IDs and links pass. Any free text is rejected. |
 
 ### 2.3 Measurement and action
@@ -141,7 +140,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 |---|---|---|
 | **Derived values only** | The system stores scores, closed-list labels, counts, versions, document IDs and links, and the session ID only as a keyed hash. It never stores question text, answer text, summaries, feedback comments or identity. The user's department is kept only as a department family; a family with fewer than 30 active associates is merged into `OTHER`, so it never narrows a turn down to a few people. A turn's time is kept only as its day, and alerts give no time finer than the hour. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. An exact time could match a turn to a person through other records of when people used Bolek. |
 | **Synthetic questions only** | Tests use questions generated from the documents that real traffic retrieves or cites. Real questions are never re-asked or copied into a test set. | Same reason: real questions stay out of anything we keep. |
-| **EU endpoints only** | Text reaches a model only on an EU endpoint (an EU region or the `eu` multi-region, never `global`). The text of conversations is PII scrubbed first. Our documents are company knowledge and are not scrubbed. | Question and answer text must not leave the EU, and personal details from conversations must not reach the model. Our documents are already processed by Google in the EU, in Bolek's data stores. Whether the security team accepts the `eu` multi-region is still open. |
+| **EU endpoints only** | Text reaches a model only on an EU endpoint (an EU region or the `eu` multi-region, never `global`). Conversations and our documents reach the judge as they are, with no PII scrubbing; nothing the judge reads is stored. | Question and answer text must not leave the EU. Our documents are already processed by Google in the EU, in Bolek's data stores. Whether the security team accepts the `eu` multi-region is still open. |
 | **Slack for notifications, one dashboard for looking** | Alerts and the digest are sent only to Slack, in messages built from derived values. The dashboard shows only aggregates (daily and weekly, and per run for pipeline health), with no way down to a single turn. There are no per-session tickets. | One place to be notified and one place to look, and no path for text to leave the system. |
 | **Fully automated** | No person reads questions or answers. The judge is tested on the judge test suite and on canary turns, which may be read. | Requirement of the project. Debugging and calibration use synthetic material, so there is never a need to look at a real turn. |
 | **Only identified problems are reported** | A failure is recorded only when it follows from the data or the judge can point to what confirms it. When the judge is unsure, the turn is recorded as having no failure. | A false alarm costs the team's trust. The price is that failure rates are lower bounds. |
@@ -196,7 +195,7 @@ flowchart TB
 | # | Step | In one sentence |
 |---|---|---|
 | 1 | Users ask Bolek | Turns arrive on the web UI, Slack Bolek and MCP; Google records them in the log, and the window starts. |
-| 2 | Assess every turn | Every 10 minutes, new turns are scrubbed of PII and assessed by the judge, before the anonymizer erases the answers. |
+| 2 | Assess every turn | Every 10 minutes, new turns are assessed by the judge, before the anonymizer erases the answers. |
 | 3 | Keep derived values only | Scores, labels and document IDs are stored in BigQuery; all text is dropped. |
 | 4 | Compute metrics and rank problem clusters | Daily metrics (AQR, failure rates, coverage) with an anomaly check, and a weekly ranked list of problem clusters. |
 | 5 | Tell the team | Alerts and a weekly digest on Slack, and a dashboard for the daily look, all built only from derived values. |
@@ -207,8 +206,7 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    A["Eligible turn<br/>+ earlier turns<br/>of its session"] --> B["PII scrubbing"]
-    B --> C["Stage 1<br/>assessment"]
+    A["Eligible turn<br/>+ earlier turns<br/>of its session"] --> C["Stage 1<br/>assessment"]
     C --> D{"Flagged?"}
     D -->|"no"| F["Leak guard"]
     D -->|"yes"| E["Stage 2<br/>+ session grade"]
@@ -246,7 +244,7 @@ Everything about a turn must be read before the anonymizer erases its answer.
 | Guarantee | Where |
 |---|---|
 | No text is stored | Leak guard before every write; the output has no free-text fields. |
-| Text goes only to EU endpoints | PII scrubbing, then the judge on the `eu` multi-region. |
+| Text goes only to EU endpoints | The judge on the `eu` multi-region. |
 | No person reads questions or answers | Every step is automatic; the judge is tested on the judge test suite and the canary, not on real turns. |
 | Real questions are never re-asked | Verification uses synthetic questions generated from documents. |
 | Notifications go only to Slack; the dashboard shows aggregates only | Step 5; messages are built from derived values, and the dashboard's account can read only aggregates. |
@@ -339,7 +337,7 @@ Every eligible turn that is not too large gets a stage 1 assessment: a fixed for
 flowchart TB
     A["Eligible turn"] --> B{"Too large?"}
     B -->|"yes"| S["Recorded as too large,<br/>not assessed"]
-    B -->|"no"| C["Collect inputs,<br/>PII scrubbing"]
+    B -->|"no"| C["Collect inputs"]
     C --> E["Fill in the form"]
     E --> D{"Knowledge turn<br/>without evidence?"}
     D -->|"yes"| V["Evidence check"]
@@ -388,9 +386,7 @@ The documents an answer is compared with are its **evidence**. Stage 1 has three
 | The earlier turns of the session as text (up to 60,000 characters, §5.3), and the references of all earlier turns of the segment | yes | no |
 | The full text of documents linked in the answer text | no | yes |
 
-- The question, the answer and the earlier turns are **PII scrubbed** first. The same person, email or phone number gets the same placeholder everywhere in them.
-- References and documents are company knowledge, so they are not scrubbed. They only get the turn's placeholders: wherever a person, email or phone number that was replaced in the conversation appears in them, it is replaced with the same placeholder. Without this, the judge would see `<PERSON_1>` in the answer and a real name in the document, and could not tell whether they match.
-- The mapping from values to placeholders exists only in memory during the run.
+- The question, the answer, the earlier turns, the references and the documents reach the judge as they are: there is no PII scrubbing. The judge runs only on an EU endpoint, and nothing it reads is stored (§6.10).
 - A turn whose question, answer and references are longer than 50,000 characters together is **too large**. It is not sent to the judge at all; it is never cut down and partly assessed. In a sample of 526 web UI turns, 99% were under about 21,000 characters, and only the largest, about 50,500 characters with a long pasted question, was over the limit. The earlier turns are capped separately, so they never make a turn too large.
 - The judge is `gemini-3.8-flash` on the `eu` multi-region, at temperature 0, answering in a fixed structured format.
 
@@ -598,7 +594,6 @@ Each assessment records the rubric version, the version of the closed lists (fai
 |---|---|---|
 | **Does the evidence check catch enough errors, without false `HIGH`s?** | A false `HIGH` costs the team's trust; a missed one hides the worst answers. The check reads only what the answer links. | On the canary: plant known factual errors in synthetic answers, with and without references, and measure how many are caught and how many correct answers are wrongly marked `HIGH`. If too many are missed, reconsider a search of our own (§6.9). |
 | **How many turns does the evidence check reach?** | It sets the cost, and how many turns without evidence stay unchecked. | Measure in the first week the share of knowledge turns without evidence, and how many of them link a document we can read. |
-| **Does PII scrubbing work on Polish text?** | A name or ID it misses reaches the judge. It stays on an EU endpoint and is never stored, but it should not happen. A name in a different grammatical form ("Jan Kowalski", "Jana Kowalskiego") must also get the same placeholder in the answer and in the documents, or the judge can't compare them. | Before launch, measure on synthetic Polish and English text with planted personal data, including inflected names. |
 
 ## 7. Stage 2: finding out why
 
@@ -629,7 +624,7 @@ Everything stage 1 saw, plus the documents behind the answer:
 | The full text of the cited documents | To see whether the snippet left out what was needed |
 | The full text of the documents linked in the answer text, including those the evidence check read | Bolek may have used a document it did not attach as a reference |
 
-As in stage 1, the conversation is PII scrubbed and the documents get the turn's placeholders (§6.3). Each document is capped in length, the people directory is left out, and only document IDs are kept. Stage 2 runs no search of its own, so it never sees a document that the answer neither cited nor linked.
+As in stage 1, nothing is PII scrubbed (§6.3). Each document is capped in length, the people directory is left out, and only document IDs are kept. Stage 2 runs no search of its own, so it never sees a document that the answer neither cited nor linked.
 
 ### 7.3 How the cause is found
 
@@ -1170,7 +1165,7 @@ flowchart TB
     BUCKET[("Content bucket<br/>full text of our documents")] --> SYS
     EVAL -->|"results in aiel_evals"| SYS
     GH["GitHub<br/>prompt and data store settings"] --> SYS
-    SYS <-->|"scrubbed conversations,<br/>documents"| VX["Vertex AI, EU<br/>judge"]
+    SYS <-->|"conversations,<br/>documents"| VX["Vertex AI, EU<br/>judge"]
     HR[("HR table<br/>active associates")] -->|"department"| SYS
     SYS --> SLACK["Slack<br/>alerts, digest"]
     SYS --> GRAFANA["Grafana<br/>dashboard"]
@@ -1250,7 +1245,7 @@ We don't add anything else. Two things are left out on purpose:
 
 | Job | When it runs | What it does | Time limit | Service account |
 |---|---|---|---|---|
-| `quality-assessor` | Every 10 minutes | All the work that needs the text of turns. It reads the window, groups turns into sessions, scrubs PII, and runs stage 1, the evidence check, stage 2 and session grades. It also handles feedback, late triggers, the canary, the second-model check, the pace check and retrieval counts. | 9 minutes | `quality-assessor` |
+| `quality-assessor` | Every 10 minutes | All the work that needs the text of turns. It reads the window, groups turns into sessions, and runs stage 1, the evidence check, stage 2 and session grades. It also handles feedback, late triggers, the canary, the second-model check, the pace check and retrieval counts. | 9 minutes | `quality-assessor` |
 | `quality-monitor` | Every 10 minutes, 5 minutes after the assessor | Checks the health of the last assessment run, and once an hour checks the log for gaps. Sends `HIGH` cluster alerts. Reads ✅ reactions on alerts. | 5 minutes | `quality-reporter` |
 | `quality-daily` | Every day at 05:00 UTC | Collects change events, computes the daily metrics, runs the anomaly check and release impact, and sends anomaly alerts (§12.9) | 30 minutes | `quality-reporter` |
 | `quality-weekly` | Mondays at 06:00 UTC | Builds and ranks problem clusters, closes clusters that were fixed, computes document stats, picks documents for the anchor and focus sets, and sends the digest | 30 minutes | `quality-reporter` |
@@ -1335,19 +1330,16 @@ sequenceDiagram
     A->>HR: department of each user, once per run
     A->>A: keys, sessions, segments, marks, the work list
     loop Phase 1: each session, oldest turn first
-        A->>A: PII scrubbing of the conversation, its placeholders applied to the references
         A->>V: stage 1 form, gemini-3.8-flash
         V-->>A: form
     end
     opt Phase 2: knowledge turns without evidence whose answer links documents
         A->>GCS: full text, up to 3 linked documents per turn
-        A->>A: the turn's placeholders applied to the documents
         A->>V: evidence check, gemini-3.8-flash
         V-->>A: a contradiction, or nothing
     end
     opt Phase 3: flagged turns, while time remains
         A->>GCS: cited and linked documents
-        A->>A: the turn's placeholders applied to the documents
         A->>V: stage 2 and session grade, gemini-4-argon
         V-->>A: diagnosis and grade
     end
@@ -1588,7 +1580,7 @@ The last one isn't planned in 519's current phase. Milestone 7 waits for 519's n
 - Vertex AI serves these models from shared capacity, so it sometimes refuses a call with `429`. We retry with increasing waits and count the refused calls in each run.
 - Token use is recorded per run and per model. A daily limit, which is a setting, protects against a bug that loops, and the monitor alerts when the limit is passed.
 - On a weekday, about 20 turns arrive every 10 minutes. We haven't measured the peak yet. One job making about 8 judge calls at a time should be enough. If it isn't, the assessor can be split into several Cloud Run tasks by session key, so that each session is still handled by a single task.
-- The PII scrubber's language models need about 2 to 3 GB of memory, so the assessor gets 4 GB and 2 CPUs.
+- The assessor gets 4 GB and 2 CPUs. With no PII scrubber and its language models in the image, this can be lowered once the stage runs show what it uses.
 - If Cloud Scheduler itself stops, nothing alerts, because the monitor is started by the same scheduler as the assessor. We accept this. The dashboard shows pipeline health per run (§8.8), so missing runs show up in the morning check. A stop overnight can lose turns.
 
 ### 12.13 Keeping text out
@@ -1598,7 +1590,6 @@ The leak guard (§6.10) protects what we store. Logs, error reports and outside 
 - **Logs.** Cloud Run sends everything a job prints to Cloud Logging, and this project copies all its logs to a GCS bucket that keeps them for 7 years. So our jobs log only through one wrapper, which accepts run IDs, counts, codes and error classes and nothing else. A test plants text in a run and fails if any of it shows up in the logs.
 - **Sentry.** Errors are reported only as error classes, with no messages, local variables or request bodies.
 - **Vertex AI.** Request logging stays switched off. Before launch, we run each job once on synthetic data and check whether the cloud audit logs of its calls to Vertex AI, Secret Manager and GCS contain any content. If some do, those entries of our service accounts are excluded from the 7-year log copy, as agreed with SECOPS.
-- **PII scrubbing.** We use Presidio, an open-source library, with spaCy's English and Polish language models and our own recognisers for company e-mail addresses, employee IDs, phone numbers and Polish ID numbers. It runs inside the assessor, so unscrubbed conversation text is never sent to another service. Documents are not scrubbed; they only get the placeholders found in the conversation (§6.3). The scrubber sits behind one interface. If its Polish recall turns out too low in the test from §6.12, we can replace it with Google's Cloud DLP API without changing anything else.
 - **Slack.** Messages are built from templates filled with derived values (§12.8).
 
 ### 12.14 Deployment and versions
@@ -1643,9 +1634,9 @@ flowchart LR
 
 | # | Milestone | What it includes | Done when | Engineer-weeks |
 |---|---|---|---|---|
-| 0 | Checks first | The feedback numbering check (§12.17), the audit log check (§12.13), the Polish PII test set, approval of the Slack app, and the agreement with AIENGLAB-519 (§12.11) | Each check is answered, or the design is changed | 1 |
+| 0 | Checks first | The feedback numbering check (§12.17), the audit log check (§12.13), approval of the Slack app, and the agreement with AIENGLAB-519 (§12.11) | Each check is answered, or the design is changed | 1 |
 | 1 | Foundations | The repository and image; Terraform for all datasets, views, service accounts, secrets, jobs and schedules; the logging wrapper, Sentry, the leak guard and its tests | An empty assessor run writes its run record | 1 |
-| 2 | Stage 1 in shadow | Reading the window; keys, sessions and segments; PII scrubbing; stage 1; too-large and missed turns; feedback; the pace check; the monitor with pipeline health alerts | Coverage stays at 98% or more for 5 weekdays | 3 |
+| 2 | Stage 1 in shadow | Reading the window; keys, sessions and segments; stage 1; too-large and missed turns; feedback; the pace check; the monitor with pipeline health alerts | Coverage stays at 98% or more for 5 weekdays | 3 |
 | 3 | Documents and stage 2 | Reading the content bucket; the evidence check, stage 2, session grades and late triggers | The share of flagged turns and the evidence check's reach are measured | 2 to 3 |
 | 4 | Judge trust | The judge test suite and its job, rubric tuning, the canary, planted errors and the second-model check | The tuned judge passes §11.3, and the canary runs every day | 2 to 3, mostly spent writing expected forms |
 | 5 | Metrics and dashboard | `quality-daily` (log completeness, change events, metrics) and the Grafana page | The team reads the dashboard every morning | 2 |

@@ -1,11 +1,11 @@
-# 17 · Step 6: evidence check, stage 2 and session grades, then go-live
+# 18 · Step 6: evidence check, stage 2 and session grades, then go-live
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 17 |
-| Depends on | 07, 08, 16 |
+| Order | 18 |
+| Depends on | 07, 09, 17 |
 | Plan | `deployment-plan.md` Step 6 |
 
 ### User story

@@ -1,11 +1,11 @@
-# 13 · Step 2: datasets, service accounts and tables in stage and prod
+# 14 · Step 2: datasets, service accounts and tables in stage and prod
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 13 |
-| Depends on | 12 |
+| Order | 14 |
+| Depends on | 13 |
 | Plan | `deployment-plan.md` Step 2 |
 
 ### User story

@@ -1,11 +1,11 @@
-# 25 · Step 13: eval documents and gate verdicts (closed loop)
+# 26 · Step 13: eval documents and gate verdicts (closed loop)
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 25 |
-| Depends on | 06, 24 |
+| Order | 26 |
+| Depends on | 06, 25 |
 | Plan | `deployment-plan.md` Step 13 |
 
 ### User story

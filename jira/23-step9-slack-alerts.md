@@ -1,11 +1,11 @@
-# 22 · Step 9: Slack health alerts, HIGH cluster alerts and acknowledgements
+# 23 · Step 9: Slack health alerts, HIGH cluster alerts and acknowledgements
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 22 |
-| Depends on | 04, 18, 21 |
+| Order | 23 |
+| Depends on | 04, 19, 22 |
 | Plan | `deployment-plan.md` Step 9 |
 
 ### User story
