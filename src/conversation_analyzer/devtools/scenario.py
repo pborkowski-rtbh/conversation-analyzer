@@ -156,7 +156,7 @@ def canary_question_hash() -> str:
 
 
 # Label recall of the judge suite's v2 run (suite-006ae3961f390f5f): every label reliable except REASONING_ERROR.
-# NOT_IN_CITED_SOURCES takes RETRIEVAL_MISS's recall until judge v3 has a full run (ticket 08).
+# NOT_IN_CITED_SOURCES takes RETRIEVAL_MISS's recall until judge v3 has a full run (ticket 09).
 SUITE_RECALL = {
     "AGENT_OR_TOOL_ERROR": 1.0,
     "AMBIGUOUS_QUESTION": 1.0,

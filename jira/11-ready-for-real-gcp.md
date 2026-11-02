@@ -1,12 +1,12 @@
-# 10 · Environment settings, run gate and operational commands for real GCP
+# 11 · Environment settings, run gate and operational commands for real GCP
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 10 |
+| Order | 11 |
 | Depends on | — |
-| Plan | `deployment-plan.md` A5 |
+| Plan | `deployment-plan.md` A6 |
 
 ### User story
 
@@ -22,7 +22,7 @@ Stage (`rtb-aiel-core-stage`, datasets `stage_bolek_quality_*`) reads the prod l
 * A dataset prefix (`stage_`) is applied wherever a dataset name is built
 * Run gate: `run_gate.uri`; a closed gate writes a `PAUSED` run record (assessor) or nothing (others) and exits 0; `--ignore-gate`; the monitor treats paused periods and the first 3h30 after opening as no run expected; tested on fake GCS
 * `make stage-resume HOURS=n` (max 24) and `make stage-pause`, plus a `stage-gate.yml` workflow (`workflow_dispatch`) that writes the control object
-* `ca quality-assessor --dry-run` reads the window and writes only the run record (no PII scrubbing, no Vertex)
+* `ca quality-assessor --dry-run` reads the window and writes only the run record (no Vertex)
 * `ca db-init --check` compares live tables, columns, partitioning and views with `bq/schema.py` and exits non-zero on a difference
 * `ca leak-audit --since <day>` re-runs the leak guard and a string-length check over stored rows and prints counts only
 * Kill switches `stage2.enabled` and `evidence_check.enabled` (default true)

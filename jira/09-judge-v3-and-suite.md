@@ -1,12 +1,12 @@
-# 08 · Judge v3 and the judge test suite without search
+# 09 · Judge v3 and the judge test suite without search
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 08 |
-| Depends on | 07 |
-| Plan | `deployment-plan.md` A3 |
+| Order | 09 |
+| Depends on | 07, 08 |
+| Plan | `deployment-plan.md` A4 |
 
 ### User story
 

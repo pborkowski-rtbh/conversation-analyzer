@@ -1,12 +1,12 @@
-# 09 · Department family on every turn and in the AQR strata
+# 10 · Department family on every turn and in the AQR strata
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 09 |
+| Order | 10 |
 | Depends on | 03 (values only; code can start with placeholder families) |
-| Plan | `deployment-plan.md` A4 |
+| Plan | `deployment-plan.md` A5 |
 
 ### User story
 

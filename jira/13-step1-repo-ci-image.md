@@ -1,11 +1,11 @@
-# 12 · Step 1: foundations in the official repository, CI and the first image
+# 13 · Step 1: foundations in the official repository, CI and the first image
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 12 |
-| Depends on | 01, 10 |
+| Order | 13 |
+| Depends on | 01, 11 |
 | Plan | `deployment-plan.md` Step 1 |
 
 ### User story

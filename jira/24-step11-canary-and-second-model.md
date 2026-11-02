@@ -1,11 +1,11 @@
-# 23 · Step 11: canary and second-model check on real traffic
+# 24 · Step 11: canary and second-model check on real traffic
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 23 |
-| Depends on | 06, 17 |
+| Order | 24 |
+| Depends on | 06, 18 |
 | Plan | `deployment-plan.md` Step 11 |
 
 ### User story

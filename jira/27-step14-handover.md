@@ -1,11 +1,11 @@
-# 26 · Step 14: hand-over and archive of the private repository
+# 27 · Step 14: hand-over and archive of the private repository
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 26 |
-| Depends on | 25 |
+| Order | 27 |
+| Depends on | 26 |
 | Plan | `deployment-plan.md` Step 14 |
 
 ### User story

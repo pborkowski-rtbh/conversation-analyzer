@@ -1,11 +1,11 @@
-# 14 · Step 3: assessor dry run on the real log in stage and prod
+# 15 · Step 3: assessor dry run on the real log in stage and prod
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 14 |
-| Depends on | 13 |
+| Order | 15 |
+| Depends on | 14 |
 | Plan | `deployment-plan.md` Step 3 |
 
 ### User story

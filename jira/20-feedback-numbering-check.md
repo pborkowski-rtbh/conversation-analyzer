@@ -1,11 +1,11 @@
-# 19 · Check that feedback numbering matches turn positions
+# 20 · Check that feedback numbering matches turn positions
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 19 |
-| Depends on | 18 |
+| Order | 20 |
+| Depends on | 19 |
 | Plan | `deployment-plan.md` G7 (optional) |
 
 ### User story

@@ -1,12 +1,12 @@
-# 11 · Local check of the Grafana dashboard's SQL on the emulator
+# 12 · Local check of the Grafana dashboard's SQL on the emulator
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 11 |
+| Order | 12 |
 | Depends on | — |
-| Plan | `deployment-plan.md` A6 |
+| Plan | `deployment-plan.md` A7 |
 
 ### User story
 

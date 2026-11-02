@@ -1,11 +1,11 @@
-# 21 · Step 10: judge test suite as a Cloud Run job
+# 22 · Step 10: judge test suite as a Cloud Run job
 
 | Field | Value |
 |---|---|
 | Type | Story |
 | Epic | AIENGLAB-543 (Bolek RAG - Conversation Analyzer) |
-| Order | 21 |
-| Depends on | 15 |
+| Order | 22 |
+| Depends on | 16 |
 | Plan | `deployment-plan.md` Step 10 |
 
 ### User story
@@ -14,13 +14,13 @@ As a Conversation Analyzer maintainer, when the judge changes, I want the suite 
 
 ### Context
 
-Moves: `suite/`, `suite_cases/`. Without a full suite run in an environment every label is experimental, so no HIGH cluster alert is sent (§11.3). Must come before HIGH alerts in ticket 22. One full pass is about 7 USD.
+Moves: `suite/`, `suite_cases/`. Without a full suite run in an environment every label is experimental, so no HIGH cluster alert is sent (§11.3). Must come before HIGH alerts in ticket 23. One full pass is about 7 USD.
 
 ### Acceptance criteria
 
 * Infra: job `quality-judge-suite` (by hand, 60 min), account with Vertex and write on `quality_judge_suite_runs` only
 * One full run per environment stores a BASELINE row with label reliability
-* Distances are within noise of the local run of ticket 08
+* Distances are within noise of the local run of ticket 09
 * Spend logged; step 10 ticked
 
 ### If something is not clear
