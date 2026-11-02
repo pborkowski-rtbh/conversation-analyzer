@@ -1,4 +1,4 @@
-"""Judge test suite cases: a fixed input, with the documents a search returns, and the expected forms (§11.1)."""
+"""Judge test suite cases: a fixed input, its cited and linked documents from the corpus, the expected forms (§11.1)."""
 
 from __future__ import annotations
 
@@ -133,7 +133,6 @@ class SuiteCase(BaseModel):
     earlier: list[CaseTurn] = Field(default_factory=list)  # earlier turns of the segment, oldest first
     previous_text_available: bool = True
     turn: CaseTurn
-    documents: list[str] = Field(default_factory=list)  # what a search returns, best first
     flag_reasons: list[str] | None = None  # a late trigger (e.g. DISLIKE) when stage 1 alone would not flag it
     expected: Expected
 
@@ -237,7 +236,7 @@ def load_suite(directory: Path = CASES_DIR) -> Suite:
             for r in t.references:
                 if r.doc not in documents:
                     raise ValueError(f"{c.id}: unknown document {r.doc}")
-        for d in c.documents + (c.expected.stage2.fix_options() if c.expected.stage2 else []):
+        for d in c.expected.stage2.fix_options() if c.expected.stage2 else []:
             if d is not None and d not in documents:
                 raise ValueError(f"{c.id}: unknown document {d}")
     return Suite(

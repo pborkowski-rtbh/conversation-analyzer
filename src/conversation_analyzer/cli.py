@@ -138,7 +138,7 @@ def db_init() -> None:
 @main.command("dev-seed")
 @click.option("--now", default=None, help="Time the synthetic window ends (ISO); default now (or CA_NOW).")
 def dev_seed(now: str | None) -> None:
-    """Local only: write the synthetic scenario (log rows, documents, chunks) into the emulator."""
+    """Local only: write the synthetic scenario (log rows and documents) into the emulator."""
     from datetime import datetime
 
     from conversation_analyzer.devtools import scenario

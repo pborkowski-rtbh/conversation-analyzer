@@ -28,9 +28,7 @@ class DocText:
 
 
 class DocumentSource(Protocol):
-    """Our documents: the document index and the content bucket live, fixed results in the suite."""
-
-    def search(self, text: str) -> list[DocRef]: ...
+    """Our documents: the content bucket live, the case's documents in the suite; there is no search (§12.7)."""
 
     def read(self, ref: DocRef) -> DocText | None: ...
 

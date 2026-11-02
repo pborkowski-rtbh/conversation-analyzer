@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -11,9 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from conversation_analyzer.bq.client import client
-from conversation_analyzer.bq.schema import chunk_table_name
 from conversation_analyzer.docs.content import content_path, fernet, storage_client
-from conversation_analyzer.docs.embedder import FakeEmbedder
 from conversation_analyzer.settings import get_settings
 
 PROJECT_PATH = "projects/181861149279/locations/eu/collections/default_collection"
@@ -201,11 +198,9 @@ def ensure_bucket(name: str) -> None:
         storage_client().create_bucket(name)
 
 
-def index_documents(docs: list[SynthDoc], now: datetime) -> None:
-    """What the indexers' sink does for real (§12.7): text to the bucket, vectors to the document index."""
+def store_documents(docs: list[SynthDoc]) -> None:
+    """What the indexers already do for real (§12.7): each document's text, encrypted, into the content bucket."""
     s = get_settings()
-    embedder = FakeEmbedder()
-    rows_by_table: dict[str, list[dict[str, Any]]] = {}
     for d in docs:
         bucket = s.bucket_for(d.data_store)
         ensure_bucket(bucket)
@@ -213,23 +208,3 @@ def index_documents(docs: list[SynthDoc], now: datetime) -> None:
         storage_client().bucket(bucket).blob(content_path(d.data_store, d.uri)).upload_from_string(
             fernet().encrypt(payload)
         )
-        chunks = [d.title + "\n" + part for part in d.text.split("\n\n") if part.strip()] or [d.title]
-        vectors = embedder.embed(chunks, "RETRIEVAL_DOCUMENT")
-        text_hash = hashlib.sha256(d.text.encode()).hexdigest()
-        for i, vec in enumerate(vectors):
-            rows_by_table.setdefault(chunk_table_name(d.data_store), []).append(
-                {
-                    "doc_id": d.doc_id,
-                    "uri": d.uri,
-                    "data_store": d.data_store,
-                    "chunk_no": i,
-                    "embedding": vec,
-                    "text_hash": text_hash,
-                    "embedding_model": embedder.model,
-                    "indexed_at": now.isoformat(),
-                }
-            )
-    for table, rows in rows_by_table.items():
-        errors = client().insert_rows_json(f"{s.env.bq_project}.{s.datasets.doc_index}.{table}", rows)
-        if errors:
-            raise RuntimeError("index insert failed")

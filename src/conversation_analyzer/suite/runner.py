@@ -49,16 +49,12 @@ _SHOWN = (
 
 
 class FixedDocuments:
-    """A case's DocumentSource: every search returns the case's documents; reads give the session's placeholders."""
+    """A case's DocumentSource: the corpus, reached through cited references and links; reads get the placeholders."""
 
-    def __init__(self, suite: Suite, keys: list[str], pii: PiiMap) -> None:
-        self.found = [suite.documents[k].ref for k in keys]
+    def __init__(self, suite: Suite, pii: PiiMap) -> None:
         self.texts = suite.doc_texts()
         self.by_uri = {d.uri: d.ref for d in suite.documents.values() if d.uri}
         self.pii = pii
-
-    def search(self, text: str) -> list[DocRef]:
-        return list(self.found)
 
     def read(self, ref: DocRef) -> DocText | None:
         doc = self.texts.get(ref)
@@ -145,7 +141,7 @@ class SuiteRun:
         exp = case.expected
         pii = PiiMap()
         jc = scrubbed(case.judge_case(self.suite.documents), pii, self.analyzer)
-        docs = FixedDocuments(self.suite, case.documents, pii)
+        docs = FixedDocuments(self.suite, pii)
         out = CasePass(case.id, Distance())
         s1 = None
         try:

@@ -17,7 +17,6 @@ datasets:
   turns: bolek_quality_turns
   metrics: bolek_quality_metrics
   log_views: bolek_quality_log_views
-  doc_index: bolek_quality_doc_index
   evals: aiel_evals
 log_table: audit_logs
 ge_metrics_table: ge_metrics
@@ -46,14 +45,13 @@ timing:
   no_run_alert_minutes: 25
   feedback_after_window_fallback: false  # §12.5: switched on only after the numbering check (§12.17)
 
-# --- Sizes (§5.3, §6.3, §6.9, §7.2) ---
+# --- Sizes (§5.3, §6.3, §6.9, §7.2); there is no search, so no top-k (§12.7) ---
 sizes:
   too_large_chars: 50000
   context_chars: 60000
   document_chars: 20000                # cap per document read by the evidence check and stage 2
-  evidence_check_documents: 3
-  stage2_found_documents: 5           # documents found by stage 2's own search that it reads
-  search_top_k: 10
+  evidence_check_documents: 3          # linked documents the evidence check reads
+  stage2_linked_documents: 5           # linked documents stage 2 reads besides all cited ones
   stage2_max_claims: 3
 
 # --- Pace check (§8.2) ---
@@ -66,7 +64,7 @@ judge:
   location: eu                          # EU multi-region, never global
   allowed_locations: [eu, europe-west1, europe-west3, europe-west4, europe-central2, europe-north1, europe-southwest1, europe-west8, europe-west9]
   vertex_project: rtb-ai-engineering-indexers
-  current_version: v2                   # kept by the suite on 2026-10-29 (pre-launch, so no parallel run with v1)
+  current_version: v3                   # draft without search (ticket 07); kept only after its suite run (ticket 08)
   previous_version: null                # set during a parallel run
   parallel_run_until: null              # last day (UTC) of the parallel run, 5 weekdays after the change
   concurrency: 8
@@ -74,14 +72,6 @@ judge:
   retry_base_seconds: 2.0
   second_model_share: 0.05
   daily_token_limit: 60000000
-
-# --- Embeddings for the document index (§12.2, §12.7) ---
-embedding:
-  model: text-multilingual-embedding-002
-  location: europe-west4
-  dimensions: 768
-  chunk_chars: 2000
-  chunk_overlap_chars: 200
 
 # --- Metrics (§8) ---
 metrics:

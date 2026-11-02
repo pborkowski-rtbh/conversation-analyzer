@@ -776,7 +776,6 @@
     question: How many days of on-demand leave can I take per year?
     answer: ''
     state: FAILED
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -798,7 +797,6 @@
     question: My VPN sign-in keeps looping. How do I fix it?
     answer: ''
     state: FAILED
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -820,7 +818,6 @@
     question: How long is data kept in analytics.impressions_daily?
     answer: ''
     state: FAILED
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION

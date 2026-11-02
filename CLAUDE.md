@@ -13,9 +13,9 @@ spec are in `plan.md`. Read `plan.md` **Status** and **Next steps** first when r
   `kind` in `bq/schema.py` decides what may be stored. A new column needs a kind; never add a free-text column.
 - **Logs and errors carry no text either.** Log only with `safe_log.log(event, **fields)` (non-closed strings become
   `<rejected>`); never `print`/`logging` with content. Sentry gets the error class only (`errors.report`).
-- **Paid calls are the exception.** Tests use `FakeJudge` and `FakeEmbedder`. Paid Vertex calls only: the judge
-  suite (`make suite-live`) and small real-embedding index runs; spend cap 50 USD total, log each run in the
-  **Spend log** of `plan.md`. Vertex project `rtb-ai-engineering-indexers`, judge location `eu` (never `global`).
+- **Paid calls are the exception.** Tests use `FakeJudge`. Paid Vertex calls only: the judge suite
+  (`make suite-live`); spend cap 50 USD total, log each run in the **Spend log** of `plan.md`. Vertex project
+  `rtb-ai-engineering-indexers`, judge location `eu` (never `global`).
 - **Closed lists live in `vocab.py`.** Any value written to a code column must be a member; changing a list changes
   `closed_lists_version()`.
 - **Judge changes go through `judge_versions/`.** Rubric, prompts, form schemas and models are hashed into the judge
@@ -38,15 +38,13 @@ src/conversation_analyzer/
   pii/                 Presidio en/pl scrubber with per-session placeholders
   judge/               forms, version, case rendering, Vertex client, fake judge, stage 1, evidence check,
                        stage 2, session grades
-  docs/                content bucket reader, embedder, document index search
+  docs/                content bucket reader; links resolved to documents (no search, §12.7)
   assessor/            sessions/segments, stored state, canary, the assessment run
   reporting/           monitor, daily (changes, completeness, metrics, anomaly, release, judge_quality),
                        weekly (clusters, documents, eval sets, digest), record, messages, slack
   suite/               judge test suite runner and keep rule
   devtools/            synthetic log rows and the demo scenario (emulator only)
 docker/stubs/server.py Slack, GitHub and Cloud Run stubs for local runs
-aiel-content-indexers/ git submodule (branch AIENGLAB-782): the doc-index sink (§12.7); its own CLAUDE.md applies
-                       there (Python 3.14, line length 100)
 ```
 
 ## Running
@@ -61,7 +59,6 @@ make lint / make fmt
 make suite-coverage   # suite cases against the §11.1 scenario minimums (no judge)
 make suite LIMIT=20   # the suite runner with the fake judge (free)
 make suite-restore    # load the stored suite runs (suite_reports/) back into a reset emulator
-make index-local      # real indexer (biztech, 20 docs) into the emulator's document index; EMBED=vertex is paid
 make pii-eval         # PII scrubber recall on the synthetic Polish/English set (§6.12)
 make help             # every target
 ```
@@ -90,9 +87,9 @@ The tests load `local.env` themselves; for `uv run ca ...` by hand run `set -a; 
   duplicate `CREATE TABLE IF NOT EXISTS` takes ~5 s. `make test`/`make coverage` reset it first; `create_all` only
   creates missing tables, and the reused staging tables `_stg_<table>` are made there, not on every write.
 - `CREATE TABLE IF NOT EXISTS` doesn't add new columns: after a schema change run `make db-reset`.
-- No `VECTOR_SEARCH`, no load jobs, no array-of-struct params, MERGE needs a table source,
-  `SELECT *` of nested repeated structs fails, numeric params must be strings. All are handled in `bq/client.py`
-  and `docs/index.py`; the full table is in `plan.md` (**Emulator quirks**).
+- No load jobs, no array-of-struct params, MERGE needs a table source, `SELECT *` of nested repeated structs
+  fails, numeric params must be strings. All are handled in `bq/client.py`; the full table is in `plan.md`
+  (**Emulator quirks**).
 - Tests read nested rows with `TO_JSON_STRING` (see `rows()` in `tests/test_assessor_e2e.py`).
 
 ## Testing conventions
@@ -106,5 +103,6 @@ The tests load `local.env` themselves; for `uv run ca ...` by hand run `set -a; 
 
 ## Git
 
-Branch `AIENGLAB-782` here and in the submodule. Commit and push both after each milestone; update `plan.md`
-(checkboxes, Status, Spend log) in the same commit.
+Work for the deployment happens on branches off `release-v1`, one per ticket in `jira/`, merged by PR. Update
+`deployment-plan.md` (checkboxes, Status, Spend log) in the same PR. The `aiel-content-indexers` submodule is gone:
+there is no document index any more.

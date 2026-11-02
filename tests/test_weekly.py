@@ -256,14 +256,14 @@ def test_digest_failure_is_reported_and_the_rest_stored(clean, monkeypatch):
     assert not summary["digest_sent"] and summary["clusters"] == 3 and rows(PROBLEM_CLUSTERS)
 
 
-def test_a_knowledge_gap_gets_a_focus_set_once_a_fix_adds_the_document(clean):
-    gap = {"primary_failure": "KNOWLEDGE_GAP", "failure_types": ["KNOWLEDGE_GAP"], "severity": "MEDIUM"}
+def test_a_not_in_cited_sources_cluster_gets_a_focus_set_once_a_fix_adds_the_document(clean):
+    gap = {"primary_failure": "NOT_IN_CITED_SOURCES", "failure_types": ["NOT_IN_CITED_SOURCES"], "severity": "MEDIUM"}
     stored.store(
         [stored.turn(WEEK + timedelta(days=1), topic="HR_HOUSE", groundedness=1, stage2=gap) for _ in range(2)]
     )
     job = weekly.Weekly(WEEK, WEEK + timedelta(days=7))
     (cluster,) = job.clusters(job.turns())
-    assert cluster["doc_id"] is None and cluster["topic"] == "HR_HOUSE" and cluster["owner"] == "CORPUS_OWNER"
+    assert cluster["doc_id"] is None and cluster["topic"] == "HR_HOUSE" and cluster["owner"] == "TEAM"
     assert job.eval_documents([], [cluster]) == []  # nothing to generate questions from yet
     record(
         "DOCUMENT", str(WEEK + timedelta(days=3)), 9, "hr_meal_allowance", "rtb-crj-hr-house", [cluster["cluster_id"]]

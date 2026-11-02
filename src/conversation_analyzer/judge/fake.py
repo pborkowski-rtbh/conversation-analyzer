@@ -55,8 +55,6 @@ class FakeJudge:
             return forms.EvidenceCheckForm(
                 contradiction_found=hit, contradicting_document=1 if hit else None, confidence=0.8
             )
-        if form is forms.Stage2Phrasings:
-            return forms.Stage2Phrasings(claims=[m.get("claim", "problem claim").replace("_", " ")])
         if form is forms.Stage2Form:
             return self._stage2(prompt, m)
         if form is forms.SessionGradeForm:
@@ -94,35 +92,26 @@ class FakeJudge:
     @staticmethod
     def _stage2(prompt: str, m: dict[str, str]) -> forms.Stage2Form:
         why = m.get("why", "NONE")
-        has_cited = re.search(r"## CITED DOCUMENTS \(full text\)\s+\[1\]", prompt) is not None
-        found_first = 2 if has_cited else 1
         path = {
             "OUTDATED_SOURCE": dict(snippets_support_claim=True),
             "CONFLICTING_SOURCES": dict(snippets_support_claim=True),
             "NONE": dict(snippets_hold_right_content=True),
-            "CHUNKING_ISSUE": dict(in_cited_full_text=True),
-            "RETRIEVAL_MISS": dict(in_other_found_document=True),
-            "KNOWLEDGE_GAP": {},
+            "CHUNKING_ISSUE": dict(in_full_text=True),
+            "NOT_IN_CITED_SOURCES": {},
             "SUPPORTED": dict(snippets_support_claim=True),
         }[why]
         flags = {
             "snippets_support_claim": False,
             "snippets_hold_right_content": False,
-            "in_cited_full_text": False,
-            "in_other_found_document": False,
+            "in_full_text": False,
             **path,
         }
-        role = {
-            "OUTDATED_SOURCE": "OUTDATED",
-            "CONFLICTING_SOURCES": "CONFLICTING",
-            "RETRIEVAL_MISS": "HOLDS_RIGHT_ANSWER",
-        }.get(why, "CITED")
-        doc = found_first if why == "RETRIEVAL_MISS" else 1
+        role = {"OUTDATED_SOURCE": "OUTDATED", "CONFLICTING_SOURCES": "CONFLICTING"}.get(why, "CITED")
         claims = [
             forms.ClaimForm(
                 span_index=0,
                 what=m.get("what", "CONTRADICTED_CLAIM"),
-                documents=[forms.DocumentRole(document=doc, role=role)],
+                documents=[forms.DocumentRole(document=1, role=role)],
                 **flags,
             )
         ]

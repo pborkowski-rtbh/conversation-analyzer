@@ -9,7 +9,7 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-02)
 
-- Plan written and its open questions answered (§9); nothing deployed. All code is in the private repo (M0–M7 done, 229 tests, 98.37 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). All code is in the private repo (M0–M7 done, 229 tests, 98.37 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -115,21 +115,24 @@ steps that need them. Each ends with `make coverage` green.
 
 ### A2. Drop the document index
 
-- [ ] Remove `docs/index.py`, `docs/embedder.py`, `devtools` chunk seeding, `make index-local`, the `embedding`
+- [x] Remove `docs/index.py`, `docs/embedder.py`, `devtools` chunk seeding, `make index-local`, the `embedding`
   settings, `CA_EMBEDDING_BACKEND`, the `bolek_quality_doc_index` dataset and `chunk_table()`.
-- [ ] Remove the submodule `aiel-content-indexers` (its branch `AIENGLAB-782` stays unmerged; note it there).
-- [ ] Stage 2 (`judge/stage2.py`): documents = full text of the cited documents and of the documents linked in the
+- [x] Remove the submodule `aiel-content-indexers` (its branch `AIENGLAB-782` stays unmerged). The note on that
+  branch is still open (a commit in another repository).
+- [x] Stage 2 (`judge/stage2.py`): documents = full text of the cited documents and of the documents linked in the
   answer text; no phrasings call (`Stage2Phrasings` goes, one judge call fewer per flagged turn).
-- [ ] Cause path (§7.3) without the search question: *not in the snippets → in the full text of a cited or linked
+- [x] Cause path (§7.3) without the search question: *not in the snippets → in the full text of a cited or linked
   document?* yes `CHUNKING_ISSUE`, no → **`NOT_IN_CITED_SOURCES`** (replaces `RETRIEVAL_MISS` and
   `KNOWLEDGE_GAP`; no document to fix, clustered by topic). `OUTDATED_SOURCE` and `CONFLICTING_SOURCES` are unchanged.
-- [ ] Evidence check: documents linked in the answer text only; if none, the check is skipped and counted as
+- [x] Evidence check: documents linked in the answer text only; if none, the check is skipped and counted as
   `NO_DOCUMENTS` in the run record, so its reach is measured on real traffic (step 6).
-- [ ] Retrieval counts (§12.6): resolve data store and people-directory exclusion from the document ID and
-  `data_stores` settings, not from the index.
-- [ ] Canary: drop index hit rate and the `KNOWLEDGE_GAP` miss rate (`INDEX_HIT_RATE` measure, digest line).
-- [ ] `vocab.py`: closed lists changed → new `closed_lists_version()`.
-- [ ] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "vector\|embed" src` finds nothing live.
+- [x] Retrieval counts (§12.6): a retrieved document ID takes its data store from the references seen in the
+  window (agreed with the user); IDs no reference names are not counted. Linked documents take the window's ID for
+  their URL, else `url-<32 hex>`.
+- [x] Canary: drop index hit rate and the `KNOWLEDGE_GAP` miss rate (`INDEX_HIT_RATE` measure, digest line).
+- [x] `vocab.py`: closed lists changed → new `closed_lists_version()`.
+- [x] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "vector\|embed" src` finds nothing live.
+  (2026-11-02: 222 tests, 98.26 %; demo end to end; grep clean.) Judge v3 drafted here, validated in A3.
 
 ### A3. Judge v3 and the suite
 

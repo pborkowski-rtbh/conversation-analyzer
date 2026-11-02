@@ -26,7 +26,6 @@ class Datasets(BaseModel):
     turns: str
     metrics: str
     log_views: str
-    doc_index: str
     evals: str
 
 
@@ -58,8 +57,7 @@ class Sizes(BaseModel):
     context_chars: int
     document_chars: int
     evidence_check_documents: int
-    stage2_found_documents: int
-    search_top_k: int
+    stage2_linked_documents: int
     stage2_max_claims: int
 
 
@@ -80,14 +78,6 @@ class Judge(BaseModel):
     retry_base_seconds: float
     second_model_share: float
     daily_token_limit: int
-
-
-class Embedding(BaseModel):
-    model: str
-    location: str
-    dimensions: int
-    chunk_chars: int
-    chunk_overlap_chars: int
 
 
 class Anomaly(BaseModel):
@@ -214,7 +204,6 @@ class Environment(BaseModel):
     sentry_dsn: str | None
     secrets_backend: str
     judge_backend: str
-    embedding_backend: str
     code_version: str
 
     @property
@@ -235,7 +224,6 @@ class Settings(BaseModel):
     sizes: Sizes
     pace: Pace
     judge: Judge
-    embedding: Embedding
     metrics: Metrics
     strata: Strata
     alerts: Alerts
@@ -281,7 +269,6 @@ def _environment() -> Environment:
         sentry_dsn=e("CA_SENTRY_DSN") or None,
         secrets_backend=e("CA_SECRETS_BACKEND", "gcp"),
         judge_backend=e("CA_JUDGE_BACKEND", "vertex"),
-        embedding_backend=e("CA_EMBEDDING_BACKEND", "vertex"),
         code_version=e("CA_CODE_VERSION", "dev"),
     )
 

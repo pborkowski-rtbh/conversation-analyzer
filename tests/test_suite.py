@@ -86,8 +86,6 @@ class Oracle:
             return forms.EvidenceCheckForm(
                 contradiction_found=hit, contradicting_document=1 if hit else None, confidence=0.9
             )
-        if form is forms.Stage2Phrasings:
-            return forms.Stage2Phrasings(claims=["the problem claim"])
         if form is forms.Stage2Form:
             return self._stage2(prompt)
         s = exp.session
@@ -97,9 +95,9 @@ class Oracle:
 
     def _stage2(self, prompt: str) -> forms.Stage2Form:
         exp = self.case.expected.stage2
-        cited_part, _, found_part = prompt.partition("## DOCUMENTS FOUND BY SEARCH")
+        cited_part, _, linked_part = prompt.partition("## DOCUMENTS LINKED IN THE ANSWER (full text)")
         cited = {title: int(n) for n, title in _DOC.findall(cited_part.split("## CITED DOCUMENTS (full text)")[-1])}
-        found = {title: int(n) for n, title in _DOC.findall(found_part)}
+        linked = {title: int(n) for n, title in _DOC.findall(linked_part)}
         fixes = [self.suite.documents[k].title for k in exp.fix_options() if k]
         why = exp.cause or "NONE"
 
@@ -109,15 +107,14 @@ class Oracle:
         flags = {
             "snippets_support_claim": why in ("OUTDATED_SOURCE", "CONFLICTING_SOURCES"),
             "snippets_hold_right_content": why == "NONE",
-            "in_cited_full_text": why == "CHUNKING_ISSUE",
-            "in_other_found_document": why == "RETRIEVAL_MISS",
+            "in_full_text": why == "CHUNKING_ISSUE",
         }
+        in_cited = number(cited)
         role, doc = {
             "OUTDATED_SOURCE": ("OUTDATED", number(cited)),
             "CONFLICTING_SOURCES": ("CONFLICTING", number(cited)),
-            "CHUNKING_ISSUE": ("CITED", number(cited)),
-            "RETRIEVAL_MISS": ("HOLDS_RIGHT_ANSWER", number(found)),
-            "KNOWLEDGE_GAP": ("CITED", None),
+            "CHUNKING_ISSUE": ("CITED", in_cited) if in_cited else ("HOLDS_RIGHT_ANSWER", number(linked)),
+            "NOT_IN_CITED_SOURCES": ("CITED", None),
             "NONE": ("CITED", 1 if cited else None),
         }[why]
         what = "REASONING_ERROR" if exp.primary_failure == "REASONING_ERROR" else "CONTRADICTED_CLAIM"
@@ -203,7 +200,7 @@ def test_load_suite_rejects_broken_cases(tmp_path):
     with pytest.raises(ValueError, match="unknown document nope"):
         load_suite(_write_suite(tmp_path / "ref", [bad_ref]))
     bad_fix = _case("a")
-    bad_fix["expected"]["stage2"] = {"primary_failure": "RETRIEVAL_MISS", "document_to_fix": ["d", "gone"]}
+    bad_fix["expected"]["stage2"] = {"primary_failure": "CHUNKING_ISSUE", "document_to_fix": ["d", "gone"]}
     with pytest.raises(ValueError, match="unknown document gone"):
         load_suite(_write_suite(tmp_path / "fix", [bad_fix]))
     with pytest.raises(ValueError, match="primary_failure"):
@@ -297,9 +294,8 @@ def test_fixed_documents_and_scrubbing(suite):
     case = next(c for c in suite.cases if c.id == "trips_booking-private-details")
     jc = scrubbed(case.judge_case(suite.documents), pii, Names("Anna Nowak"))
     assert "<PERSON_1>" in jc.question and "Anna" not in jc.question
-    docs = FixedDocuments(suite, ["person_finance", "trips"], pii)
+    docs = FixedDocuments(suite, pii)
     person = suite.documents["person_finance"]
-    assert docs.search("anything") == [person.ref, suite.documents["trips"].ref]
     assert docs.read(person.ref).text.startswith("<PERSON_1>, Head of Finance Operations")
     assert docs.read(DocRef("gone", "rtb-crj-hr-house", None)) is None
     assert docs.lookup_uri(suite.documents["trips"].uri) == suite.documents["trips"].ref

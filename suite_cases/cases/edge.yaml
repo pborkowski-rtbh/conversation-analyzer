@@ -15,7 +15,6 @@
     spans:
     - text: The password must have at least 12 characters.
       refs: [0]
-  documents: [passwords_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -44,7 +43,6 @@
     spans:
     - text: Request it in Workday no later than the start of the working day of your absence.
       refs: [0]
-  documents: [leave_pl]
   expected:
     stage1:
       intent: HOW_TO
@@ -72,7 +70,6 @@
     spans:
     - text: Możesz wziąć maksymalnie 4 dni urlopu na żądanie w roku.
       refs: [0]
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -102,7 +99,6 @@
       refs: [0]
     - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
       refs: [0]
-  documents: [leave]
   expected:
     stage1:
       intent: HOW_TO
@@ -130,7 +126,6 @@
       refs: [0]
     - text: They are taken from your annual leave.
       refs: [0]
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -156,7 +151,6 @@
     spans:
     - text: Book the hotel through Travel Tool, like every part of a business trip.
       refs: [0]
-  documents: [trips]
   expected:
     stage1:
       intent: HOW_TO
@@ -186,7 +180,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -443,7 +436,6 @@
   turn:
     question: I switched it and it still fails. What now?
     answer: Open a ticket in the IT Helpdesk queue in OTRS.
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -787,7 +779,6 @@
   turn:
     question: Which columns does that table have?
     answer: day, advertiser_hash, impressions, clicks and spend_usd.
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1224,7 +1215,6 @@
   turn:
     question: How long should I wait before retrying?
     answer: Wait for the number of seconds in the `Retry-After` header.
-  documents: [campaigns_api]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -2026,7 +2016,6 @@
   turn:
     question: And if it still fails after that?
     answer: Open a ticket in the IT Helpdesk queue in OTRS.
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -2358,7 +2347,6 @@
       refs: [0]
     - text: They are taken from your annual leave.
       refs: [0]
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP

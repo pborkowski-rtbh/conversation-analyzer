@@ -1,5 +1,5 @@
 # Local development and tests. Everything runs against the docker compose stack (BigQuery emulator, fake GCS,
-# stubs for Slack, GitHub and Cloud Run); the only paid targets are suite-live and index-local with EMBED=vertex.
+# stubs for Slack, GitHub and Cloud Run); the only paid target is suite-live.
 SHELL := /bin/bash
 COMPOSE ?= $(if $(shell command -v docker-compose),docker-compose,docker compose)
 UV ?= uv
@@ -14,11 +14,8 @@ PART ?= all
 LIMIT ?= 0
 JUDGE_VERSION ?=
 SUITE_ARGS = --part $(PART) --limit $(LIMIT) $(if $(JUDGE_VERSION),--judge-version $(JUDGE_VERSION))
-FULL ?=
 REPORTS ?=
-EMBED ?= fake
 DATA_STORE ?=
-JOB ?=
 
 .DEFAULT_GOAL := help
 
@@ -113,13 +110,6 @@ suite-live: ## PAID: the suite on Vertex (eu); PASSES, PART, LIMIT, JUDGE_VERSIO
 .PHONY: pii-eval
 pii-eval: ## Recall of the PII scrubber on the synthetic Polish/English set (§6.12)
 	$(ENV) $(UV) run python -m conversation_analyzer.pii.evaluate
-
-# --- document index (indexers submodule) ---------------------------------------------------------------------------
-
-.PHONY: index-local
-index-local: ## Fill the emulator's document index from a real source (20 docs; FULL=1 all; EMBED=vertex real vectors, paid; JOB, DATA_STORE)
-	$(MAKE) -C aiel-content-indexers quality-index-local EMBED=$(EMBED) $(if $(filter 1,$(FULL)),FULL=1) \
-		$(if $(DATA_STORE),DATA_STORE=$(DATA_STORE)) $(if $(JOB),JOB=$(JOB))
 
 # --- quality -----------------------------------------------------------------------------------------------------
 

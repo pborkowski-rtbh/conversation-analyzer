@@ -1,4 +1,4 @@
-"""The evidence check: for knowledge turns without evidence, our own documents may show a contradiction (§6.9)."""
+"""The evidence check: for knowledge turns without evidence, the documents the answer links may contradict it (§6.9)."""
 
 from __future__ import annotations
 
@@ -17,17 +17,14 @@ def needed(result: Stage1Result) -> bool:
     return result.knowledge_turn and result.evidence_kind == EvidenceKind.NONE
 
 
-def candidates(case: JudgeCase, docs: DocumentSource) -> list[DocRef]:
-    """Documents linked in the answer text first, then the index's top results for the scrubbed question."""
+def linked_documents(case: JudgeCase, docs: DocumentSource) -> list[DocRef]:
+    """Documents linked in the answer text, in order, without the people directory; there is no search."""
     found: list[DocRef] = []
     for url in linked_urls(case.answer):
         ref = docs.lookup_uri(url)
-        if ref and ref not in found:
+        if ref and ref not in found and not is_people_directory(ref.data_store, ref.doc_id, ref.uri):
             found.append(ref)
-    for ref in docs.search(case.question)[: get_settings().sizes.search_top_k]:
-        if ref not in found:
-            found.append(ref)
-    return [r for r in found if not is_people_directory(r.data_store, r.doc_id, r.uri)]
+    return found
 
 
 def read_up_to(refs: list[DocRef], docs: DocumentSource, n: int) -> list[DocText]:
@@ -43,13 +40,13 @@ def read_up_to(refs: list[DocRef], docs: DocumentSource, n: int) -> list[DocText
 
 def check(
     case: JudgeCase, result: Stage1Result, version: JudgeVersion, judge: Judge, usage: Usage, docs: DocumentSource
-) -> None:
-    """Record CONTRADICTED_CLAIM and HIGH when a document contradicts the answer; the turn stays not verifiable."""
-    result.evidence_check_ran = True
-    read = read_up_to(candidates(case, docs), docs, get_settings().sizes.evidence_check_documents)
-    result.found_docs = [d.ref for d in read]
+) -> bool:
+    """Record CONTRADICTED_CLAIM and HIGH when a linked document contradicts the answer; False when none is readable."""
+    read = read_up_to(linked_documents(case, docs), docs, get_settings().sizes.evidence_check_documents)
     if not read:
-        return
+        return False
+    result.evidence_check_ran = True
+    result.found_docs = [d.ref for d in read]
     prompt = render_turn(case, with_context=False) + "\n\n" + render_documents(read)
     form = generate_validated(
         judge, version.stage1_model, version.system("evidence_check", "stage1"), prompt, EvidenceCheckForm, usage
@@ -57,3 +54,4 @@ def check(
     if form.contradiction_found:
         result.evidence_check_contradiction = True
         result.add_code(FailureCode.CONTRADICTED_CLAIM)
+    return True

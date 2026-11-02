@@ -20,7 +20,7 @@ from conversation_analyzer.bq.schema import (
 )
 from conversation_analyzer.devtools import scenario
 from conversation_analyzer.devtools.synthetic import SynthTurn, insert_log, turn_rows
-from conversation_analyzer.docs.index import DocumentIndex
+from conversation_analyzer.docs.source import RunDocuments, link_doc_id
 from conversation_analyzer.judge.fake import FakeJudge
 from conversation_analyzer.reporting import monitor
 from conversation_analyzer.reporting.lookup import lookup
@@ -182,28 +182,33 @@ def test_high_cluster_alerts_after_the_scenario(clean):
     s.evaluator.accounts = ["user:evaluator@rtbhouse.com"]
     try:
         scenario.seed(NOW - timedelta(minutes=5))
-        assess(now=NOW - timedelta(minutes=5), judge=FakeJudge(), docs=DocumentIndex())
+        assess(now=NOW - timedelta(minutes=5), judge=FakeJudge(), docs=RunDocuments())
     finally:
         s.evaluator.accounts = accounts
-    # A later suite run of the same judge version finds RETRIEVAL_MISS too rarely: it becomes experimental.
+    # A later suite run of the same judge version finds CHUNKING_ISSUE too rarely: it becomes experimental,
+    # and an experimental label never alerts.
     later = scenario.suite_run(NOW.date())
     for label in later["label_recall"]:
-        if label["label"] == "RETRIEVAL_MISS":
+        if label["label"] == "CHUNKING_ISSUE":
             label.update(recall=0.4, reliable=False)
     write(SUITE_RUNS, [{**later, "suite_run_id": "suite-00000000000000df"}])
+    assert monitor.run(NOW)["high_alerts"] == 0
+    # The next suite run finds it reliably again: both HIGH chunking clusters alert, the cited leave policy and the
+    # trips page the second answer only links to.
+    write(SUITE_RUNS, [{**scenario.suite_run(NOW.date()), "suite_run_id": "suite-00000000000000e0"}])
     summary = monitor.run(NOW)
-    assert summary["high_alerts"] == 1  # the RETRIEVAL_MISS turn is HIGH too, but an experimental label never alerts
-    high = {a["primary_failure"]: a for a in rows(ALERTS) if a["kind"] == "HIGH_CLUSTER"}
-    assert set(high) == {"CHUNKING_ISSUE"}
-    chunking = high["CHUNKING_ISSUE"]
-    assert chunking["doc_id"] == scenario.LEAVE.doc_id and chunking["n_turns"] == 1
+    assert summary["high_alerts"] == 2
+    high = {a["doc_id"]: a for a in rows(ALERTS) if a["kind"] == "HIGH_CLUSTER"}
+    assert set(high) == {scenario.LEAVE.doc_id, link_doc_id(scenario.TRIP.uri)}
+    assert {a["primary_failure"] for a in high.values()} == {"CHUNKING_ISSUE"}
+    chunking = high[scenario.LEAVE.doc_id]
+    assert chunking["n_turns"] == 1
     texts = [m["text"] for m in messages(clean) if m["channel"] == s.alerts.quality_channel]
     assert any("2 turns, resolved (final), went wrong at turn 1, rephrased or corrected once" in t for t in texts)
-    assert not any("RETRIEVAL_MISS" in t for t in texts)
     for t in texts:
         for planted in scenario.PLANTED_PII:
             assert planted not in t
-    sessions = rows(ALERT_SESSIONS)
+    sessions = rows(ALERT_SESSIONS, f"alert_id = '{chunking['alert_id']}'")
     assert len(sessions) == 1 and sessions[0]["grade_state_shown"] == "FINAL"
     found = lookup(chunking["alert_id"])
     assert found["alert"]["primary_failure"] == "CHUNKING_ISSUE" and found["sessions"][0]["outcome"] == "RESOLVED"

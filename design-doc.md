@@ -907,7 +907,7 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 
 **What it can see.** On all web UI turns, a daily check notices a change in AQR of about 3 to 4 percentage points, and a weekly view about 1.5 to 2 points. For Slack Bolek and MCP, only changes of more than about 10 points show on a single day. Smaller effects of a release are judged by the release gate (§10).
 
-**False alarms.** About 50 series are checked every weekday: 18 metrics (standardized AQR, 15 failure rates, the negative reaction rate and coverage), each for the web UI, for Slack Bolek and MCP, and for all channels together. Even when nothing changes, chance alone raises false alarms: at the starting limits, about 3 a month from the jump check and up to about 7 a month from the drift check (§8.9).
+**False alarms.** About 50 series are checked every weekday: 17 metrics (standardized AQR, 14 failure rates, the negative reaction rate and coverage), each for the web UI, for Slack Bolek and MCP, and for all channels together. Even when nothing changes, chance alone raises false alarms: at the starting limits, about 3 a month from the jump check and up to about 7 a month from the drift check (§8.9).
 
 ### 8.8 The dashboard
 
@@ -1369,7 +1369,7 @@ sequenceDiagram
 | Write | The leak guard checks every row (§6.10). Then one `MERGE` per table writes the results. Rows are keyed by turn key, stage and judge version, so writing the same result twice replaces the row instead of adding a second one. |
 
 - Stage 1 always goes first. After 7 minutes, the run stops starting new judge calls. A flagged turn that didn't get to stage 2 is marked as pending and goes first in the next run. If it is still pending when the turn is 3h30 old, we give up on its stage 2 and count it, because the turn's text is about to be erased.
-- The assessor also counts retrievals. The anchor set gives more weight to documents that traffic often cites or retrieves (§10.1). The documents returned by Bolek's searches are erased together with the answers, so the assessor counts them per document and day while they still exist. Searches made by canary accounts are not counted.
+- The assessor also counts retrievals. The anchor set gives more weight to documents that traffic often cites or retrieves (§10.1). The documents returned by Bolek's searches are erased together with the answers, so the assessor counts them per document and day while they still exist. Searches made by canary accounts are not counted. A search record names only document IDs, so each ID takes its data store from the references seen in the window; an ID that no reference names is not counted.
 
 ### 12.7 Reading our documents
 
@@ -1378,7 +1378,7 @@ The evidence check and stage 2 read the full text of our documents. They can't u
 - **Which documents.** Only those a turn points at: its cited documents (stage 2) and the documents linked in its answer text (evidence check and stage 2). This system has no search of its own (§6.9).
 - **Where from.** Our Cloud Run indexers already write the full text of every document they index to the content bucket, encrypted, for the MCP server. The assessor reads it with the content secrets, at a path derived from the document's link. Which bucket holds a data store's text is a setting, based on the data stores the production engine uses.
 - **What it covers.** Every data store filled by our Cloud Run indexers, except the people directory, which is never read. Google Drive documents have no text in the bucket (about 6% of citations). A data store still filled by an older indexer has no text until it moves to the Cloud Run indexers.
-- **What is kept.** Only the IDs of the documents read, through the leak guard. The text exists only in memory during the run.
+- **What is kept.** Only the IDs of the documents read, through the leak guard. A linked document takes the log's ID when a reference in the window has the same link, otherwise `url-` and a hash of its link. The text exists only in memory during the run.
 - **Nothing changes for the indexers.** An earlier version of this design added a step to the indexers that wrote vectors of every document to a document index in BigQuery. It was dropped together with the search (§6.9).
 
 ### 12.8 Alerts, digest and acknowledgement

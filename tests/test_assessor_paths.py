@@ -12,7 +12,7 @@ from conversation_analyzer.bq.external import AUDIT_LOGS
 from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, SEGMENTS, SESSION_GRADES, STAGE1_RESULTS
 from conversation_analyzer.devtools import scenario
 from conversation_analyzer.devtools.synthetic import SynthTurn, insert_log, turn_rows
-from conversation_analyzer.docs.index import DocumentIndex
+from conversation_analyzer.docs.source import RunDocuments
 from conversation_analyzer.judge import stage1
 from conversation_analyzer.judge.fake import FakeJudge
 from conversation_analyzer.settings import get_settings
@@ -51,7 +51,7 @@ def seed(turns: list[SynthTurn], now: datetime = NOW) -> None:
 
 
 def assess(now: datetime = NOW, judge: FakeJudge | None = None) -> dict:
-    return run(now=now, judge=judge or FakeJudge(), docs=DocumentIndex())
+    return run(now=now, judge=judge or FakeJudge(), docs=RunDocuments())
 
 
 def statuses() -> dict[str, dict]:
