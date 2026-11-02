@@ -18,7 +18,6 @@ from conversation_analyzer.judge.forms import (
     SessionGradeForm,
     Stage1Form,
     Stage2Form,
-    Stage2Phrasings,
 )
 from conversation_analyzer.judge.version import current
 from conversation_analyzer.log.parse import Reference, Span
@@ -77,17 +76,11 @@ class Scripted:
 
 
 class Docs:
-    """A fixed document source."""
+    """A fixed document source: texts by document, documents by link."""
 
-    def __init__(self, texts: dict[DocRef, str], results: list[DocRef], links: dict[str, DocRef] | None = None):
+    def __init__(self, texts: dict[DocRef, str], links: dict[str, DocRef] | None = None):
         self.texts = texts
-        self.results = results
         self.links = links or {}
-        self.searched: list[str] = []
-
-    def search(self, text):
-        self.searched.append(text)
-        return list(self.results)
 
     def read(self, r):
         return DocText(r, f"Title {r.doc_id}", self.texts[r]) if r in self.texts else None
@@ -209,66 +202,71 @@ def test_evidence_needed_only_for_knowledge_turns_without_evidence():
     assert not evidence.needed(stage1_result(evidence_kind="OWN_REFERENCES"))
 
 
-def test_evidence_candidates_links_first_people_directory_excluded():
-    linked = DocRef("linked", CONF, "https://x/linked")
-    a, people = DocRef("a", HR, None), DocRef("associate-1", PEOPLE, None)
-    docs = Docs({}, [a, linked, people], links={"https://x/linked": linked})
-    case = make_case(answer="See https://x/linked and https://x/linked and https://unknown/")
-    assert evidence.candidates(case, docs) == [linked, a]
+def test_evidence_linked_documents_in_order_people_directory_excluded():
+    linked, other = DocRef("linked", CONF, "https://x/linked"), DocRef("b", HR, "https://x/b")
+    people = DocRef("associate-1", PEOPLE, "https://x/p")
+    docs = Docs({}, links={"https://x/linked": linked, "https://x/b": other, "https://x/p": people})
+    case = make_case(answer="See https://x/linked, https://x/p, https://x/linked and https://unknown/ or https://x/b")
+    assert evidence.linked_documents(case, docs) == [linked, other]
 
 
 def test_evidence_read_up_to_skips_unreadable():
     refs = [DocRef(str(i), CONF, None) for i in range(5)]
-    docs = Docs({refs[0]: "t0", refs[2]: "t2", refs[3]: "t3", refs[4]: "t4"}, [])
+    docs = Docs({refs[0]: "t0", refs[2]: "t2", refs[3]: "t3", refs[4]: "t4"})
     assert [d.ref for d in evidence.read_up_to(refs, docs, 2)] == [refs[0], refs[2]]
 
 
-def test_evidence_check_without_documents_makes_no_call():
+def test_evidence_check_without_readable_links_makes_no_call():
     judge = Scripted()
     r = stage1_result()
-    evidence.check(make_case(), r, current(), judge, Usage(), Docs({}, []))
-    assert r.evidence_check_ran and not r.found_docs and not judge.prompts
+    unreadable = DocRef("a", CONF, "https://x/a")
+    case = make_case(answer="See https://x/a")
+    assert not evidence.check(case, r, current(), judge, Usage(), Docs({}, links={"https://x/a": unreadable}))
+    assert not evidence.check(make_case(), r, current(), judge, Usage(), Docs({}))  # no link at all
+    assert not r.evidence_check_ran and not r.found_docs and not judge.prompts
 
 
 def test_evidence_check_without_contradiction_keeps_result():
-    d = DocRef("a", CONF, None)
+    d = DocRef("a", CONF, "https://x/a")
     judge = Scripted(EvidenceCheckForm(contradiction_found=False, confidence=0.8))
     r = stage1_result()
-    evidence.check(make_case(), r, current(), judge, Usage(), Docs({d: "text"}, [d]))
-    assert r.found_docs == [d] and not r.evidence_check_contradiction and r.severity == "MEDIUM"
+    case = make_case(answer="Four days, see https://x/a")
+    assert evidence.check(case, r, current(), judge, Usage(), Docs({d: "text"}, links={"https://x/a": d}))
+    assert r.evidence_check_ran and r.found_docs == [d] and not r.evidence_check_contradiction
+    assert r.severity == "MEDIUM"
     assert "## DOCUMENTS\n\n[1]" in judge.prompts[0][1]
 
 
 # --- stage 2 ---------------------------------------------------------------------------------------------------------
 
 
-def claim(what="CONTRADICTED_CLAIM", support=False, right=False, full=False, other=False, documents=()) -> ClaimForm:
+def claim(what="CONTRADICTED_CLAIM", support=False, right=False, full=False, documents=()) -> ClaimForm:
     return ClaimForm(
         what=what,
         snippets_support_claim=support,
         snippets_hold_right_content=right,
-        in_cited_full_text=full,
-        in_other_found_document=other,
+        in_full_text=full,
         documents=[DocumentRole(document=d, role=r) for d, r in documents],
     )
 
 
 @pytest.mark.parametrize(
-    ("c", "has_cited", "outdated", "conflicting", "why"),
+    ("c", "has_snippets", "has_documents", "outdated", "conflicting", "why"),
     [
-        (claim(support=True), True, True, False, ClaimWhy.OUTDATED_SOURCE),
-        (claim(support=True), True, False, True, ClaimWhy.CONFLICTING_SOURCES),
-        (claim(support=True), True, False, False, None),
-        (claim(right=True), True, False, False, ClaimWhy.NONE),
-        (claim(full=True), True, False, False, ClaimWhy.CHUNKING_ISSUE),
-        (claim(other=True), True, False, False, ClaimWhy.RETRIEVAL_MISS),
-        (claim(), True, False, False, ClaimWhy.KNOWLEDGE_GAP),
-        (claim(support=True, right=True, full=True), False, False, False, ClaimWhy.KNOWLEDGE_GAP),  # starts at Q3
-        (claim(full=True, other=True), False, False, False, ClaimWhy.RETRIEVAL_MISS),
+        (claim(support=True), True, True, True, False, ClaimWhy.OUTDATED_SOURCE),
+        (claim(support=True), True, True, False, True, ClaimWhy.CONFLICTING_SOURCES),
+        (claim(support=True), True, True, False, False, None),
+        (claim(right=True), True, True, False, False, ClaimWhy.NONE),
+        (claim(full=True), True, True, False, False, ClaimWhy.CHUNKING_ISSUE),
+        (claim(), True, True, False, False, ClaimWhy.NOT_IN_CITED_SOURCES),
+        # No references: the path starts at question 2, on the linked documents (§7.3).
+        (claim(support=True, right=True, full=True), False, True, False, False, ClaimWhy.CHUNKING_ISSUE),
+        (claim(support=True, right=True), False, True, False, False, ClaimWhy.NOT_IN_CITED_SOURCES),
+        (claim(full=True), False, False, False, False, ClaimWhy.NOT_IN_CITED_SOURCES),  # nothing read
     ],
 )
-def test_cause_path(c, has_cited, outdated, conflicting, why):
-    assert stage2._cause(c, has_cited, outdated, conflicting) == why
+def test_cause_path(c, has_snippets, has_documents, outdated, conflicting, why):
+    assert stage2._cause(c, has_snippets, has_documents, outdated, conflicting) == why
 
 
 def docs_numbered(n: int) -> list[DocText]:
@@ -292,7 +290,7 @@ def test_stage2_rules_sort_claims_and_pick_primary_and_document():
         confidence=0.7,
     )
     s1 = s1_flagged()
-    r = stage2.apply_rules(f, make_case(references=[ref()]), s1, docs_numbered(2), 1, 3, "argon", [])
+    r = stage2.apply_rules(f, make_case(references=[ref()]), s1, docs_numbered(2), 1, "argon", [])
     assert [c.what for c in r.claims] == ["CONTRADICTED_CLAIM", "REASONING_ERROR"]
     assert [c.why for c in r.claims] == ["OUTDATED_SOURCE", "NONE"]
     assert r.primary_failure == "OUTDATED_SOURCE" and r.failure_types[0] == "OUTDATED_SOURCE"
@@ -307,7 +305,7 @@ def test_stage2_rules_sort_claims_and_pick_primary_and_document():
 def test_stage2_chunking_issue_falls_back_to_the_first_cited_document():
     f = Stage2Form(claims=[claim(full=True)], confidence=0.5)
     s1 = s1_flagged()
-    r = stage2.apply_rules(f, make_case(references=[ref()]), s1, docs_numbered(1), 1, 2, "argon", [])
+    r = stage2.apply_rules(f, make_case(references=[ref()]), s1, docs_numbered(1), 1, "argon", [])
     assert r.primary_failure == "CHUNKING_ISSUE" and r.document_to_fix == DocRef("d1", CONF, None)
 
 
@@ -320,51 +318,55 @@ def test_stage2_supported_claims_are_dropped_and_deterministic_codes_stay():
         stage1_findings=[FindingForm(code="AGENT_OR_TOOL_ERROR", verdict="DROPPED")],
         confidence=0.5,
     )
-    r = stage2.apply_rules(f, case, s1, docs_numbered(1), 1, 2, "argon", [])
+    r = stage2.apply_rules(f, case, s1, docs_numbered(1), 1, "argon", [])
     assert not r.claims and r.primary_failure == "AGENT_OR_TOOL_ERROR" and r.groundedness == 5
     assert r.stage1_findings == [{"code": "AGENT_OR_TOOL_ERROR", "verdict": "CONFIRMED"}]
     assert not r.changed_stage1(s1) and r.document_to_fix is None
     not_verifiable = stage1.apply_rules(form(), make_case(), "m")
-    r = stage2.apply_rules(Stage2Form(groundedness=5, confidence=0.5), make_case(), not_verifiable, [], 0, 2, "a", [])
+    r = stage2.apply_rules(Stage2Form(groundedness=5, confidence=0.5), make_case(), not_verifiable, [], 0, "a", [])
     assert r.groundedness is None and r.primary_failure == "UNGROUNDED_INTERNAL_ANSWER"
 
 
-def test_stage2_retrieval_miss_points_at_the_document_with_the_right_answer():
-    f = Stage2Form(claims=[claim(other=True, documents=[(2, "HOLDS_RIGHT_ANSWER")])], confidence=0.5)
-    r = stage2.apply_rules(f, make_case(references=[ref()]), s1_flagged(), docs_numbered(2), 1, 2, "argon", [])
-    assert r.document_to_fix == DocRef("d2", CONF, None) and r.severity == "HIGH"
+def test_stage2_chunking_issue_points_at_the_linked_document_that_holds_the_answer():
+    f = Stage2Form(claims=[claim(full=True, documents=[(2, "HOLDS_RIGHT_ANSWER")])], confidence=0.5)
+    r = stage2.apply_rules(f, make_case(references=[ref()]), s1_flagged(), docs_numbered(2), 1, "argon", [])
+    assert r.primary_failure == "CHUNKING_ISSUE" and r.document_to_fix == DocRef("d2", CONF, None)
+    assert r.severity == "HIGH"
+
+
+def test_stage2_not_in_cited_sources_has_no_document_to_fix():
+    f = Stage2Form(claims=[claim("UNSUPPORTED_CLAIM", documents=[(1, "CITED")])], confidence=0.5)
+    r = stage2.apply_rules(f, make_case(references=[ref()]), s1_flagged(), docs_numbered(1), 1, "argon", [])
+    assert r.primary_failure == "NOT_IN_CITED_SOURCES" and r.document_to_fix is None
 
 
 def test_stage2_documents_dedupe_fallback_and_cap(monkeypatch):
-    monkeypatch.setattr(get_settings().sizes, "stage2_found_documents", 2)
+    monkeypatch.setattr(get_settings().sizes, "stage2_linked_documents", 2)
     cited = ref("c1", CONF, "the snippet")
-    found = [DocRef(f"f{i}", HR, None) for i in range(4)]
-    people = DocRef("associate-9", PEOPLE, None)
-    docs = Docs({found[0]: "a", found[2]: "c", found[3]: "d"}, [people, *found])
-    case = make_case(references=[cited, cited])
+    linked = [DocRef(f"f{i}", HR, f"https://x/f{i}") for i in range(4)]
+    docs = Docs({linked[0]: "a", linked[2]: "c", linked[3]: "d"}, links={d.uri: d for d in linked})
+    answer = "Four days: " + " ".join(d.uri for d in linked)
+    case = make_case(references=[cited, cited], answer=answer)
     s1 = s1_flagged()
-    s1.found_docs = [found[1]]
-    cited_docs, found_docs = stage2._documents(case, s1, ["phrase one"], docs)
+    s1.found_docs = [linked[1]]  # read by the evidence check, but gone from the bucket since
+    cited_docs, linked_docs = stage2._documents(case, s1, docs)
     assert len(cited_docs) == 1 and cited_docs[0].text == "the snippet"  # no full text: the snippet
-    assert [d.ref for d in found_docs] == [found[0], found[2]]  # f1 has no content, people never
-    assert docs.searched == ["How many days?", "phrase one"]
+    assert [d.ref for d in linked_docs] == [linked[0], linked[2]]  # f1 has no content; the cap is 2
 
 
-def test_diagnose_searches_question_and_phrasings():
-    d = DocRef("f", HR, None)
-    docs = Docs({d: "full text"}, [d])
-    judge = Scripted(
-        Stage2Phrasings(claims=["claim a", " "]),
-        Stage2Form(claims=[claim(other=True, documents=[(1, "HOLDS_RIGHT_ANSWER")])], confidence=0.6),
+def test_diagnose_reads_cited_and_linked_documents_in_one_call():
+    d = DocRef("f", HR, "https://x/f")
+    docs = Docs({d: "full text"}, links={"https://x/f": d})
+    judge = Scripted(Stage2Form(claims=[claim(full=True, documents=[(1, "HOLDS_RIGHT_ANSWER")])], confidence=0.6))
+    r = stage2.diagnose(
+        make_case(answer="Four, see https://x/f"), s1_flagged(), ["HIGH_SEVERITY"], current(), judge, Usage(), docs
     )
-    r = stage2.diagnose(make_case(), s1_flagged(), ["HIGH_SEVERITY"], current(), judge, Usage(), docs)
-    assert r.searched_phrasings == 2 and r.found_docs == [d] and r.document_to_fix == d
-    assert "## DOCUMENTS FOUND BY SEARCH\n\n[1]" in judge.prompts[1][1]
-    judge = Scripted(Stage2Phrasings(claims=[]), Stage2Form(confidence=0.6))
-    docs = Docs({}, [])
-    stage2.diagnose(make_case(), s1_flagged(), [], current(), judge, Usage(), docs)
-    assert docs.searched == ["How many days?", "Four days."]  # fallback phrasing: the answer
-    assert "## DOCUMENTS FOUND BY SEARCH\n(none)" in judge.prompts[1][1]
+    assert r.found_docs == [d] and r.document_to_fix == d and r.primary_failure == "CHUNKING_ISSUE"
+    assert [name for name, _ in judge.prompts] == ["Stage2Form"]
+    assert "## DOCUMENTS LINKED IN THE ANSWER (full text)\n\n[1]" in judge.prompts[0][1]
+    judge = Scripted(Stage2Form(confidence=0.6))
+    stage2.diagnose(make_case(), s1_flagged(), [], current(), judge, Usage(), Docs({}))
+    assert "## DOCUMENTS LINKED IN THE ANSWER (full text)\n(none)" in judge.prompts[0][1]
 
 
 # --- session grades --------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 import pytest
 
 from conversation_analyzer import errors, keys, safe_log, secrets
-from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, STAGE2_RESULTS, Table, chunk_table, ddl
+from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, STAGE2_RESULTS, Table, ddl
 from conversation_analyzer.errors import LeakGuardError
 from conversation_analyzer.leak_guard import allowed_link, check_row, is_people_directory
 from conversation_analyzer.settings import get_settings, now
@@ -51,13 +51,12 @@ def test_vocab_helpers():
     assert count_bucket(0) == "0" and count_bucket(1) == "1" and count_bucket(5) == "2_OR_MORE"
     assert (
         owner_of(FailureCode.OUTDATED_SOURCE) == "DOCUMENT_OWNER"
-        and owner_of(FailureCode.KNOWLEDGE_GAP) == "CORPUS_OWNER"
-        and owner_of(FailureCode.RETRIEVAL_MISS) == "TEAM"
+        and owner_of(FailureCode.NOT_IN_CITED_SOURCES) == "TEAM"  # the team finds out if search or corpus failed
     )
     assert "OTHER" in topics() and "DOC_REPO" in topics()
     assert closed_lists_version().startswith("cl-")
-    assert len(ANOMALY_METRICS) == 18  # standardized AQR, 15 failure rates, negative reactions, coverage (§8.7)
-    assert failure_rate_metric(FailureCode.RETRIEVAL_MISS) in all_closed_values()
+    assert len(ANOMALY_METRICS) == 17  # standardized AQR, 14 failure rates, negative reactions, coverage (§8.7)
+    assert failure_rate_metric(FailureCode.NOT_IN_CITED_SOURCES) in all_closed_values()
     assert len(strata_codes()) == 16
 
 
@@ -309,4 +308,3 @@ def test_ddl():
     assert "ARRAY<STRUCT<doc_id STRING, data_store STRING, uri STRING>>" in sql
     assert "partition_expiration_days" not in ddl(QUALITY_TURNS, emulator=True)
     assert "PARTITION" not in ddl(RUNS, emulator=True, name_override="_stg")
-    assert chunk_table("rtb-crj-hr-house").name == "quality_chunks_rtb_crj_hr_house"

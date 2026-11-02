@@ -9,7 +9,6 @@ import httpx
 import pytest
 from pydantic import BaseModel, Field
 
-from conversation_analyzer.docs.embedder import FakeEmbedder, VertexEmbedder, default_embedder
 from conversation_analyzer.errors import AnalyzerError, JudgeApiError, JudgeOutputError, TokenLimitError
 from conversation_analyzer.judge import client as jc
 from conversation_analyzer.judge.client import Usage, VertexJudge, api_host, check_location, vertex_schema
@@ -195,58 +194,3 @@ def test_bearer_token_refreshes_only_when_invalid(monkeypatch):
     token = jc.BearerToken()
     assert token() == "abc" and token() == "abc"
     assert creds.refreshed == 1
-
-
-def embedder_with(responses: list) -> tuple[VertexEmbedder, list[httpx.Request], list]:
-    seen: list[httpx.Request] = []
-    sleeps: list = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request)
-        item = responses.pop(0)
-        if isinstance(item, Exception):
-            raise item
-        return item
-
-    emb = VertexEmbedder(transport=httpx.MockTransport(handler), token=lambda: "tok", sleep=sleeps.append)
-    return emb, seen, sleeps
-
-
-def vectors(n: int) -> httpx.Response:
-    return httpx.Response(200, json={"predictions": [{"embeddings": {"values": [float(i)]}} for i in range(n)]})
-
-
-def test_vertex_embedder_batches_and_targets_eu_region():
-    emb, seen, _ = embedder_with([vectors(5), vectors(2)])
-    out = emb.embed([f"t{i}" for i in range(7)], task="RETRIEVAL_DOCUMENT")
-    assert len(out) == 7 and len(seen) == 2
-    req = json.loads(seen[0].content)
-    s = get_settings()
-    assert seen[0].url.host == f"{s.embedding.location}-aiplatform.googleapis.com"
-    assert req["parameters"]["outputDimensionality"] == s.embedding.dimensions
-    assert req["instances"][0] == {"content": "t0", "task_type": "RETRIEVAL_DOCUMENT"}
-
-
-def test_vertex_embedder_retries_and_fails_with_class():
-    emb, _, sleeps = embedder_with([httpx.Response(429), httpx.ConnectError("x"), vectors(1)])
-    assert emb.embed(["a"]) == [[0.0]] and len(sleeps) == 2
-    emb, seen, _ = embedder_with([httpx.Response(403)])
-    with pytest.raises(AnalyzerError) as exc:
-        emb.embed(["a"])
-    assert exc.value.error_class == ErrorClass.EMBEDDING_API and len(seen) == 1
-    emb, _, _ = embedder_with([httpx.Response(200, json={"oops": 1})])
-    with pytest.raises(AnalyzerError):
-        emb.embed(["a"])
-    n = get_settings().judge.max_retries + 1
-    emb, _, _ = embedder_with([httpx.ReadTimeout("t")] * n)
-    with pytest.raises(AnalyzerError):
-        emb.embed(["a"])
-
-
-def test_fake_embedder_is_deterministic_and_normalized(monkeypatch):
-    a, b, c = FakeEmbedder(dimensions=64).embed(["leave days policy", "leave days policy", "x"])
-    assert a == b and abs(sum(v * v for v in a) - 1) < 1e-3
-    assert not any(c)  # no word of 3+ letters
-    assert isinstance(default_embedder(), FakeEmbedder)
-    monkeypatch.setattr(get_settings().env, "embedding_backend", "vertex")
-    assert isinstance(default_embedder(), VertexEmbedder)

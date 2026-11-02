@@ -7,10 +7,10 @@ from typing import Any
 
 from conversation_analyzer.judge.case import DocRef, DocText, DocumentSource, JudgeCase, render_documents, render_turn
 from conversation_analyzer.judge.client import Judge, Usage, generate_validated
-from conversation_analyzer.judge.forms import ClaimForm, Stage2Form, Stage2Phrasings
+from conversation_analyzer.judge.evidence import linked_documents
+from conversation_analyzer.judge.forms import ClaimForm, Stage2Form
 from conversation_analyzer.judge.stage1 import Stage1Result, order_codes, severity_for
 from conversation_analyzer.judge.version import JudgeVersion
-from conversation_analyzer.leak_guard import is_people_directory
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.vocab import (
     DETERMINISTIC_CODES,
@@ -22,11 +22,11 @@ from conversation_analyzer.vocab import (
 
 F = FailureCode
 _WHAT_ORDER = {F.CONTRADICTED_CLAIM: 0, F.UNSUPPORTED_CLAIM: 1, F.REASONING_ERROR: 2}
-_FIX_ROLE = {
-    ClaimWhy.CHUNKING_ISSUE: DocRole.CITED,
-    ClaimWhy.RETRIEVAL_MISS: DocRole.HOLDS_RIGHT_ANSWER,
-    ClaimWhy.OUTDATED_SOURCE: DocRole.OUTDATED,
-    ClaimWhy.CONFLICTING_SOURCES: DocRole.CONFLICTING,
+# The document a fix starts from (§7.4): the cited or linked one that holds the content for CHUNKING_ISSUE.
+_FIX_ROLES = {
+    ClaimWhy.CHUNKING_ISSUE: (DocRole.CITED, DocRole.HOLDS_RIGHT_ANSWER),
+    ClaimWhy.OUTDATED_SOURCE: (DocRole.OUTDATED,),
+    ClaimWhy.CONFLICTING_SOURCES: (DocRole.CONFLICTING,),
 }
 
 
@@ -57,7 +57,6 @@ class Stage2Result:
     stage1_findings: list[dict[str, str]]
     document_to_fix: DocRef | None
     confidence: float
-    searched_phrasings: int
     model: str
     found_docs: list[DocRef] = field(default_factory=list)
 
@@ -71,7 +70,6 @@ class Stage2Result:
             "stage1_findings": self.stage1_findings,
             "document_to_fix": self.document_to_fix.as_doc() if self.document_to_fix else None,
             "confidence": self.confidence,
-            "searched_phrasings": self.searched_phrasings,
         }
 
     def changed_stage1(self, s1: Stage1Result) -> bool:
@@ -89,9 +87,11 @@ def _stage1_summary(s1: Stage1Result, flag_reasons: list[str]) -> str:
     )
 
 
-def _cause(claim: ClaimForm, has_cited: bool, outdated: bool, conflicting: bool) -> ClaimWhy | None:
+def _cause(
+    claim: ClaimForm, has_snippets: bool, has_documents: bool, outdated: bool, conflicting: bool
+) -> ClaimWhy | None:
     """The cause path of §7.3; None means the claim is supported and the finding is dropped."""
-    if has_cited:
+    if has_snippets:
         if claim.snippets_support_claim:
             if outdated:
                 return ClaimWhy.OUTDATED_SOURCE
@@ -100,17 +100,13 @@ def _cause(claim: ClaimForm, has_cited: bool, outdated: bool, conflicting: bool)
             return None
         if claim.snippets_hold_right_content:
             return ClaimWhy.NONE
-        if claim.in_cited_full_text:
-            return ClaimWhy.CHUNKING_ISSUE
-    if claim.in_other_found_document:
-        return ClaimWhy.RETRIEVAL_MISS
-    return ClaimWhy.KNOWLEDGE_GAP
+    if has_documents and claim.in_full_text:
+        return ClaimWhy.CHUNKING_ISSUE
+    return ClaimWhy.NOT_IN_CITED_SOURCES
 
 
-def _documents(
-    case: JudgeCase, s1: Stage1Result, phrasings: list[str], docs: DocumentSource
-) -> tuple[list[DocText], list[DocText]]:
-    s = get_settings().sizes
+def _documents(case: JudgeCase, s1: Stage1Result, docs: DocumentSource) -> tuple[list[DocText], list[DocText]]:
+    """The full text of the cited documents, then of the documents linked in the answer; there is no search."""
     cited: list[DocText] = []
     seen: set[DocRef] = set()
     for r in case.own_evidence:
@@ -120,19 +116,15 @@ def _documents(
         seen.add(ref)
         full = docs.read(ref)
         cited.append(full if full is not None else DocText(ref, r.title, r.snippet))
-    found_refs: list[DocRef] = list(s1.found_docs)
-    for query in [case.question, *phrasings]:
-        for ref in docs.search(query)[: s.search_top_k]:
-            if ref not in seen and ref not in found_refs and not is_people_directory(ref.data_store, ref.doc_id):
-                found_refs.append(ref)
-    found: list[DocText] = []
-    for ref in found_refs:
-        if len(found) == s.stage2_found_documents:
+    linked_refs = [r for r in [*s1.found_docs, *linked_documents(case, docs)] if r not in seen]
+    linked: list[DocText] = []
+    for ref in dict.fromkeys(linked_refs):
+        if len(linked) == get_settings().sizes.stage2_linked_documents:
             break
         text = docs.read(ref)
         if text is not None:
-            found.append(text)
-    return cited, found
+            linked.append(text)
+    return cited, linked
 
 
 def diagnose(
@@ -146,25 +138,21 @@ def diagnose(
 ) -> Stage2Result:
     model = version.stage2_model
     base = render_turn(case) + "\n\n" + _stage1_summary(s1, flag_reasons)
-    phrasing_form = generate_validated(
-        judge, model, version.system("stage2_phrasings", "stage2"), base, Stage2Phrasings, usage
-    )
-    phrasings = [p for p in phrasing_form.claims if p.strip()][:3] or [case.answer[:500]]
-    cited, found = _documents(case, s1, phrasings, docs)
+    cited, linked = _documents(case, s1, docs)
     prompt = "\n\n".join(
-        [base, render_documents(cited, "CITED DOCUMENTS (full text)"), _render_found(found, len(cited))]
+        [base, render_documents(cited, "CITED DOCUMENTS (full text)"), _render_linked(linked, len(cited))]
     )
     form = generate_validated(judge, model, version.system("stage2", "stage2"), prompt, Stage2Form, usage)
-    return apply_rules(form, case, s1, cited + found, len(cited), 1 + len(phrasings), model, [d.ref for d in found])
+    return apply_rules(form, case, s1, cited + linked, len(cited), model, [d.ref for d in linked])
 
 
-def _render_found(found: list[DocText], offset: int) -> str:
-    """Found documents are numbered after the cited ones."""
+def _render_linked(linked: list[DocText], offset: int) -> str:
+    """Linked documents are numbered after the cited ones."""
     cap = get_settings().sizes.document_chars
-    out = ["## DOCUMENTS FOUND BY SEARCH"]
-    for i, d in enumerate(found, start=offset + 1):
+    out = ["## DOCUMENTS LINKED IN THE ANSWER (full text)"]
+    for i, d in enumerate(linked, start=offset + 1):
         out.append(f"[{i}] data store {d.ref.data_store}, title: {d.title}\n{d.text[:cap]}")
-    return "\n\n".join(out) if found else out[0] + "\n(none)"
+    return "\n\n".join(out) if linked else out[0] + "\n(none)"
 
 
 def apply_rules(
@@ -173,7 +161,6 @@ def apply_rules(
     s1: Stage1Result,
     numbered: list[DocText],
     n_cited: int,
-    searched_phrasings: int,
     model: str,
     found: list[DocRef],
 ) -> Stage2Result:
@@ -186,7 +173,7 @@ def apply_rules(
         roles = {d.role for d in c.documents}
         outdated = bool(outdated_set & doc_idx) or DocRole.OUTDATED in roles
         conflicting = bool(conflicting_set & doc_idx) or DocRole.CONFLICTING in roles
-        why = _cause(c, has_cited, outdated, conflicting)
+        why = _cause(c, has_cited, bool(numbered), outdated, conflicting)
         if why is None:
             continue
         what = c.what
@@ -222,10 +209,10 @@ def apply_rules(
     severity = severity_for(codes, s1.intent, s1.severity if s1.severity != "HIGH" else None)
 
     doc_to_fix = None
-    if claims and claims[0].why in _FIX_ROLE:
-        wanted = _FIX_ROLE[ClaimWhy(claims[0].why)]
-        doc_to_fix = next((d for d, role in claims[0].documents if role == wanted), None)
-        if doc_to_fix is None and wanted is DocRole.CITED and has_cited:
+    if claims and claims[0].why in _FIX_ROLES:
+        why = ClaimWhy(claims[0].why)
+        doc_to_fix = next((d for d, role in claims[0].documents if role in _FIX_ROLES[why]), None)
+        if doc_to_fix is None and why is ClaimWhy.CHUNKING_ISSUE and numbered:
             doc_to_fix = numbered[0].ref
 
     return Stage2Result(
@@ -237,7 +224,6 @@ def apply_rules(
         stage1_findings=findings,
         document_to_fix=doc_to_fix,
         confidence=float(form.confidence),
-        searched_phrasings=searched_phrasings,
         model=model,
         found_docs=found,
     )

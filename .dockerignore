@@ -5,6 +5,5 @@
 .ruff_cache
 .coverage
 **/__pycache__
-aiel-content-indexers
 suite_reports
 tests

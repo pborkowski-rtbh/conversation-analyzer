@@ -35,7 +35,7 @@ def test_cluster_key_by_document_or_topic():
     gap = cluster_key(
         {
             **base,
-            "primary_failure": "KNOWLEDGE_GAP",
+            "primary_failure": "NOT_IN_CITED_SOURCES",
             "has_stage2": True,
             "fix_doc_id": "d9",
             "fix_data_store": "rtb-crj-biztech",
@@ -89,7 +89,7 @@ def test_high_cluster_message_has_only_derived_values():
     assert "2026-10-28 09:00 UTC" in text and "|link>" in text and "make alert-lookup ALERT=alert-abc" in text
     topic = messages.high_cluster(
         "alert-abc",
-        ClusterKey("KNOWLEDGE_GAP", None, None, None, "BIZTECH"),
+        ClusterKey("NOT_IN_CITED_SOURCES", None, None, None, "BIZTECH"),
         {"WEB_UI": 1},
         "CORPUS_OWNER",
         [],
@@ -162,12 +162,3 @@ def test_digest_without_data_says_so():
         assert line in text
     assert "Experimental" not in text
     assert messages.value("VOLUME", 12.0) == "12.0" and messages.value("AQR_RAW", None) == "n/a"
-
-
-def test_knowledge_gap_clusters_carry_the_miss_rate():
-    gap = {"primary_failure": "KNOWLEDGE_GAP", "data_store": None, "doc_id": None, "topic": "HR_HOUSE", "n_turns": 3}
-    gap |= {"n_high": 0, "trend": None, "owner": "CORPUS_OWNER", "cluster_id": "cluster-0123456789abcdef", "rank": 1}
-    other = {**gap, "primary_failure": "RETRIEVAL_MISS", "rank": 2}
-    text = messages.digest(DAY, {}, [gap, other], [], [], [], [], [], [], None, 0.125)
-    assert "search miss rate 12% of canary questions" in text and text.count("search miss rate") == 1
-    assert "search miss rate not measured" in messages.digest(DAY, {}, [gap], [], [], [], [], [], [], None)

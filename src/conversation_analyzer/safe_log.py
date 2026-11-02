@@ -22,7 +22,7 @@ _JOBS = frozenset(
         "quality-record",
     }
 )
-_MODELS = re.compile(r"^(gemini|text-multilingual-embedding|text-embedding|fake)[a-z0-9.-]{0,40}$")
+_MODELS = re.compile(r"^(gemini|fake)[a-z0-9.-]{0,40}$")
 _SEVERITIES = {"DEBUG", "INFO", "WARNING", "ERROR"}
 
 REJECTED = "<rejected>"

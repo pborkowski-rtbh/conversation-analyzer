@@ -40,19 +40,24 @@ def allowed_data_store(data_store: str | None) -> bool:
     )
 
 
-def allowed_link(uri: str, data_store: str | None) -> bool:
-    """A link passes when it is https, has no credentials, and its host belongs to the document's data store."""
+def link_data_store(uri: str, data_store: str | None = None) -> str | None:
+    """The data store a link belongs to: https, no credentials, and a host (and path prefix) of that data store."""
     try:
         parts = urlsplit(uri)
     except ValueError:
-        return False
+        return None
     if parts.scheme != "https" or parts.username or parts.password or " " in uri or len(uri) > 600:
-        return False
+        return None
     stores = [get_settings().data_store(data_store)] if data_store else get_settings().data_stores
     for ds in stores:
         if ds and parts.hostname in ds.hosts and (not ds.path_prefix or parts.path.startswith(ds.path_prefix)):
-            return True
-    return False
+            return ds.id
+    return None
+
+
+def allowed_link(uri: str, data_store: str | None) -> bool:
+    """A link passes when it is https, has no credentials, and its host belongs to the document's data store."""
+    return link_data_store(uri, data_store) is not None
 
 
 def _check_scalar(col: Col, value: Any, row: dict[str, Any]) -> Any:

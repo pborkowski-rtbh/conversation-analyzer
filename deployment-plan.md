@@ -9,7 +9,7 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-02)
 
-- Plan written and its open questions answered (§9); nothing deployed. All code is in the private repo (M0–M7 done, 229 tests, 98.37 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). All code is in the private repo (M0–M7 done, 229 tests, 98.37 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -19,6 +19,7 @@ To resume: read **Status**, then the first unchecked step.
 | Topic | Decision |
 |---|---|
 | Document retrieval (RAG) | **Dropped entirely.** No document index, no embeddings, no indexer sink. Stage 2 reads the full text of the cited documents and of the documents linked in the answer, from the content bucket, and runs no search. The evidence check keeps only the documents linked in the answer text. `RETRIEVAL_MISS` and `KNOWLEDGE_GAP` can no longer be told apart and become one code (A2). The submodule `aiel-content-indexers` is not migrated. |
+| PII scrubbing | **Dropped.** Questions, answers, earlier turns, references and documents reach the judge as they are, on EU endpoints only, never stored. `pii/`, Presidio and the spaCy models are removed (A3). |
 | Department in strata | The user's department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bolek_associates_active` (the table the people indexer already reads), mapped to a closed list of department families. Stratum = intent family × data-store family × department family. |
 | Official repository | A new repository `RTBHouse-OEET/aiel-conversation-analyzer`, CI/CD like `aiel-content-indexers` (GitHub Actions, Workload Identity, Artifact Registry). Code arrives by one reviewed PR per step, not by pushing this repo's history. |
 | Environments | **Stage** = project `rtb-aiel-core-stage`, its own infrastructure, its own BigQuery datasets (`stage_bolek_quality_*`), reading the **prod** audit log. **Prod** = project `rtbhouse-agentspace`, datasets `bolek_quality_*` (§12.10). Every step goes to stage first, then the same image digest to prod. |
@@ -92,7 +93,7 @@ Rules that hold for every step:
 - **Rollback** = revert the digest (or the infra PR). Stored rows are keyed (§12.6), so re-running a fixed version
   rewrites rather than duplicates.
 - **No text anywhere** (§6.10, §12.13) is checked again in every environment, not assumed from local tests: every
-  step that writes rows runs the leak audit (A5), every step that adds a job checks its Cloud Logging output.
+  step that writes rows runs the leak audit (A6), every step that adds a job checks its Cloud Logging output.
 - **Real BigQuery is touched only by deployed jobs, CI and Terraform**, never from a laptop (the hard rule of
   `CLAUDE.md` stays for local work). Checks that need a query on stage or prod are run by an engineer in the BigQuery
   console under their own account, read only, and their SQL is written in this file.
@@ -115,23 +116,45 @@ steps that need them. Each ends with `make coverage` green.
 
 ### A2. Drop the document index
 
-- [ ] Remove `docs/index.py`, `docs/embedder.py`, `devtools` chunk seeding, `make index-local`, the `embedding`
+- [x] Remove `docs/index.py`, `docs/embedder.py`, `devtools` chunk seeding, `make index-local`, the `embedding`
   settings, `CA_EMBEDDING_BACKEND`, the `bolek_quality_doc_index` dataset and `chunk_table()`.
-- [ ] Remove the submodule `aiel-content-indexers` (its branch `AIENGLAB-782` stays unmerged; note it there).
-- [ ] Stage 2 (`judge/stage2.py`): documents = full text of the cited documents and of the documents linked in the
+- [x] Remove the submodule `aiel-content-indexers` (its branch `AIENGLAB-782` stays unmerged). The note on that
+  branch is still open (a commit in another repository).
+- [x] Stage 2 (`judge/stage2.py`): documents = full text of the cited documents and of the documents linked in the
   answer text; no phrasings call (`Stage2Phrasings` goes, one judge call fewer per flagged turn).
-- [ ] Cause path (§7.3) without the search question: *not in the snippets → in the full text of a cited or linked
+- [x] Cause path (§7.3) without the search question: *not in the snippets → in the full text of a cited or linked
   document?* yes `CHUNKING_ISSUE`, no → **`NOT_IN_CITED_SOURCES`** (replaces `RETRIEVAL_MISS` and
   `KNOWLEDGE_GAP`; no document to fix, clustered by topic). `OUTDATED_SOURCE` and `CONFLICTING_SOURCES` are unchanged.
-- [ ] Evidence check: documents linked in the answer text only; if none, the check is skipped and counted as
+- [x] Evidence check: documents linked in the answer text only; if none, the check is skipped and counted as
   `NO_DOCUMENTS` in the run record, so its reach is measured on real traffic (step 6).
-- [ ] Retrieval counts (§12.6): resolve data store and people-directory exclusion from the document ID and
-  `data_stores` settings, not from the index.
-- [ ] Canary: drop index hit rate and the `KNOWLEDGE_GAP` miss rate (`INDEX_HIT_RATE` measure, digest line).
-- [ ] `vocab.py`: closed lists changed → new `closed_lists_version()`.
-- [ ] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "vector\|embed" src` finds nothing live.
+- [x] Retrieval counts (§12.6): a retrieved document ID takes its data store from the references seen in the
+  window (agreed with the user); IDs no reference names are not counted. Linked documents take the window's ID for
+  their URL, else `url-<32 hex>`.
+- [x] Canary: drop index hit rate and the `KNOWLEDGE_GAP` miss rate (`INDEX_HIT_RATE` measure, digest line).
+- [x] `vocab.py`: closed lists changed → new `closed_lists_version()`.
+- [x] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "vector\|embed" src` finds nothing live.
+  (2026-11-02: 222 tests, 98.26 %; demo end to end; grep clean.) Judge v3 drafted here, validated in A4.
 
-### A3. Judge v3 and the suite
+### A3. No PII scrubbing
+
+Decided 2026-11-02: conversations reach the judge as they are. Text still goes only to EU endpoints and is never
+stored; the leak guard and `safe_log` are unchanged.
+
+- [ ] Remove `pii/` (scrubber, Presidio recognisers, `evaluate.py`, `eval_set.yaml`), the `pii` settings,
+  `make pii-eval`, `tests/test_pii.py`, and the `presidio-analyzer`, `spacy`, `en-core-web-lg` and `pl-core-news-lg`
+  dependencies.
+- [ ] Assessor, documents (`RunDocuments.view`), suite runner and case rendering work without a `PiiMap`: no
+  placeholders in the conversation, the references or the documents.
+- [ ] Judge v3 (still a draft, A4 validates it): the stage 1 rubric (en, pl) loses the placeholder paragraph; the
+  version ID changes by hash.
+- [ ] Suite runner reads the cases as they are (no case uses placeholders today); the oracle stays at distance 0.
+- [ ] Kept: the leak tests with planted personal data (stored rows, logs, Sentry) still fail if any of it appears.
+- [ ] `CLAUDE.md` (layout, `make install`, `make pii-eval`), Dockerfile and Makefile comments updated; image size
+  without the spaCy models noted for step 1.
+- [ ] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "presidio\|spacy\|placeholder" src` finds
+  nothing live.
+
+### A4. Judge v3 and the suite
 
 - [ ] `judge_versions/v3` (copy of v2): stage 2 rubric and prompt without found documents; form schema with the new
   code. New version ID by hash.
@@ -144,7 +167,7 @@ steps that need them. Each ends with `make coverage` green.
   (v4…) on the tuning part only. Log the spend.
 - [ ] Settings: `judge.current_version: v3` (pre-launch: no parallel run).
 
-### A4. Department
+### A5. Department
 
 - [ ] **Input needed:** the distinct `base_function` values and their associate counts, from a read-only query run by
   an engineer (`SELECT base_function, COUNT(*) FROM \`rtb-house-hr-reporting-data.IT.bolek_associates_active\` GROUP BY 1`).
@@ -167,7 +190,7 @@ steps that need them. Each ends with `make coverage` green.
 - [ ] Tests: leak guard rejects anything but a family code in `department`; e2e stratum rows; a family below the floor
   is folded.
 
-### A5. Ready for real GCP
+### A6. Ready for real GCP
 
 - [ ] **Per-environment settings:** `config/settings.yaml` (common) + `config/env/{local,stage,prod}.yaml` overlays
   selected by `CA_ENV`: projects, dataset prefix (`stage_`), Vertex project, Slack channels, token limit, run gate.
@@ -176,7 +199,7 @@ steps that need them. Each ends with `make coverage` green.
 - [ ] **Run gate** (§3): `run_gate.uri` setting, read at job start, `--ignore-gate`, `PAUSED` run status (closed
   list), monitor rules for paused periods; fake GCS test.
 - [ ] **Dry run:** `ca quality-assessor --dry-run`: reads the window, builds sessions and the work list, writes only
-  the run record (no PII scrubbing, no Vertex). The first thing run against real data.
+  the run record (no Vertex). The first thing run against real data.
 - [ ] **Schema check:** `ca db-init --check`: compares live datasets, tables, columns, partitioning and views with
   `bq/schema.py`; exits non-zero on a difference. Used after every deploy.
 - [ ] **Kill switches:** `stage2.enabled` and `evidence_check.enabled` settings (default true), so stage 1 can keep
@@ -189,7 +212,7 @@ steps that need them. Each ends with `make coverage` green.
 - [ ] Dockerfile: `CA_CODE_VERSION` from the git SHA (build arg), so every run record names its code.
 - [ ] `CLAUDE.md`: hard rules updated for environments (real BigQuery only through deployed jobs).
 
-### A6. Dashboard queries testable locally
+### A7. Dashboard queries testable locally
 
 - [ ] `make dashboard-check DASHBOARD=<path to a dashboard JSON>`: extracts every panel's SQL from a Grafana
   dashboard file, replaces the Grafana macros (`$__timeFilter`, variables) with fixed values, and runs it on the
@@ -204,7 +227,7 @@ They don't block early steps, but each blocks the step named. Start them now; re
 
 | # | Gate | Who | Blocks | Status |
 |---|---|---|---|---|
-| G1 | SECOPS: stage service accounts read prod conversation text (assessor) and prod content bucket; audit-log content check of Vertex/Secret Manager/GCS calls (§12.13); exclusion of our SAs from the 7-year log copy if needed | SECOPS | step 4 (stage assessor with judge) | [ ] |
+| G1 | SECOPS: stage service accounts read prod conversation text (assessor) and prod content bucket; the judge gets conversation text without PII scrubbing; audit-log content check of Vertex/Secret Manager/GCS calls (§12.13); exclusion of our SAs from the 7-year log copy if needed | SECOPS | step 4 (stage assessor with judge) | [ ] |
 | G2 | HR/IT: read access for both assessor SAs to `rtb-house-hr-reporting-data.IT.bolek_associates_active` (fields `Email`, `base_function`); department as a stored per-turn code with the privacy floor | HR data owner, SECOPS | step 5 | [ ] |
 | G3 | Slack app (post, `reactions.read`) in the workspace; channels `#bolek-quality-stage`, `#bolek-quality`, `#aiel-alerts`; bot token in Secret Manager per project | Slack admins | step 9 | [ ] |
 | G4 | Central Grafana: a BigQuery datasource per instance (test → stage SA, prod → prod SA), plugin installed, folder `AI-Engineering-Lab/Conversation-Analyzer` | Platform Engineering | step 8 | [ ] |
@@ -223,7 +246,7 @@ Module map: which private-repo code moves in which step.
 | 1 | `settings`, `vocab`, `safe_log`, `errors`, `secrets`, `keys`, `leak_guard`, `bq/` (schema, client, init), `cli` (only `db-init`), `config/`, Dockerfile, Makefile, docker-compose, tests of these | CI/CD workflows, `config/env/*` |
 | 2 | — (infra only) | |
 | 3 | `log/`, `assessor/sessions.py`, `assessor/state.py`, `assessor/run.py` (dry run path), `bq/external.py`, `devtools/` | `--dry-run`, run gate, `leak-audit` |
-| 4 | `pii/`, `judge/` (forms, version, case, client, fake, stage1), `judge_versions/v3`, assessor phase 1 | |
+| 4 | `judge/` (forms, version, case, client, fake, stage1), `judge_versions/v3`, assessor phase 1 | |
 | 5 | department (`people/directory.py`, stratum code) | |
 | 6 | `judge/evidence.py`, `judge/stage2.py`, `judge/session.py`, `docs/content.py`, assessor phases 2–3, late triggers | |
 | 7 | `reporting/monitor.py`, `reporting/completeness.py`, `reporting/messages.py` (health only), `reporting/slack.py` (posting off) | |
@@ -248,7 +271,7 @@ Goal: the official repo builds and tests the foundations and pushes an image. No
   - [ ] CI green on the PR; a deliberately broken test makes it red.
   - [ ] Image digest in both registries; `docker run <digest> --help` lists the step-1 commands; `docker run <digest>
     db-init --help`.
-  - [ ] Image size recorded (expect ~1.6 GB with the spaCy models once step 4 adds them).
+  - [ ] Image size recorded (no spaCy models since A3).
 - Rollback: none needed (no runtime).
 
 ### Step 2. Datasets, service accounts, tables (stage, then prod)
@@ -310,7 +333,7 @@ Goal: every turn gets its stage 1 form; coverage ≥ 98 %. No Slack.
     scenario mix (no hard threshold, read by an engineer).
   - [ ] `leak-audit` over all rows written: 0 findings. Spot check: 20 random `quality_stage1_results` rows contain
     only codes, numbers and IDs.
-  - [ ] PII: Vertex request logging confirmed off in the project; the §12.13 audit-log check on the job's calls (G1).
+  - [ ] Content: Vertex request logging confirmed off in the project; the §12.13 audit-log check on the job's calls (G1).
   - [ ] Close the gate; the next runs are `PAUSED`, cost stops (billing check next day).
 - [ ] Promote to prod. Exit: **coverage ≥ 98 % for 5 weekdays** (M2 criterion), daily cost within estimate.
 - Rollback: back to `--dry-run` (one arg) or the previous digest.
@@ -320,7 +343,7 @@ Goal: every turn gets its stage 1 form; coverage ≥ 98 %. No Slack.
 Goal: every turn carries its department family. It comes before stage 2 because go-live (step 6) starts the
 baseline, and the strata, department included, freeze with it.
 
-- [ ] G2 done; A4 merged.
+- [ ] G2 done; A5 merged.
 - [ ] Infra PR: `bigquery.dataViewer` on the HR table for both assessor SAs (granted by the HR project's owner).
 - Verify (stage, 2 open hours):
   - [ ] `department` distribution per day: `UNKNOWN` share < 5 % of non-canary turns (else check principals format).
@@ -344,7 +367,7 @@ Goal: flagged turns get a diagnosis from cited and linked documents, without sea
   - [ ] Session grades: provisional → final within 3h30 of the segment's first turn; not gradable counted.
   - [ ] `leak-audit`: 0 findings (stage 2 claims and document IDs pass the data-store allowlist).
 - [ ] Promote to prod. This is **go-live**: set `metrics.go_live_day` in prod; the 4-week baseline starts (§8.6).
-- Rollback: setting `stage2.enabled: false` (new flag in A5) keeps stage 1 running.
+- Rollback: setting `stage2.enabled: false` (new flag in A6) keeps stage 1 running.
 
 ### Step 7. Monitor without Slack (stage, then prod)
 
@@ -372,7 +395,7 @@ Goal: daily aggregates exist and the team can read them in Grafana.
   `README.md`, `bolek-quality.json`, `dashboard.grafana.app/v1beta1`), layout of §8.8 rows 1–6, a department filter
   next to channel. Row 7 (clusters, release impact) waits for step 12; its panels show "no data yet".
 - Verify:
-  - [ ] `make dashboard-check DASHBOARD=…/bolek-quality.json` green on the emulator (A6).
+  - [ ] `make dashboard-check DASHBOARD=…/bolek-quality.json` green on the emulator (A7).
   - [ ] `quality-daily --day <d>` twice → identical rows (recompute, not add).
   - [ ] Volume metric for a day vs the log view's count: equal.
   - [ ] Every panel renders on the test instance; no panel shows a slice under 20 turns; incomplete and paused days
@@ -398,7 +421,7 @@ Goal: daily aggregates exist and the team can read them in Grafana.
 
 - [ ] Infra PR: job `quality-judge-suite` (by hand, 60 min), SA with Vertex and write on `quality_judge_suite_runs` only.
 - Verify: one full run per environment (~7 USD each, logged) → a BASELINE row with label reliability; numbers within
-  noise of A3's local run.
+  noise of A4's local run.
 
 ### Step 11. Canary and second-model check
 
@@ -433,9 +456,9 @@ Goal: daily aggregates exist and the team can read them in Grafana.
 
 | Weeks from start | Work |
 |---|---|
-| 1 | A1–A5 (A3 includes one paid suite run); gates G1–G6 requested |
+| 1 | A1–A6 (A4 includes one paid suite run); gates G1–G6 requested |
 | 2 | Steps 1–3 (stage and prod) |
-| 3 | Step 4 stage; A6; step 4 prod starts its 5 weekdays |
+| 3 | Step 4 stage; A7; step 4 prod starts its 5 weekdays |
 | 4 | Steps 5–6 stage; step 7 |
 | 5 | Steps 5–6 prod → **go-live** (step 6), baseline weeks 1–4 begin; step 8 |
 | 6–9 | Steps 9–12 during the baseline; anomaly alerts start after week 9 |
@@ -447,7 +470,7 @@ Goal: daily aggregates exist and the team can read them in Grafana.
 |---|---|---|
 | Without search, stage 2 can't tell retrieval misses from knowledge gaps | Fewer actionable "document to fix" findings | Merged code clustered by topic; revisit adding search later as its own step (the A2 commit can be reverted in the private history) |
 | Evidence check with answer links only rarely runs | Turns without references stay unchecked for contradictions | Measured in step 6 (`NO_DOCUMENTS` share); remove it if it never runs |
-| 80 strata with department | Many small strata pooled; standardized AQR noisier | Fewer data-store and department families (A4); freeze after week 1 of the baseline |
+| 80 strata with department | Many small strata pooled; standardized AQR noisier | Fewer data-store and department families (A5); freeze after week 1 of the baseline |
 | Department is a quasi-identifier | Small departments + day could point at a person in `bolek_quality_turns` | Family codes only, privacy floor of 30 associates, G2 sign-off |
 | Stage reads prod text | Two places see conversations | Same SA rules as prod, gate closed by default, G1 sign-off |
 | Real BigQuery behaves differently from the emulator | Write or view failures on first deploy | Dry run (step 3) and `db-init --check` before any judge call |
@@ -459,7 +482,7 @@ Resolved with the user (2026-11-02):
 1. The merged stage 2 code is `NOT_IN_CITED_SOURCES` (A2).
 2. Department: 3–5 families from `base_function`, privacy floor 30 associates, data-store families cut to 3
    (`ENGINEERING`, `COMPANY`, `NONE`). Still needed: the `base_function` values and counts from the read-only query
-   in A4, to fill the mapping.
+   in A5, to fill the mapping.
 3. The official repository is `RTBHouse-OEET/aiel-conversation-analyzer` (G6).
 
 ## 10. Deployment spend log

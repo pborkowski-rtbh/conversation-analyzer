@@ -16,7 +16,6 @@
       refs: [0]
     - text: They are taken from your annual leave.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -43,7 +42,6 @@
       refs: [0]
     - text: They are taken from your annual leave.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -66,8 +64,7 @@
   reviewed: false
   turn:
     question: How many days of on-demand leave can I take per year?
-    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave.
-  documents: [leave, leave_pl]
+    answer: You can take up to 6 days of on-demand leave per year. They are taken from your annual leave. See https://sites.google.com/rtbhouse.com/hr-house/leave
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -82,8 +79,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: leave
 - id: annual_request-ok
   part: TUNING
@@ -97,7 +94,6 @@
     spans:
     - text: Request annual leave in Workday at least 3 working days in advance.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: HOW_TO
@@ -122,7 +118,6 @@
     spans:
     - text: Request annual leave in Workday at least 10 working days in advance.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: HOW_TO
@@ -141,8 +136,7 @@
   reviewed: false
   turn:
     question: How do I request annual leave?
-    answer: Request annual leave in Workday at least 3 working days in advance.
-  documents: [leave, leave_pl]
+    answer: Request annual leave in Workday at least 3 working days in advance. See https://sites.google.com/rtbhouse.com/hr-house/leave
   expected:
     stage1:
       intent: HOW_TO
@@ -169,7 +163,6 @@
     spans:
     - text: With 12 years of seniority you have 26 days of annual leave per year.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -195,7 +188,6 @@
     spans:
     - text: With 12 years of seniority you have 20 days of annual leave per year.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -214,8 +206,7 @@
   reviewed: false
   turn:
     question: How many days of annual leave do I get with 12 years of seniority?
-    answer: With 12 years of seniority you have 20 days of annual leave per year.
-  documents: [leave, leave_pl]
+    answer: With 12 years of seniority you have 20 days of annual leave per year. See https://sites.google.com/rtbhouse.com/hr-house/leave
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -241,7 +232,6 @@
     spans:
     - text: Unused days can be taken until 30 September of the next year.
       refs: [0]
-  documents: [leave, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -266,7 +256,6 @@
     spans:
     - text: Unused days can be taken until 31 March of the next year.
       refs: [0]
-  documents: [leave, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -285,8 +274,7 @@
   reviewed: false
   turn:
     question: Until when can I use my unused annual leave days?
-    answer: Unused days can be taken until 30 September of the next year.
-  documents: [leave, office]
+    answer: Unused days can be taken until 30 September of the next year. See https://sites.google.com/rtbhouse.com/hr-house/leave
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -314,7 +302,6 @@
       refs: [0]
     - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
       refs: [0]
-  documents: [leave, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -341,7 +328,6 @@
       refs: [0]
     - text: Your sick leave is confirmed with an electronic sick note (e-ZLA).
       refs: [0]
-  documents: [leave, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -364,8 +350,7 @@
   reviewed: false
   turn:
     question: What do I have to do when I'm sick and can't come to work?
-    answer: Inform HR within 3 days of your absence. Your sick leave is confirmed with an electronic sick note (e-ZLA).
-  documents: [leave, office]
+    answer: Inform HR within 3 days of your absence. Your sick leave is confirmed with an electronic sick note (e-ZLA). See https://sites.google.com/rtbhouse.com/hr-house/leave
   expected:
     stage1:
       intent: HOW_TO
@@ -380,8 +365,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: leave
 - id: trips_approval-ok
   part: TUNING
@@ -395,7 +380,6 @@
     spans:
     - text: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
       refs: [0]
-  documents: [trips, trips_2023]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -420,7 +404,6 @@
     spans:
     - text: 'Only your manager: a business trip needs your manager''s approval and no other.'
       refs: [0]
-  documents: [trips, trips_2023]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -439,8 +422,7 @@
   reviewed: false
   turn:
     question: Who has to approve my business trip to New York?
-    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance.'
-  documents: [trips, trips_2023]
+    answer: 'Your manager and Finance: trips outside Europe need your manager''s approval and also approval from Finance. See https://rtbhouseproduct.atlassian.net/wiki/spaces/TRAVEL/pages/120'
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -466,7 +448,6 @@
     spans:
     - text: Book the hotel through Travel Tool, like every part of a business trip.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -491,7 +472,6 @@
     spans:
     - text: Book the hotel yourself on any booking site and add the invoice to your expenses.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -510,8 +490,7 @@
   reviewed: false
   turn:
     question: How do I book a hotel for a business trip?
-    answer: Book the hotel yourself on any booking site and add the invoice to your expenses.
-  documents: [trips, office]
+    answer: Book the hotel yourself on any booking site and add the invoice to your expenses. See https://rtbhouseproduct.atlassian.net/wiki/spaces/TRAVEL/pages/120
   expected:
     stage1:
       intent: HOW_TO
@@ -538,7 +517,6 @@
     spans:
     - text: Settle your expenses in Travel Tool within 14 days after the trip.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -564,7 +542,6 @@
     spans:
     - text: Settle your expenses in Travel Tool within 60 days after the trip.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -583,8 +560,7 @@
   reviewed: false
   turn:
     question: How long do I have to settle my travel expenses?
-    answer: Settle your expenses in Travel Tool within 14 days after the trip.
-  documents: [trips, office]
+    answer: Settle your expenses in Travel Tool within 14 days after the trip. See https://rtbhouseproduct.atlassian.net/wiki/spaces/TRAVEL/pages/120
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -613,7 +589,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -641,7 +616,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -664,8 +638,7 @@
   reviewed: false
   turn:
     question: GlobalProtect says "Gateway not responding". What should I do?
-    answer: Switch the gateway to US-East and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
-  documents: [vpn, vpn_kh]
+    answer: Switch the gateway to US-East and reconnect. If it still fails, open a ticket in the IT Helpdesk queue in OTRS. See https://sites.google.com/rtbhouse.com/hdqa/vpn
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -680,8 +653,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: vpn
 - id: vpn_loop-ok
   part: TUNING
@@ -699,7 +672,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -728,7 +700,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -748,8 +719,7 @@
   turn:
     question: My VPN sign-in keeps looping. How do I fix it?
     answer: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
-      queue in OTRS.'
-  documents: [vpn, vpn_kh]
+      queue in OTRS. See https://sites.google.com/rtbhouse.com/hdqa/vpn'
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -789,7 +759,6 @@
       refs: [0]
     - text: 4. Pick it up at the IT desk on the 3rd floor.
       refs: [0]
-  documents: [laptop, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -828,7 +797,6 @@
       refs: [0]
     - text: 4. Pick it up at the reception on the ground floor.
       refs: [0]
-  documents: [laptop, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -851,8 +819,7 @@
       1. Open a Hardware request in Jira Service Desk.
       2. Your manager approves the request.
       3. IT prepares the laptop within 5 working days.
-      4. Pick it up at the reception on the ground floor.
-  documents: [laptop, office]
+      4. Pick it up at the reception on the ground floor. See https://knowhow.rtbhouse.com/posts/150
   expected:
     stage1:
       intent: HOW_TO
@@ -878,7 +845,6 @@
     spans:
     - text: Return the old laptop to the IT desk within 10 working days.
       refs: [0]
-  documents: [laptop, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -903,7 +869,6 @@
     spans:
     - text: Return the old laptop to the IT desk within 30 working days.
       refs: [0]
-  documents: [laptop, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -922,8 +887,7 @@
   reviewed: false
   turn:
     question: By when do I have to return my old laptop?
-    answer: Return the old laptop to the IT desk within 10 working days.
-  documents: [laptop, office]
+    answer: Return the old laptop to the IT desk within 10 working days. See https://knowhow.rtbhouse.com/posts/150
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -952,7 +916,6 @@
       refs: [0]
     - text: Use the `page` parameter to get the next page.
       refs: [0]
-  documents: [campaigns_api, bq_impressions]
   expected:
     stage1:
       intent: HOW_TO
@@ -980,7 +943,6 @@
       refs: [0]
     - text: Use the `offset` parameter to get the next page.
       refs: [0]
-  documents: [campaigns_api, bq_impressions]
   expected:
     stage1:
       intent: HOW_TO
@@ -1004,8 +966,7 @@
   turn:
     question: How do I get all campaigns of an advertiser from the API when there are more than 100?
     answer: GET /v5/advertisers/{hash}/campaigns returns at most 100 campaigns per page. Use the `offset` parameter to get
-      the next page.
-  documents: [campaigns_api, bq_impressions]
+      the next page. See https://api.rtbhouse.com/docs/campaigns
   expected:
     stage1:
       intent: HOW_TO
@@ -1020,8 +981,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: campaigns_api
 - id: rate_limit-ok
   part: HELD_OUT
@@ -1039,7 +1000,6 @@
       refs: [0]
     - text: Wait for the number of seconds in the `Retry-After` header, then retry.
       refs: [0]
-  documents: [campaigns_api, bq_impressions]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -1068,7 +1028,6 @@
       refs: [0]
     - text: Wait for the number of seconds in the `Retry-After` header, then retry.
       refs: [0]
-  documents: [campaigns_api, bq_impressions]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -1088,8 +1047,7 @@
   turn:
     question: The Campaigns API keeps returning HTTP 429. What should I do?
     answer: HTTP 429 means you exceeded the limit of 10 requests per second per token. Wait for the number of seconds in the
-      `Retry-After` header, then retry.
-  documents: [campaigns_api, bq_impressions]
+      `Retry-After` header, then retry. See https://api.rtbhouse.com/docs/campaigns
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -1115,7 +1073,6 @@
     spans:
     - text: 'The table is partitioned by `day`: filter on `day` in every query.'
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1140,7 +1097,6 @@
     spans:
     - text: 'The table is partitioned by `advertiser_hash`: filter on `advertiser_hash` in every query.'
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1159,8 +1115,7 @@
   reviewed: false
   turn:
     question: How do I query analytics.impressions_daily without scanning the whole table?
-    answer: 'The table is partitioned by `advertiser_hash`: filter on `advertiser_hash` in every query.'
-  documents: [bq_impressions, bq_clicks]
+    answer: 'The table is partitioned by `advertiser_hash`: filter on `advertiser_hash` in every query. See https://console.cloud.google.com/bigquery?d=analytics&t=impressions_daily'
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1186,7 +1141,6 @@
     spans:
     - text: Data in analytics.impressions_daily is kept for 400 days.
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1211,7 +1165,6 @@
     spans:
     - text: Data in analytics.impressions_daily is kept for 90 days.
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1230,8 +1183,7 @@
   reviewed: false
   turn:
     question: How long is data kept in analytics.impressions_daily?
-    answer: Data in analytics.impressions_daily is kept for 400 days.
-  documents: [bq_impressions, bq_clicks]
+    answer: Data in analytics.impressions_daily is kept for 400 days. See https://console.cloud.google.com/bigquery?d=analytics&t=impressions_daily
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1262,7 +1214,6 @@
     spans:
     - text: The spend is in `spend_usd` (NUMERIC).
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1292,7 +1243,6 @@
     spans:
     - text: The spend is in `cost_eur` (FLOAT64).
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1315,8 +1265,7 @@
   reviewed: false
   turn:
     question: Which column of analytics.impressions_daily holds the spend?
-    answer: The spend is in `cost_eur` (FLOAT64).
-  documents: [bq_impressions, bq_clicks]
+    answer: The spend is in `cost_eur` (FLOAT64). See https://console.cloud.google.com/bigquery?d=analytics&t=impressions_daily
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1331,8 +1280,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: bq_impressions
 - id: clicks_partition-ok
   part: TUNING
@@ -1350,7 +1299,6 @@
     spans:
     - text: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
       refs: [0]
-  documents: [bq_clicks, bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1379,7 +1327,6 @@
     spans:
     - text: analytics.clicks_hourly is partitioned by `campaign_id`.
       refs: [0]
-  documents: [bq_clicks, bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1398,8 +1345,7 @@
   reviewed: false
   turn:
     question: Which column is analytics.clicks_hourly partitioned by?
-    answer: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC.
-  documents: [bq_clicks, bq_impressions]
+    answer: analytics.clicks_hourly is partitioned by `hour`, a TIMESTAMP in UTC. See https://console.cloud.google.com/bigquery?d=analytics&t=clicks_hourly
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1425,7 +1371,6 @@
     spans:
     - text: A click is counted once per user and campaign within 30 seconds.
       refs: [0]
-  documents: [bq_clicks, ctr]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1450,7 +1395,6 @@
     spans:
     - text: A click is counted once per user and campaign within 24 hours.
       refs: [0]
-  documents: [bq_clicks, ctr]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1469,8 +1413,7 @@
   reviewed: false
   turn:
     question: How are repeated clicks counted in analytics.clicks_hourly?
-    answer: A click is counted once per user and campaign within 24 hours.
-  documents: [bq_clicks, ctr]
+    answer: A click is counted once per user and campaign within 24 hours. See https://console.cloud.google.com/bigquery?d=analytics&t=clicks_hourly
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1500,7 +1443,6 @@
       refs: [0]
     - text: The Panel computes it per day in the advertiser's time zone.
       refs: [0]
-  documents: [ctr, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1529,7 +1471,6 @@
       refs: [0]
     - text: The Panel computes it per day in UTC.
       refs: [0]
-  documents: [ctr, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1548,8 +1489,7 @@
   reviewed: false
   turn:
     question: How is CTR computed in the Panel?
-    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in the advertiser's time zone.
-  documents: [ctr, bq_clicks]
+    answer: CTR = clicks / impressions, shown in percent. The Panel computes it per day in the advertiser's time zone. See https://biztech.rtbhouse.com/wiki/ctr
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1575,7 +1515,6 @@
     spans:
     - text: The default post-view window is 1 day.
       refs: [0]
-  documents: [attribution, ctr]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1600,7 +1539,6 @@
     spans:
     - text: The default post-view window is 7 days.
       refs: [0]
-  documents: [attribution, ctr]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1623,8 +1561,7 @@
   reviewed: false
   turn:
     question: What is the default post-view attribution window?
-    answer: The default post-view window is 7 days.
-  documents: [attribution, ctr]
+    answer: The default post-view window is 7 days. See https://biztech.rtbhouse.com/wiki/attribution-window
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1639,8 +1576,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: attribution
 - id: office_hours-ok
   part: TUNING
@@ -1654,7 +1591,6 @@
     spans:
     - text: The Warsaw office is open from 7:00 to 20:00 on working days.
       refs: [0]
-  documents: [office, budget_hint]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1679,7 +1615,6 @@
     spans:
     - text: The Warsaw office is open from 9:00 to 17:00 on working days.
       refs: [0]
-  documents: [office, budget_hint]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1698,8 +1633,7 @@
   reviewed: false
   turn:
     question: When is the Warsaw office open?
-    answer: The Warsaw office is open from 7:00 to 20:00 on working days.
-  documents: [office, budget_hint]
+    answer: The Warsaw office is open from 7:00 to 20:00 on working days. See https://inhouse.rtbhouse.net/office/warsaw
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1725,7 +1659,6 @@
     spans:
     - text: Book a parking space in Parkanizer the day before.
       refs: [0]
-  documents: [office, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -1750,7 +1683,6 @@
     spans:
     - text: Book a parking space at the reception on the same morning.
       refs: [0]
-  documents: [office, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -1769,8 +1701,7 @@
   reviewed: false
   turn:
     question: How do I book a parking space at the Warsaw office?
-    answer: Book a parking space at the reception on the same morning.
-  documents: [office, office]
+    answer: Book a parking space at the reception on the same morning. See https://inhouse.rtbhouse.net/office/warsaw
   expected:
     stage1:
       intent: HOW_TO
@@ -1801,7 +1732,6 @@
       refs: [0]
     - text: A change of more than 30% needs approval from the traffic team lead.
       refs: [0]
-  documents: [floor_prices, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -1831,7 +1761,6 @@
       refs: [0]
     - text: A change of more than 30% needs approval from the traffic team lead.
       refs: [0]
-  documents: [floor_prices, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -1851,8 +1780,7 @@
   turn:
     question: How do I change a floor price, and when does the change take effect?
     answer: Change it in the Floor Manager tool; changes are applied within 15 minutes. A change of more than 30% needs approval
-      from the traffic team lead.
-  documents: [floor_prices, office]
+      from the traffic team lead. See https://traffic-wiki.rtbhouse.biz/floor-prices
   expected:
     stage1:
       intent: HOW_TO
@@ -1878,7 +1806,6 @@
     spans:
     - text: It shows the daily budget pacing and a forecast of the spend at the end of the month.
       refs: [0]
-  documents: [budget_hint, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1903,7 +1830,6 @@
     spans:
     - text: It shows the daily budget pacing and the spend of the last 12 months.
       refs: [0]
-  documents: [budget_hint, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1926,8 +1852,7 @@
   reviewed: false
   turn:
     question: What does the Budget tab in the Panel show?
-    answer: It shows the daily budget pacing and the spend of the last 12 months.
-  documents: [budget_hint, office]
+    answer: It shows the daily budget pacing and the spend of the last 12 months. See https://api.apps-tools.rtbhouse.biz/hints/budget-tab
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1942,8 +1867,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: budget_hint
 - id: password_length-ok
   part: TUNING
@@ -1958,7 +1883,6 @@
     spans:
     - text: Hasło musi mieć co najmniej 12 znaków.
       refs: [0]
-  documents: [passwords_pl, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1984,7 +1908,6 @@
     spans:
     - text: Hasło musi mieć co najmniej 8 znaków.
       refs: [0]
-  documents: [passwords_pl, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2004,8 +1927,7 @@
   language: pl
   turn:
     question: Ile znaków musi mieć hasło?
-    answer: Hasło musi mieć co najmniej 12 znaków.
-  documents: [passwords_pl, office]
+    answer: Hasło musi mieć co najmniej 12 znaków. See https://docrepo.rtbhouse.biz/repository/34/document/7
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2032,7 +1954,6 @@
     spans:
     - text: Hasło zmieniamy co 90 dni.
       refs: [0]
-  documents: [passwords_pl, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2058,7 +1979,6 @@
     spans:
     - text: Hasło zmieniamy co 30 dni.
       refs: [0]
-  documents: [passwords_pl, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2078,8 +1998,7 @@
   language: pl
   turn:
     question: Jak często trzeba zmieniać hasło?
-    answer: Hasło zmieniamy co 30 dni.
-  documents: [passwords_pl, office]
+    answer: Hasło zmieniamy co 30 dni. See https://docrepo.rtbhouse.biz/repository/34/document/7
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2106,7 +2025,6 @@
     spans:
     - text: Przysługują Ci maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
       refs: [0]
-  documents: [leave_pl, leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2132,7 +2050,6 @@
     spans:
     - text: Przysługuje Ci maksymalnie 6 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
       refs: [0]
-  documents: [leave_pl, leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2152,8 +2069,7 @@
   language: pl
   turn:
     question: Ile dni urlopu na żądanie mi przysługuje?
-    answer: Przysługują Ci maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego.
-  documents: [leave_pl, leave]
+    answer: Przysługują Ci maksymalnie 4 dni urlopu na żądanie w roku, w ramach urlopu wypoczynkowego. See https://sites.google.com/rtbhouse.com/hr-house/urlopy
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2180,7 +2096,6 @@
     spans:
     - text: Zgłoś go w Workday najpóźniej przed rozpoczęciem pracy w dniu nieobecności.
       refs: [0]
-  documents: [leave_pl, leave]
   expected:
     stage1:
       intent: HOW_TO
@@ -2206,7 +2121,6 @@
     spans:
     - text: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
       refs: [0]
-  documents: [leave_pl, leave]
   expected:
     stage1:
       intent: HOW_TO
@@ -2230,8 +2144,7 @@
   language: pl
   turn:
     question: Jak zgłosić urlop na żądanie?
-    answer: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej.
-  documents: [leave_pl, leave]
+    answer: Zgłoś go mailowo przełożonemu co najmniej dzień wcześniej. See https://sites.google.com/rtbhouse.com/hr-house/urlopy
   expected:
     stage1:
       intent: HOW_TO
@@ -2246,8 +2159,8 @@
     evidence_check:
       contradiction_found: true
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
+      primary_failure: CHUNKING_ISSUE
+      cause: CHUNKING_ISSUE
       document_to_fix: leave_pl
 - id: leave_ondemand-near-miss
   part: TUNING
@@ -2266,7 +2179,6 @@
       refs: [0]
     - text: Unused on-demand days are paid out at the end of the year.
       refs: [0]
-  documents: [leave, leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2295,7 +2207,6 @@
       refs: [0]
     - text: Hotels up to 150 EUR per night are approved automatically.
       refs: [0]
-  documents: [trips, office]
   expected:
     stage1:
       intent: HOW_TO
@@ -2327,7 +2238,6 @@
       refs: [0]
     - text: The loop is caused by an expired Okta session, which lasts 12 hours.
       refs: [0]
-  documents: [vpn, vpn_kh]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -2355,7 +2265,6 @@
       refs: [0]
     - text: Older data is archived in analytics_archive.impressions_daily.
       refs: [0]
-  documents: [bq_impressions, bq_clicks]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -2383,7 +2292,6 @@
       refs: [0]
     - text: On Fridays it closes at 18:00.
       refs: [0]
-  documents: [office, budget_hint]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2412,7 +2320,6 @@
       refs: [0]
     - text: Przypomnienie przychodzi mailem 7 dni wcześniej.
       refs: [0]
-  documents: [passwords_pl, office]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2439,7 +2346,6 @@
       FROM a
       JOIN b ON a.id = b.id;
       ```
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: HOW_TO
@@ -2458,7 +2364,6 @@
   turn:
     question: How do I undo my last commit in git but keep the changes?
     answer: 'Run `git reset --soft HEAD~1`: the commit is removed and its changes stay staged.'
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: HOW_TO
@@ -2477,7 +2382,6 @@
   turn:
     question: What does the HTTP status code 404 mean?
     answer: '404 Not Found: the server has no resource at the requested URL.'
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -2496,7 +2400,6 @@
   turn:
     question: 'Python says "ModuleNotFoundError: No module named ''requests''". How do I fix it?'
     answer: 'The package is not installed in the environment you run: install it with `pip install requests`.'
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -2515,7 +2418,6 @@
   turn:
     question: What is the difference between COUNT(*) and COUNT(column) in SQL?
     answer: COUNT(*) counts all rows; COUNT(column) counts only rows where that column is not NULL.
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION

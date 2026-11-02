@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import re
 
-from conversation_analyzer.bq.client import fq, query
 from conversation_analyzer.judge.case import JudgeCase
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.vocab import FailureCode, PlantedError, Severity
@@ -23,21 +22,6 @@ def bare_question(question: str) -> str:
 
 def question_hash(question: str) -> str:
     return hashlib.sha256(bare_question(question).encode()).hexdigest()
-
-
-def expected_documents(hashes: list[str]) -> dict[str, tuple[str, str]]:
-    """The document that holds each canary question's answer, from the evaluator's results (§12.11)."""
-    if not hashes:
-        return {}
-    rows = query(
-        f"""
-SELECT question_sha256, ANY_VALUE(expected_doc_id) AS doc_id, ANY_VALUE(expected_data_store) AS data_store
-FROM {fq("evals", "results")}
-WHERE run_kind = 'CANARY' AND question_sha256 IN UNNEST(@h) AND expected_doc_id IS NOT NULL
-GROUP BY question_sha256""",
-        h=hashes,
-    )
-    return {r["question_sha256"]: (r["doc_id"], r["data_store"]) for r in rows}
 
 
 def swap_number(answer: str, evidence: str) -> str | None:

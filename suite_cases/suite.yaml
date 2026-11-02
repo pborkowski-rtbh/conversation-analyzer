@@ -27,9 +27,8 @@ minimums:
   evidence:EARLIER_REFERENCES: 20
   evidence:NONE: 20
   failure:NONE: 5
-  failure:RETRIEVAL_MISS: 5
+  failure:NOT_IN_CITED_SOURCES: 5
   failure:CHUNKING_ISSUE: 5
-  failure:KNOWLEDGE_GAP: 5
   failure:OUTDATED_SOURCE: 5
   failure:CONFLICTING_SOURCES: 5
   failure:CONTRADICTED_CLAIM: 5
@@ -53,8 +52,7 @@ minimums:
   cause:OUTDATED_SOURCE: 5
   cause:CONFLICTING_SOURCES: 5
   cause:CHUNKING_ISSUE: 5
-  cause:RETRIEVAL_MISS: 5
-  cause:KNOWLEDGE_GAP: 5
+  cause:NOT_IN_CITED_SOURCES: 5
   cause:ANSWER: 5         # no cause on the path: the answer itself
   outcome:RESOLVED: 10
   outcome:PARTIALLY_RESOLVED: 10

@@ -30,7 +30,7 @@ def canary(day: date, version: str) -> list[dict[str, Any] | None]:
     rows = query(
         f"""
 SELECT c.planted_error, c.with_references, c.question_hash, c.relevance, c.groundedness, c.severity, c.caught,
-       c.false_high, c.index_found_expected, c.expected_doc_id
+       c.false_high
 FROM {tbl(CANARY_RESULTS)} c WHERE c.day = @d AND c.judge_version = @v""",
         d=day,
         v=version,
@@ -50,10 +50,6 @@ FROM {tbl(CANARY_RESULTS)} c WHERE c.day = @d AND c.judge_version = @v""",
             len(answered),
         )
     )
-    with_doc = [r for r in answered if r["expected_doc_id"]]
-    found = sum(bool(r["index_found_expected"]) for r in with_doc)
-    out.append(_measure(day, JudgeMeasure.INDEX_HIT_RATE, FormField.ALL, found, len(with_doc)))
-    out.append(_measure(day, JudgeMeasure.KNOWLEDGE_GAP_MISS_RATE, FormField.ALL, len(with_doc) - found, len(with_doc)))
     hashes = sorted({r["question_hash"] for r in answered})
     scores: dict[tuple[str, str], float] = {}
     if hashes:

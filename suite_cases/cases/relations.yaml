@@ -20,7 +20,6 @@
   turn:
     question: And how do I request them?
     answer: Request on-demand leave in Workday no later than the start of the working day.
-  documents: [leave]
   expected:
     stage1:
       intent: HOW_TO
@@ -56,7 +55,6 @@
   turn:
     question: And who approves a trip to Singapore?
     answer: 'Your manager and Finance: trips outside Europe also need approval from Finance.'
-  documents: [trips]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -91,7 +89,6 @@
   turn:
     question: What if it then says "Gateway not responding"?
     answer: Switch the gateway to Europe-2 and reconnect.
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -126,7 +123,6 @@
   turn:
     question: How do I get the second page of campaigns?
     answer: 'Use the `page` parameter: each page has at most 100 campaigns.'
-  documents: [campaigns_api]
   expected:
     stage1:
       intent: HOW_TO
@@ -165,7 +161,6 @@
   turn:
     question: Do I need a filter on day when I query it?
     answer: 'Yes: the table is partitioned by `day`, and every query must filter on it.'
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -195,7 +190,6 @@
   turn:
     question: How do I get a parking space there?
     answer: Book a parking space in Parkanizer the day before.
-  documents: [office]
   expected:
     stage1:
       intent: HOW_TO
@@ -232,7 +226,6 @@
   turn:
     question: Where do I pick it up?
     answer: At the IT desk on the 3rd floor.
-  documents: [laptop]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -263,7 +256,6 @@
   turn:
     question: A jak często trzeba je zmieniać?
     answer: Hasło zmieniamy co 90 dni.
-  documents: [passwords_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -304,7 +296,6 @@
     spans:
     - text: Up to 4 days per year, taken from your annual leave.
       refs: [0]
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -340,7 +331,6 @@
   turn:
     question: Which address do I type into GlobalProtect as the portal?
     answer: vpn.rtbhouse.net.
-  documents: [vpn]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -391,7 +381,6 @@
     spans:
     - text: Within 14 days after the trip.
       refs: [0]
-  documents: [trips]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -432,7 +421,6 @@
   turn:
     question: How many days of history does analytics.impressions_daily keep?
     answer: Data is kept for 400 days.
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -471,7 +459,6 @@
     spans:
     - text: The default post-view window is 1 day.
       refs: [0]
-  documents: [attribution]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -504,7 +491,6 @@
   turn:
     question: Jaka jest minimalna długość hasła?
     answer: Hasło musi mieć co najmniej 12 znaków.
-  documents: [passwords_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -536,7 +522,6 @@
   turn:
     question: That's not right, the policy says 4 days. Can you check?
     answer: 'You''re right: you can take up to 4 days of on-demand leave per year.'
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -574,7 +559,6 @@
   turn:
     question: No, I think Finance also has to approve trips outside Europe.
     answer: 'Correct: trips outside Europe need approval from Finance as well as from your manager.'
-  documents: [trips]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -610,7 +594,6 @@
   turn:
     question: There is no US-East gateway in our GlobalProtect. Which one is right?
     answer: Sorry, switch the gateway to Europe-2 and reconnect.
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -651,7 +634,6 @@
   turn:
     question: That's wrong, I can query data from six months ago.
     answer: 'You''re right: data in analytics.impressions_daily is kept for 400 days.'
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -684,7 +666,6 @@
   turn:
     question: To nieprawda, system nie przyjmuje hasła z 8 znakami.
     answer: 'Masz rację: hasło musi mieć co najmniej 12 znaków.'
-  documents: [passwords_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -722,7 +703,6 @@
   turn:
     question: That's not true, it's much shorter.
     answer: Expenses can be settled within 60 days after the trip.
-  documents: [trips]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -736,9 +716,9 @@
       primary_failure: CONTRADICTED_CLAIM
       severity: HIGH
     stage2:
-      primary_failure: RETRIEVAL_MISS
-      cause: RETRIEVAL_MISS
-      document_to_fix: trips
+      primary_failure: NOT_IN_CITED_SOURCES
+      cause: NOT_IN_CITED_SOURCES
+      document_to_fix: null
 - id: leave-frustration
   part: TUNING
   reviewed: false
@@ -759,7 +739,6 @@
   turn:
     question: Useless. How many on-demand days do I get per year?
     answer: Up to 4 days per year, taken from your annual leave.
-  documents: [leave]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -808,7 +787,6 @@
     - text: 'Reset GlobalProtect: Settings > Troubleshooting > Reset. If it still fails, open a ticket in the IT Helpdesk
         queue in OTRS.'
       refs: [0]
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
@@ -846,7 +824,6 @@
   turn:
     question: Ugh, I asked where I pick it up!
     answer: At the IT desk on the 3rd floor.
-  documents: [laptop]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -886,7 +863,6 @@
   turn:
     question: Come on, just tell me the partition column.
     answer: It is `day`; every query must filter on it.
-  documents: [bq_impressions]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -928,7 +904,6 @@
     spans:
     - text: Maksymalnie 4 dni w roku, w ramach urlopu wypoczynkowego.
       refs: [0]
-  documents: [leave_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -963,7 +938,6 @@
     spans:
     - text: Book a parking space in Parkanizer the day before.
       refs: [0]
-  documents: [office]
   expected:
     stage1:
       intent: HOW_TO
@@ -1000,7 +974,6 @@
     spans:
     - text: The default post-view window is 1 day.
       refs: [0]
-  documents: [attribution]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1054,7 +1027,6 @@
       refs: [0]
     - text: 4. Pick it up at the IT desk on the 3rd floor.
       refs: [0]
-  documents: [laptop]
   expected:
     stage1:
       intent: HOW_TO
@@ -1089,7 +1061,6 @@
     spans:
     - text: Return the old laptop to the IT desk within 10 working days.
       refs: [0]
-  documents: [laptop]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1125,7 +1096,6 @@
     spans:
     - text: Hasło musi mieć co najmniej 12 znaków.
       refs: [0]
-  documents: [passwords_pl]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1165,7 +1135,6 @@
       refs: [0]
     - text: The Panel computes it per day in the advertiser's time zone.
       refs: [0]
-  documents: [ctr]
   expected:
     stage1:
       intent: DATA_QUESTION
@@ -1199,7 +1168,6 @@
     spans:
     - text: Settle your expenses in Travel Tool within 14 days after the trip.
       refs: [0]
-  documents: [trips]
   expected:
     stage1:
       intent: FACT_LOOKUP
@@ -1236,7 +1204,6 @@
       refs: [0]
     - text: If it still fails, open a ticket in the IT Helpdesk queue in OTRS.
       refs: [0]
-  documents: [vpn]
   expected:
     stage1:
       intent: TROUBLESHOOTING
