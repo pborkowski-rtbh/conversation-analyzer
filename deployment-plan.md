@@ -164,14 +164,19 @@ stored; the leak guard and `safe_log` are unchanged.
   `documents` that only search could reach; `make suite-coverage` still meets the §11.1 minimums (adjust the scenario
   minimums for the merged code). Suite version changes, so the next full run is a new BASELINE.
 - [x] `tests/test_suite.py` (oracle judge) at distance 0.
-- [ ] **Paid:** `make suite-live JUDGE_VERSION=v3`, one pass (~7 USD, ~35 min). Accept v3 when: missed HIGH = 0, false
+- [x] **Paid:** `make suite-live JUDGE_VERSION=v3`, one pass (~7 USD, ~35 min). Accept v3 when: missed HIGH = 0, false
   HIGH ≤ 4, held-out distance ≤ 1.15 (v2's), no label below 70 % recall other than `REASONING_ERROR`. Otherwise tune
   (v4…) on the tuning part only. Log the spend.
   (2026-11-03, two passes of v3, 13.4 USD, total 27.92: false HIGH 4, held-out 1.05 / 1.10, only `REASONING_ERROR`
   below 70 % recall; **missed HIGH 1** both times (`budget_tab-contradicted`: a different time window judged
   unsupported, not contradicted). Open: a v4 stage 1 rubric clarification, tuned on the tuning part only, then one pass.
   First pass also showed `OUTDATED_SOURCE` recall 0: the outdated cases cited no newer document; fixed in the cases.)
-- [ ] Settings: `judge.current_version: v3` (pre-launch: no parallel run).
+  (2026-11-03, v4 kept, 6.79 USD, total 34.71: the 4 misapplied-rule cases expect contradicted/HIGH at stage 1 and
+  `REASONING_ERROR` at stage 2, as the v3 judge already read them; v4 rubric: a rule applied to an excluded case or
+  something else named in place of what the passage lists is contradicted; at stage 2 `REASONING_ERROR` wins over
+  contradicted when the snippets held the right rule. Run `suite-006ae9c5dbc7572ac5b`: missed HIGH 0, false HIGH 2,
+  held-out 0.815, every label ≥ 70 % recall.)
+- [x] Settings: `judge.current_version: v4` (pre-launch: no parallel run).
 
 ### A5. Department
 

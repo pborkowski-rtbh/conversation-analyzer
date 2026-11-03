@@ -26,7 +26,7 @@ spec are in `plan.md`. Read `plan.md` **Status** and **Next steps** first when r
 
 ```text
 config/settings.yaml   every tunable (§12.14); env-specific values come from CA_* variables (local.env)
-judge_versions/vN/     rubric (en, pl), prompts, models.yaml; v2 is current (`judge.current_version`)
+judge_versions/vN/     rubric (en, pl), prompts, models.yaml; v4 is current (`judge.current_version`)
 suite_cases/           judge test suite cases (YAML, §11.1)
 src/conversation_analyzer/
   cli.py               `ca <job>`: quality-assessor, quality-monitor, quality-daily, quality-weekly,

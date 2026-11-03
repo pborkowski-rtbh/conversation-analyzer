@@ -1,0 +1,63 @@
+# Rubryka etapu 2 (po polsku)
+
+Etap 1 ustalił, **co** jest nie tak z odpowiedzią. Ty ustalasz **dlaczego**, mając przed sobą pełny tekst
+cytowanych dokumentów i dokumentów podlinkowanych w tekście odpowiedzi. Nie ma wyszukiwania: innych dokumentów nie
+widzisz. Ugruntowanie i wagę oceniaj według rubryki etapu 1.
+
+## Co jest nie tak z twierdzeniem
+
+Najwyżej 3 problematyczne twierdzenia, najważniejsze najpierw: sprzeczne przed niepopartymi przed błędami
+rozumowania, kluczowe przed pobocznymi. Gdy twierdzenie pasuje do kilku wierszy, wygrywa `REASONING_ERROR`, jeśli
+same cytowane fragmenty podają właściwą regułę lub fakty, a odpowiedź źle je zastosowała: użyła reguły w przypadku,
+który reguła wyklucza, pominęła jej warunek albo źle połączyła fakty. W przeciwnym razie wygrywa `CONTRADICTED_CLAIM`;
+wartość, którą odpowiedź po prostu podaje inaczej niż fragment (fragment mówi 4, odpowiedź 6), pozostaje
+`CONTRADICTED_CLAIM`. `REASONING_ERROR` wygrywa z `UNSUPPORTED_CLAIM`.
+
+| Kod | Kiedy |
+|---|---|
+| `CONTRADICTED_CLAIM` | Przeczytany dokument mówi coś konkretnego i innego w tej samej sprawie: inną liczbę, nazwę, datę, regułę lub krok. |
+| `UNSUPPORTED_CLAIM` | Żaden przeczytany dokument nie podaje tego twierdzenia i żaden nie mówi czegoś innego. |
+| `REASONING_ERROR` | Cytowane fragmenty zawierają właściwe fakty, ale odpowiedź źle je połączyła, wyciągnęła wniosek, którego nie wspierają, albo zastosowała regułę do niewłaściwego przypadku. |
+
+## Sprawdzenia cytowanych dokumentów
+
+Wykonaj je najpierw, na cytowanych dokumentach. Podaj numery dokumentów.
+
+| Sprawdzenie | Kiedy |
+|---|---|
+| Nieaktualny | Cytowanemu dokumentowi w tej samej sprawie przeczy dokument z późniejszą datą albo sam dokument mówi, że został zastąpiony lub jest nieaktualny. |
+| Sprzeczne | Dwa cytowane dokumenty podają różne konkretne wartości w tej samej sprawie i żaden nie jest wyraźnie nowszy. |
+
+## Ścieżka przyczyny, pytanie po pytaniu
+
+Dla każdego twierdzenia odpowiedz na te pytania; przyczyna wynika z twoich odpowiedzi.
+
+| Pytanie | Reguła |
+|---|---|
+| 1. Czy cytowane fragmenty popierają twierdzenie? | „Popierają” znaczy: fragment to podaje albo wynika to wprost, bez dodatkowych założeń. |
+| 1b. Jeśli nie: czy fragmenty zawierają właściwą treść, którą odpowiedź źle odczytała? | Wtedy przyczyną jest sama odpowiedź. |
+| 2. Czy właściwa treść jest w pełnym tekście cytowanego lub podlinkowanego dokumentu? | Jest w dokumencie, który odpowiedź cytuje lub linkuje, ale nie we fragmencie, który dostał Bolek. |
+
+Jeśli odpowiedź na pytanie 2 brzmi „nie”, właściwej treści nie ma w żadnym przeczytanym dokumencie, a przyczyną jest
+`NOT_IN_CITED_SOURCES`. Tura bez źródeł zaczyna od pytania 2, na dokumentach podlinkowanych w odpowiedzi.
+
+Dla każdego dokumentu stojącego za twierdzeniem podaj jego numer i rolę: `CITED`, `HOLDS_RIGHT_ANSWER`,
+`CONTRADICTS_CLAIM`, `OUTDATED` lub `CONFLICTING`.
+
+## Potwierdzanie lub odrzucanie ustaleń etapu 1
+
+Dla każdego kodu etapu 1: **odrzucony** tylko wtedy, gdy potrafisz wskazać fragment popierający twierdzenie
+w dokumencie, który przeszedł oba sprawdzenia, albo fragment pokazujący, że sprzeczność dotyczy innego przypadku
+(innego kraju, roku lub produktu). W przeciwnym razie **potwierdzony**. Twierdzenie, które oznaczasz jako
+`REASONING_ERROR`, nadal potwierdza `CONTRADICTED_CLAIM` z etapu 1: odpowiedź wciąż jest błędna dla przypadku
+użytkownika.
+
+## Przykłady (dokumenty i liczby są zmyślone)
+
+| Sytuacja | Co | Dlaczego | Dokument do poprawy |
+|---|---|---|---|
+| Odpowiedź mówi o 6 dniach urlopu na żądanie. Cytowany fragment dotyczy zwolnienia lekarskiego; pełny tekst tego samego dokumentu mówi 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | Cytowana polityka urlopowa |
+| Ta sama odpowiedź, bez źródeł; linkuje politykę urlopową, której pełny tekst mówi 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | Podlinkowana polityka urlopowa |
+| Ta sama odpowiedź, bez źródeł i linków. Żaden przeczytany dokument nie mówi nic o urlopie na żądanie. | `UNSUPPORTED_CLAIM` | `NOT_IN_CITED_SOURCES` | (brak) |
+| Odpowiedź mówi 6 dni, tak jak cytowana polityka z 2024. Polityka z 2026, także cytowana, mówi 4. | `CONTRADICTED_CLAIM` | `OUTDATED_SOURCE` | Polityka z 2024 |
+| Fragment mówi, że podróże poza Europę wymagają zgody finansów; odpowiedź mówi, że wszystkie podróże. | `REASONING_ERROR` | (brak) | (brak) |
