@@ -181,15 +181,6 @@ class PeopleDirectory(BaseModel):
     uri_schemes: list[str]
 
 
-class Pii(BaseModel):
-    spacy_models: dict[str, str]
-    company_email_domains: list[str]
-    score_threshold: float
-    phone_regions: list[str]
-    employee_id_patterns: list[str]
-    allow_list: list[str]
-
-
 class Environment(BaseModel):
     """Values that differ between local runs and production, read from CA_* variables."""
 
@@ -237,7 +228,6 @@ class Settings(BaseModel):
     content_bucket: str
     data_stores: list[DataStore]
     people_directory: PeopleDirectory
-    pii: Pii
     env: Environment
 
     def table(self, dataset: str, table: str) -> str:

@@ -18,11 +18,9 @@ from conversation_analyzer.bq.client import query, tbl, write
 from conversation_analyzer.bq.schema import SUITE_RUNS
 from conversation_analyzer.errors import AnalyzerError, TokenLimitError
 from conversation_analyzer.judge import evidence, session, stage1, stage2
-from conversation_analyzer.judge.case import DocRef, DocText, EarlierTurn, JudgeCase
+from conversation_analyzer.judge.case import DocRef, DocText
 from conversation_analyzer.judge.client import Judge, Usage, default_judge
 from conversation_analyzer.judge.version import JudgeVersion, load
-from conversation_analyzer.log.parse import Reference, Span
-from conversation_analyzer.pii.scrubber import Analyzer, PiiMap, scrub
 from conversation_analyzer.settings import REPO_ROOT, get_settings, now
 from conversation_analyzer.suite.cases import Stage1Labels, Suite, SuiteCase, load_suite
 from conversation_analyzer.suite.scoring import Distance, add_evidence, add_session, add_stage2, stage1_distance
@@ -49,47 +47,17 @@ _SHOWN = (
 
 
 class FixedDocuments:
-    """A case's DocumentSource: the corpus, reached through cited references and links; reads get the placeholders."""
+    """A case's DocumentSource: the corpus, reached through cited references and links."""
 
-    def __init__(self, suite: Suite, pii: PiiMap) -> None:
+    def __init__(self, suite: Suite) -> None:
         self.texts = suite.doc_texts()
         self.by_uri = {d.uri: d.ref for d in suite.documents.values() if d.uri}
-        self.pii = pii
 
     def read(self, ref: DocRef) -> DocText | None:
-        doc = self.texts.get(ref)
-        if doc is None:
-            return None
-        return DocText(doc.ref, self.pii.apply(doc.title), self.pii.apply(doc.text))
+        return self.texts.get(ref)
 
     def lookup_uri(self, uri: str) -> DocRef | None:
         return self.by_uri.get(uri)
-
-
-def scrubbed(case: JudgeCase, pii: PiiMap, analyzer: Analyzer | None) -> JudgeCase:
-    """The case as the live assessor builds it: conversation text scrubbed, references only get the placeholders."""
-
-    def text(t: str | None) -> str | None:
-        return None if t is None else scrub(t, pii, analyzer)
-
-    earlier = [EarlierTurn(e.position_in_session, e.segment_no, text(e.question), text(e.answer)) for e in case.earlier]
-    question, answer = text(case.question), text(case.answer)
-    spans = [Span(s.index, s.start, s.end, text(s.text), s.reference_indices) for s in case.spans]
-
-    def placed(r: Reference) -> Reference:
-        return Reference(r.doc_id, r.data_store, r.uri, pii.apply(r.title), pii.apply(r.snippet))
-
-    return JudgeCase(
-        question=question,
-        answer=answer,
-        references=[placed(r) for r in case.references],
-        spans=spans,
-        answer_state=case.answer_state,
-        earlier=earlier,
-        earlier_references=[placed(r) for r in case.earlier_references],
-        has_previous_turn=case.has_previous_turn,
-        previous_text_available=case.previous_text_available,
-    )
 
 
 def _labelled(labels: Stage1Labels | dict[str, Any]) -> stage1.Stage1Result:
@@ -115,13 +83,11 @@ class SuiteRun:
         suite: Suite,
         version: JudgeVersion,
         judge: Judge,
-        analyzer: Analyzer | None = None,
         concurrency: int | None = None,
     ) -> None:
         self.suite = suite
         self.version = version
         self.judge = judge
-        self.analyzer = analyzer
         self.concurrency = concurrency or get_settings().judge.concurrency
         self.usage = Usage()
         self.doc_ids = {k: d.doc_id for k, d in suite.documents.items()}
@@ -139,9 +105,8 @@ class SuiteRun:
         self._guard()
         w = self.suite.weights
         exp = case.expected
-        pii = PiiMap()
-        jc = scrubbed(case.judge_case(self.suite.documents), pii, self.analyzer)
-        docs = FixedDocuments(self.suite, pii)
+        jc = case.judge_case(self.suite.documents)
+        docs = FixedDocuments(self.suite)
         out = CasePass(case.id, Distance())
         s1 = None
         try:
@@ -333,7 +298,6 @@ def run(
     baseline: str | None = None,
     judge_version: str | None = None,
     judge: Judge | None = None,
-    analyzer: Analyzer | None = None,
     suite: Suite | None = None,
     reports_dir: Path = REPORTS_DIR,
 ) -> dict[str, Any]:
@@ -343,7 +307,7 @@ def run(
     version = load(judge_version or get_settings().judge.current_version)
     cases = select(suite, part, limit)
     partial = bool(limit) or part.upper() != SuitePart.ALL
-    runner = SuiteRun(suite, version, judge or default_judge(), analyzer)
+    runner = SuiteRun(suite, version, judge or default_judge())
     try:
         results = [runner.run_pass(cases) for _ in range(passes)]
     except TokenLimitError:

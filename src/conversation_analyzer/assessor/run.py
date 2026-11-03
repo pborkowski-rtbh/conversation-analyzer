@@ -31,7 +31,7 @@ from conversation_analyzer.bq.schema import (
     STAGE2_RESULTS,
     Table,
 )
-from conversation_analyzer.docs.source import RunDocuments, SessionDocuments
+from conversation_analyzer.docs.source import RunDocuments
 from conversation_analyzer.errors import AnalyzerError, JudgeOutputError, LeakGuardError, classify
 from conversation_analyzer.judge import evidence, session, stage1, stage2
 from conversation_analyzer.judge.case import EarlierTurn, JudgeCase
@@ -41,9 +41,8 @@ from conversation_analyzer.judge.stage2 import Stage2Result
 from conversation_analyzer.judge.version import JudgeVersion, current, in_parallel_run, metric_version, previous
 from conversation_analyzer.keys import stable_fraction
 from conversation_analyzer.leak_guard import check_row
-from conversation_analyzer.log.parse import Feedback, Span, Turn
+from conversation_analyzer.log.parse import Feedback, Turn
 from conversation_analyzer.log.reader import Window, read_window
-from conversation_analyzer.pii.scrubber import PiiMap, scrub
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.settings import now as utc_now
 from conversation_analyzer.vocab import (
@@ -143,7 +142,6 @@ class AssessmentRun:
         self.parallel = in_parallel_run(self.today)
         self.metric_version = metric_version(self.today)
         self.versions: list[JudgeVersion] = [self.cur] + ([self.metric_version] if self.parallel else [])
-        self.pii: dict[str, PiiMap] = {}
         self.grades: dict[tuple[str, int], session.GradeResult] = {}
         self.canary_rows: list[dict[str, Any]] = []
         self.window: Window | None = None
@@ -156,14 +154,10 @@ class AssessmentRun:
     def age(self, t: Turn) -> timedelta:
         return self.now - t.timestamp
 
-    def scrub_text(self, session_key: str, text: str) -> str:
-        return scrub(text, self.pii.setdefault(session_key, PiiMap()))
-
     def build_case(self, ts: TurnState, stored: state_mod.Stored) -> JudgeCase:
-        """The scrubbed conversation the judge sees; references only get the turn's placeholders (§6.3)."""
+        """The conversation the judge sees, as logged (§6.3)."""
         p = ts.place
         sk = p.turn.session_key
-        pii = self.pii.setdefault(sk, PiiMap())
         earlier: list[EarlierTurn] = []
         seg = p.segment
         for no in (seg.segment_no - 1, seg.segment_no):
@@ -186,33 +180,23 @@ class AssessmentRun:
                 EarlierTurn(
                     cp.position_in_session,
                     cp.segment.segment_no,
-                    self.scrub_text(sk, c.question),
-                    self.scrub_text(sk, c.answer),
+                    c.question,
+                    c.answer,
                 )
             )
         earlier.sort(key=lambda e: e.position_in_session)
         refs = [r for c in p.earlier_references_from for r in c.references]
-
-        def placed(r):
-            return type(r)(r.doc_id, r.data_store, r.uri, pii.apply(r.title), pii.apply(r.snippet))
-
-        question = self.scrub_text(sk, p.turn.question)
-        answer = self.scrub_text(sk, p.turn.answer)
-        spans = [Span(x.index, x.start, x.end, self.scrub_text(sk, x.text), x.reference_indices) for x in p.turn.spans]
         return JudgeCase(
-            question=question,
-            answer=answer,
-            references=[placed(r) for r in p.turn.references],
-            spans=spans,
+            question=p.turn.question,
+            answer=p.turn.answer,
+            references=list(p.turn.references),
+            spans=list(p.turn.spans),
             answer_state=p.turn.answer_state,
             earlier=earlier,
-            earlier_references=[placed(r) for r in refs],
+            earlier_references=refs,
             has_previous_turn=p.has_previous_turn,
             previous_text_available=p.previous is not None,
         )
-
-    def docs_view(self, ts: TurnState) -> SessionDocuments:
-        return self.docs.view(self.pii.get(ts.turn.session_key))
 
     def stage1_fingerprint(self, ts: TurnState, version: JudgeVersion) -> str:
         p = ts.place
@@ -375,7 +359,7 @@ class AssessmentRun:
             if not self.has_time():
                 return
             result = ts.new_s1[v.version_id]
-            ran = self._call(lambda: evidence.check(ts.case, result, v, self.judge, self.usage, self.docs_view(ts)))
+            ran = self._call(lambda: evidence.check(ts.case, result, v, self.judge, self.usage, self.docs))
             if ran is not None:  # None: the call failed and was counted as a failure
                 self.counters.add("evidence_checks" if ran else "evidence_no_documents")
 
@@ -441,7 +425,7 @@ class AssessmentRun:
                     continue
                 result = self._call(
                     lambda v=v, s1=s1: stage2.diagnose(
-                        ts.case, s1, ts.flag_reasons, v, self.judge, self.usage, self.docs_view(ts)
+                        ts.case, s1, ts.flag_reasons, v, self.judge, self.usage, self.docs
                     )
                 )
                 if result is None:
@@ -482,7 +466,7 @@ class AssessmentRun:
             ts = by_key.get(t.turn_key)
             s1 = ts.s1.get(self.cur.version_id) if ts else None
             s2 = ts.new_s2.get(self.cur.version_id) if ts else None
-            turns.append(session.SegmentTurn(i, self.scrub_text(sk, t.question), self.scrub_text(sk, t.answer), s1, s2))
+            turns.append(session.SegmentTurn(i, t.question, t.answer, s1, s2))
         if not seg.complete_text:
             result = session.not_gradable(turns)
         else:
@@ -534,7 +518,7 @@ class AssessmentRun:
                             self.cur,
                             self.judge,
                             self.usage,
-                            self.docs_view(ts),  # noqa: B023
+                            self.docs,  # noqa: B023
                         )
                     )
                 self.canary_rows.append(

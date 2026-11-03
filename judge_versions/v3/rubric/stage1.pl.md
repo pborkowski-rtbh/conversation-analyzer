@@ -18,9 +18,6 @@ Każde pole ma zamkniętą listę wartości; nie ma w nim wolnego tekstu.
 **Kluczowe twierdzenie** to takie, na podstawie którego użytkownik coś zrobi: liczba, nazwa, data, reguła, krok,
 miejsce lub link.
 
-Dane osobowe w rozmowie są zastąpione znacznikami, np. `<PERSON_1>`. Ten sam znacznik oznacza tę samą wartość
-wszędzie, także w dokumentach.
-
 ## Intencja
 
 | Wartość | Pytanie |

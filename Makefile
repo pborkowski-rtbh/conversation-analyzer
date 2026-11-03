@@ -26,7 +26,7 @@ help: ## List the targets
 # --- stack -------------------------------------------------------------------------------------------------------
 
 .PHONY: install
-install: ## Install dependencies (incl. the spaCy models) with uv
+install: ## Install dependencies with uv
 	$(UV) sync
 
 .PHONY: up
@@ -106,10 +106,6 @@ suite-restore: ## Load stored suite runs back into the emulator after a reset (R
 suite-live: ## PAID: the suite on Vertex (eu); PASSES, PART, LIMIT, JUDGE_VERSION; log the spend in plan.md
 	@read -p "This calls paid Vertex models. Continue? [y/N] " ok && [ "$$ok" = y ]
 	$(ENV) CA_JUDGE_BACKEND=vertex $(UV) run ca quality-judge-suite --passes $(PASSES) $(SUITE_ARGS)
-
-.PHONY: pii-eval
-pii-eval: ## Recall of the PII scrubber on the synthetic Polish/English set (§6.12)
-	$(ENV) $(UV) run python -m conversation_analyzer.pii.evaluate
 
 # --- quality -----------------------------------------------------------------------------------------------------
 

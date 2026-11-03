@@ -172,12 +172,3 @@ people_directory:
   data_store_prefixes: [people-connections_]
   doc_id_prefixes: [associate-]
   uri_schemes: [mailto]
-
-# --- PII scrubbing (§6.3, §12.13) ---
-pii:
-  spacy_models: {en: en_core_web_lg, pl: pl_core_news_lg}
-  company_email_domains: [rtbhouse.com, adlook.com]
-  score_threshold: 0.5
-  phone_regions: [PL, US, GB, DE, FR, ES, IT, NL, JP, SG]
-  employee_id_patterns: ['\b(?:EMP|RTB)[-_ ]?\d{4,7}\b']   # format to be confirmed with HR
-  allow_list: [Bolek, Lolek, Gemini, Gemini Enterprise, RTB House, Adlook, Confluence, Slack, Google, BigQuery, Jira]
