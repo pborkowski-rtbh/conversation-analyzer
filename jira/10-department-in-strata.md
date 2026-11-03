@@ -20,10 +20,10 @@ Stratum = intent family × data-store family × department family. The departmen
 
 * `strata.department_families` and `strata.department_min_associates: 30` in settings; data-store families reduced to 3
 * `vocab.DepartmentFamily` closed list and `SliceKind.DEPARTMENT`; `closed_lists_version()` changes
-* `people/directory.py` reads `Email, base_function` once per run with `tabledata.list` (`selectedFields`); an incomplete read sets `UNKNOWN` for all and counts `DIRECTORY_UNAVAILABLE`
+* `people/directory.py` reads the associates indexer's `email → base_function` map from its state bucket once per run; a missing, malformed or stale map sets `UNKNOWN` for all and counts `DIRECTORY_UNAVAILABLE`
 * `department` column (kind `CODE`) on `quality_turns` and `quality_segments`; the principal and `base_function` are never stored
 * Daily metrics produce `intent__datastore__department` strata and a department slice; small strata fall back as today
-* The emulator has a fake HR table; synthetic principals cover every family
+* The emulator has the department map in fake GCS; synthetic principals cover every family
 * Tests: the leak guard rejects anything but a family code; a family below the floor is folded; e2e stratum rows
 * Families filled from the real `base_function` list once ticket 03 delivers it
 * `make coverage` ≥ 90 %

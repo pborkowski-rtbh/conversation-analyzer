@@ -172,3 +172,5 @@ people_directory:
   data_store_prefixes: [people-connections_]
   doc_id_prefixes: [associate-]
   uri_schemes: [mailto]
+  # The user's department comes from the map the associates indexer writes each hour (CA_DEPARTMENT_MAP_URI).
+  max_age_hours: 3

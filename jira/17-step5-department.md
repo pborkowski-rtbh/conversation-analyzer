@@ -18,7 +18,7 @@ Moves: `people/directory.py` and the stratum code. Must be live in prod before g
 
 ### Acceptance criteria
 
-* Infra: read on the HR table for both assessor accounts (granted by the HR project's owner)
+* Infra: read on `directory/` of the indexers' state bucket for both assessor accounts (prefix-conditioned `objectViewer`)
 * Stage, gate open 2 h: `UNKNOWN` share < 5 % of non-canary turns, else the principal format is checked and fixed
 * No family below the privacy floor appears; `base_function` appears nowhere (`leak-audit`, schema)
 * Run records show `DIRECTORY_UNAVAILABLE` = 0

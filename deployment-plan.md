@@ -20,7 +20,7 @@ To resume: read **Status**, then the first unchecked step.
 |---|---|
 | Document retrieval (RAG) | **Dropped entirely.** No document index, no embeddings, no indexer sink. Stage 2 reads the full text of the cited documents and of the documents linked in the answer, from the content bucket, and runs no search. The evidence check keeps only the documents linked in the answer text. `RETRIEVAL_MISS` and `KNOWLEDGE_GAP` can no longer be told apart and become one code (A2). The submodule `aiel-content-indexers` is not migrated. |
 | PII scrubbing | **Dropped.** Questions, answers, earlier turns, references and documents reach the judge as they are, on EU endpoints only, never stored. `pii/`, Presidio and the spaCy models are removed (A3). |
-| Department in strata | The user's department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bolek_associates_active` (the table the people indexer already reads), mapped to a closed list of department families. Stratum = intent family × data-store family × department family. |
+| Department in strata | The user's department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bolek_associates_active`, read from the `email → base_function` map the associates indexer writes each hour to its state bucket (AIENGLAB-853), mapped to a closed list of department families. Stratum = intent family × data-store family × department family. |
 | Official repository | A new repository `RTBHouse-OEET/aiel-conversation-analyzer`, CI/CD like `aiel-content-indexers` (GitHub Actions, Workload Identity, Artifact Registry). Code arrives by one reviewed PR per step, not by pushing this repo's history. |
 | Environments | **Stage** = project `rtb-aiel-core-stage`, its own infrastructure, its own BigQuery datasets (`stage_bolek_quality_*`), reading the **prod** audit log. **Prod** = project `rtbhouse-agentspace`, datasets `bolek_quality_*` (§12.10). Every step goes to stage first, then the same image digest to prod. |
 | Stage volume | Stage assesses full traffic, but only while it is switched on. It is paused by default and resumed for a fixed number of hours (§3, the run gate). |
@@ -188,16 +188,18 @@ stored; the leak guard and `safe_log` are unchanged.
   folded into `OTHER`, so the stored code never narrows a turn down to a handful of people. `base_function` itself is
   never stored; only the family code.
 - [ ] `vocab.DepartmentFamily` (closed list; part of `closed_lists_version()`), `SliceKind.DEPARTMENT`.
-- [ ] `people/directory.py`: reads `Email, base_function` with `tabledata.list` (`selectedFields`, no query job, like
-  the people indexer), once per assessor run, into an in-memory `email → family` map; full read or the run uses
-  `UNKNOWN` for everyone and counts `DIRECTORY_UNAVAILABLE`. Users not found (service accounts, externals) → `UNKNOWN`.
+- [x] `people/directory.py`: reads the department map (`CA_DEPARTMENT_MAP_URI`, default
+  `gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json`) once per assessor run, in memory;
+  missing, malformed or older than `people_directory.max_age_hours` → `None`, and the run uses `UNKNOWN` for everyone
+  and counts `DIRECTORY_UNAVAILABLE`. The map is written by the associates indexer
+  (RTBHouse-OEET/aiel-content-indexers#187, RTBHouse-OEET/infrastructure#1176), so the assessor needs no HR-table grant. Users not found (service accounts, externals) → `UNKNOWN`.
   Canary accounts are excluded anyway.
 - [ ] Assessor: `department` column (kind `CODE`) on `quality_turns` and `quality_segments`, set in memory from
   `userIamPrincipal` during the window; the principal is never stored (as today).
 - [ ] Metrics: stratum = `intent__datastore__department`; department slice; small strata fall back to intent family
   (existing rule). Data-store families collapse to 3 (`ENGINEERING`, `COMPANY`, `NONE` incl. Drive), so there are at
   most 4 × 3 × 5 = 60 strata, most of them pooled; the final list freezes with the baseline (§8.9).
-- [ ] Emulator: a fake HR table in `docker-compose` seed; synthetic turns carry principals that map to every family.
+- [x] Emulator: the department map in fake GCS (`scenario.DEPARTMENTS`, `store_department_map`); synthetic turns carry principals that map to every family.
 - [ ] Tests: leak guard rejects anything but a family code in `department`; e2e stratum rows; a family below the floor
   is folded.
 
@@ -239,7 +241,7 @@ They don't block early steps, but each blocks the step named. Start them now; re
 | # | Gate | Who | Blocks | Status |
 |---|---|---|---|---|
 | G1 | SECOPS: stage service accounts read prod conversation text (assessor) and prod content bucket; the judge gets conversation text without PII scrubbing; audit-log content check of Vertex/Secret Manager/GCS calls (§12.13); exclusion of our SAs from the 7-year log copy if needed | SECOPS | step 4 (stage assessor with judge) | [ ] |
-| G2 | HR/IT: read access for both assessor SAs to `rtb-house-hr-reporting-data.IT.bolek_associates_active` (fields `Email`, `base_function`); department as a stored per-turn code with the privacy floor | HR data owner, SECOPS | step 5 | [ ] |
+| G2 | HR/SECOPS: department as a stored per-turn code with the privacy floor, read from the associates indexer's `email → base_function` map (no assessor access to the HR table) | HR data owner, SECOPS | step 5 | [ ] |
 | G3 | Slack app (post, `reactions.read`) in the workspace; channels `#bolek-quality-stage`, `#bolek-quality`, `#aiel-alerts`; bot token in Secret Manager per project | Slack admins | step 9 | [ ] |
 | G4 | Central Grafana: a BigQuery datasource per instance (test → stage SA, prod → prod SA), plugin installed, folder `AI-Engineering-Lab/Conversation-Analyzer` | Platform Engineering | step 8 | [ ] |
 | G5 | Evaluator (AIENGLAB-519): daily canary on the prod engine, `aiel_evals` contract (`bq/external.py`), gate results naming our change IDs | evaluator owner | step 11, step 13 | [ ] |
@@ -355,7 +357,9 @@ Goal: every turn carries its department family. It comes before stage 2 because 
 baseline, and the strata, department included, freeze with it.
 
 - [ ] G2 done; A5 merged.
-- [ ] Infra PR: `bigquery.dataViewer` on the HR table for both assessor SAs (granted by the HR project's owner).
+- [ ] Infra PR: `roles/storage.objectViewer` on the indexers' state bucket, conditioned on
+  `resource.name.startsWith("projects/_/buckets/<project>-indexers-state/objects/directory/")`, for `stage-quality-assessor`
+  (stage bucket) and `quality-assessor` (prod bucket); `CA_DEPARTMENT_MAP_URI` on the stage job.
 - Verify (stage, 2 open hours):
   - [ ] `department` distribution per day: `UNKNOWN` share < 5 % of non-canary turns (else check principals format).
   - [ ] No family below the privacy floor appears; `base_function` appears nowhere (`leak-audit` + schema).

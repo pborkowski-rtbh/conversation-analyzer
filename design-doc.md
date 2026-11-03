@@ -858,8 +858,8 @@ Raw AQR rose by 9 points, but no answer got better. Standardized AQR shows that 
 
 **Department.** People in different departments ask different things, from different data stores, and the mix changes, for example when a department starts using Bolek. Without the department in the strata, such a change would look like a change in quality.
 
-- The assessor reads `Email` and `base_function` from HR's table of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`, the table the people directory's indexer already reads) once per run, in memory.
-- While a turn's user identity is still in the log, it maps the user to a department family through a setting (`base_function` → family). Users not in the table, such as service accounts, get `UNKNOWN`.
+- The assessor reads the **department map** once per run, in memory: `email → base_function` of every active associate, which the people directory's indexer writes each hour from HR's table of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`) to `gs://<project>-indexers-state/directory/associates-departments.json` in its own project. The assessor needs no access to the HR table. A map that is missing, malformed or older than `people_directory.max_age_hours` (3) is not used: every user gets `UNKNOWN` and the run counts `DIRECTORY_UNAVAILABLE`.
+- While a turn's user identity is still in the log, it maps the user to a department family through a setting (`base_function` → family). Users not in the map, such as service accounts, get `UNKNOWN`.
 - Only the family is stored, never `base_function` or the identity. A family with fewer than 30 active associates is merged into `OTHER`.
 
 The weights stay fixed. They change only by a deliberate rebase, for example when a new data store is added, and the rebase is recorded as a change event.
@@ -1166,7 +1166,7 @@ flowchart TB
     EVAL -->|"results in aiel_evals"| SYS
     GH["GitHub<br/>prompt and data store settings"] --> SYS
     SYS <-->|"conversations,<br/>documents"| VX["Vertex AI, EU<br/>judge"]
-    HR[("HR table<br/>active associates")] -->|"department"| SYS
+    HR[("Department map<br/>from the associates indexer")] -->|"department"| SYS
     SYS --> SLACK["Slack<br/>alerts, digest"]
     SYS --> GRAFANA["Grafana<br/>dashboard"]
     SYS -.->|"failures, no text"| SENTRY["Sentry"]
@@ -1176,13 +1176,13 @@ flowchart TB
 
 Only the assessor handles text. Our indexers keep writing the full text of our documents to the content bucket, as they do today; this system only reads it, and the indexers are not changed.
 
-Every 10 minutes, the assessor assesses the turns in the window. It reads the full text of the documents an answer cites or links from the content bucket, and the department of each user from HR's table of active associates.
+Every 10 minutes, the assessor assesses the turns in the window. It reads the full text of the documents an answer cites or links from the content bucket, and the department of each user from the department map the associates indexer writes (§8.4).
 
 ```mermaid
 flowchart LR
     LOG[("The log")] -->|"turns in the window"| A["quality-assessor<br/>every 10 min"]
     BUCKET[("Content bucket")] -->|"full text of cited<br/>and linked documents"| A
-    HR[("HR table")] -->|"department of each user"| A
+    HR[("Department map")] -->|"department of each user"| A
     A -->|"derived values only"| T[("bolek_quality_turns")]
 ```
 
@@ -1221,14 +1221,14 @@ In short, **only the assessor ever reads what users asked and what Bolek answere
 | Service | What we use it for | Already used in this project? |
 |---|---|---|
 | **Cloud Run jobs** | All processing | Yes, by the indexers and by the jobs that replace the old Composer DAGs |
-| **BigQuery** | Reading the log, the HR table of active associates and the evaluator's results, and storing every result | Yes, the log is there |
+| **BigQuery** | Reading the log and the evaluator's results, and storing every result | Yes, the log is there |
 | Cloud Scheduler | Starting jobs on schedule, in UTC | Yes, by the indexers |
 | Secret Manager | The hashing key for session and turn keys, the secrets that decrypt the content bucket, the Slack and GitHub tokens, the Sentry DSN | Yes, by the indexers and the MCP server |
 | Artifact Registry | Storing the container image | Yes, by the indexers |
 | Vertex AI, EU | The judge models, `gemini-3.8-flash` and `gemini-4-argon`, on the `eu` multi-region | Yes |
 | Content bucket (GCS) | The full text of our documents. Our indexers write it, encrypted. | Yes, the MCP server reads it |
 | Our indexers | Unchanged: they write the full text of our documents to the content bucket, which the assessor reads (§12.7) | Yes, they are Cloud Run jobs in this project |
-| HR table of active associates | The user's department (§8.4) | Yes, the people directory's indexer reads it |
+| Department map (`email → base_function`, in the indexers' state bucket) | The user's department (§8.4) | Yes, the people directory's indexer writes it each hour from HR's table |
 | Sentry | Reporting job failures, with no text in them | Yes, by the indexers |
 | Slack app | Posting alerts and the digest, and reading ✅ reactions on alerts | New app, in our existing Slack workspace |
 | Central Grafana | The dashboard (§8.8), defined in the `infra-grafana-dashboards` repository | Yes, the company's shared Grafana |
@@ -1285,7 +1285,7 @@ Each job has its own service account, with only the access it needs:
 
 | Service account | Can read | Can write | Can call |
 |---|---|---|---|
-| `quality-assessor` | Only the `audit_logs` table in `analytics`; `bolek_quality_turns`; the content bucket; `aiel_evals`; `Email` and `base_function` of the HR table of active associates | `bolek_quality_turns` | Vertex AI. In Secret Manager: the hashing key and the content secrets. |
+| `quality-assessor` | Only the `audit_logs` table in `analytics`; `bolek_quality_turns`; the content bucket; `aiel_evals`; the department map (objects under `directory/` in the indexers' state bucket) | `bolek_quality_turns` | Vertex AI. In Secret Manager: the hashing key and the content secrets. |
 | `quality-reporter` | `bolek_quality_turns`; `bolek_quality_log_views`; `analytics.ge_metrics`; `aiel_evals`; the run history of the indexer jobs | `bolek_quality_metrics` and the alert tables | Slack. GitHub, read only. |
 | `quality-judge-suite` | Nothing outside its image, which contains the suite | `bolek_quality_metrics.quality_judge_suite_runs` | Vertex AI |
 | `quality-schema` | | The tables and views of the three datasets | |
@@ -1295,7 +1295,7 @@ Each job has its own service account, with only the access it needs:
 - The assessor gets access to the `audit_logs` table only, not to the whole `analytics` dataset. That dataset also has tables with e-mail addresses, such as hourly activity per user.
 - The reporting jobs never read the log directly. They need three things from it: turn counts per hour, feedback counts and engine changes. They get them through **authorized views** in `bolek_quality_log_views`. The views return only counts and change records, and whoever reads them doesn't need access to the log table itself.
 - Only the assessor has the hashing key used for session and turn keys (§12.5).
-- In stage, every account exists again with a `stage-` prefix and the same access, on the `stage_` datasets. The stage assessor reads the same prod log table, content bucket and HR table as the prod one (§12.14).
+- In stage, every account exists again with a `stage-` prefix and the same access, on the `stage_` datasets. The stage assessor reads the same prod log table and content bucket as the prod one (§12.14); its department map is the one the stage associates indexer writes to `rtb-aiel-core-stage-indexers-state`, from the same HR table.
 
 ### 12.5 Turn and session keys
 
@@ -1321,7 +1321,7 @@ sequenceDiagram
     participant A as quality-assessor
     participant LOG as audit_logs
     participant T as bolek_quality_turns
-    participant HR as HR table
+    participant HR as Department map
     participant GCS as Content bucket
     participant V as Vertex AI, EU
     SCH->>A: start, every 10 minutes
@@ -1596,7 +1596,7 @@ The leak guard (§6.10) protects what we store. Logs, error reports and outside 
 
 - One repository, `RTBHouse-OEET/aiel-conversation-analyzer`, holds the code, the rubrics, the prompts, the closed lists, the judge test suite, the table schema and the settings. The settings include the 30-minute segment close, the size cap, the minimum slice size, the alert bar and the ranking weights. GitHub Actions tests every change, builds the image on every merge and stores it in the Artifact Registry of both projects.
 - Terraform in `infrastructure/terraform/rtbhouse-agentspace` (prod) and `infrastructure/terraform/rtb-aiel-core-stage` (stage) defines the datasets, service accounts, permissions, secrets, jobs and schedules. The tables and views are created by `quality-db-init` from the schema in the code, so the two can't drift apart. Jobs name their image by digest, so a deploy and a rollback are each a one-line change.
-- **Two environments.** Prod runs in `rtbhouse-agentspace` and writes `bolek_quality_*`. Stage runs in `rtb-aiel-core-stage` with its own service accounts, its own hashing key (so stage and prod rows can never be joined), its own Slack channel and the test instance of Grafana, and writes `stage_bolek_quality_*` there. It reads the prod log, content bucket and HR table, so every change is tried on real traffic before prod. A change goes to stage first, then the same image to prod; the steps are in `deployment-plan.md`.
+- **Two environments.** Prod runs in `rtbhouse-agentspace` and writes `bolek_quality_*`. Stage runs in `rtb-aiel-core-stage` with its own service accounts, its own hashing key (so stage and prod rows can never be joined), its own Slack channel and the test instance of Grafana, and writes `stage_bolek_quality_*` there. It reads the prod log and content bucket, and the department map of the stage associates indexer, so every change is tried on real traffic before prod. A change goes to stage first, then the same image to prod; the steps are in `deployment-plan.md`.
 - **Stage runs only when switched on.** Stage assesses full traffic, which costs as much as prod. Every scheduled stage job first reads a control object in a stage bucket that holds an end time; after that time, the job records a paused run and exits at once, with no judge call and no message. Opening stage for some hours sets the end time, so stage closes by itself. Paused periods raise no pipeline health alerts and are marked on the stage dashboard. Prod has no such switch.
 - A judge version is identified by a hash of its rubric, prompt, model and form. The settings name the current version. During the 5 weekdays of a parallel run, they also name the previous one, and the assessor assesses every new turn with both (§6.11). The parallel run ends with a change to the settings.
 

@@ -14,6 +14,7 @@ from conversation_analyzer.devtools.synthetic import (
     SynthTurn,
     insert_log,
     search_row,
+    store_department_map,
     store_documents,
     turn_rows,
 )
@@ -192,6 +193,18 @@ def suite_run(day: date) -> dict[str, Any]:
     }
 
 
+# The associates indexer's department map; evaluator@ and script@ are left out, as service accounts are.
+DEPARTMENTS = {
+    "anna.test@rtbhouse.com": "IT",
+    "piotr@rtbhouse.com": "IT",
+    "ola@rtbhouse.com": "Sales",
+    "marek@rtbhouse.com": "Operations",
+    "kasia@rtbhouse.com": "Finance",
+    "tomek@rtbhouse.com": "Sales",
+    "ewa@rtbhouse.com": "People",
+}
+
+
 def seed(now: datetime) -> None:
     rows = [r for t in turns() for r in turn_rows(t, now)]
     rows.append(search_row("user:anna.test@rtbhouse.com", 60.5, [LEAVE.doc_id, "associate-0123", "unknown_doc"], now))
@@ -199,6 +212,7 @@ def seed(now: datetime) -> None:
     rows.append(search_row("user:evaluator@rtbhouse.com", 50.5, [LEAVE.doc_id], now))
     insert_log(rows)
     store_documents(DOCUMENTS)
+    store_department_map(DEPARTMENTS, now)
     write(SUITE_RUNS, [suite_run(now.date())])
     s = get_settings()
     client().insert_rows_json(

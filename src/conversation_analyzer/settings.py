@@ -179,6 +179,7 @@ class PeopleDirectory(BaseModel):
     data_store_prefixes: list[str]
     doc_id_prefixes: list[str]
     uri_schemes: list[str]
+    max_age_hours: int  # older department maps are not used (§8.4)
 
 
 class Environment(BaseModel):
@@ -187,6 +188,7 @@ class Environment(BaseModel):
     bq_project: str
     bq_endpoint: str | None
     gcs_endpoint: str | None
+    department_map_uri: str
     slack_api: str
     slack_token: str
     github_api: str
@@ -251,6 +253,9 @@ def _environment() -> Environment:
         bq_project=e("CA_BQ_PROJECT", "rtbhouse-agentspace"),
         bq_endpoint=e("CA_BQ_ENDPOINT") or None,
         gcs_endpoint=e("CA_GCS_ENDPOINT") or None,
+        department_map_uri=e(
+            "CA_DEPARTMENT_MAP_URI", "gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json"
+        ),
         slack_api=e("CA_SLACK_API", "https://slack.com/api"),
         slack_token=e("CA_SLACK_TOKEN", ""),
         github_api=e("CA_GITHUB_API", "https://api.github.com"),
