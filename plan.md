@@ -16,7 +16,7 @@ unchecked item of the current milestone.
   `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
   judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
 - Tests: `make coverage` (~15 min, 98.37 %, 229 tests), `make test-unit` 10 s.
-- Paid Vertex spend: **14.51 USD** of the 50 USD cap (Spend log below).
+- Paid Vertex spend: **27.92 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
 
@@ -336,7 +336,11 @@ coverage, lint, fmt, build`.
 | 2026-10-29 | judge suite v2, all 264 cases, 1 pass (`suite-006ae3961f390f5f`, KEEP) | gemini-3.8-flash | 2,143,050 / 214,003 | 5.30 |
 | | | gemini-4-argon | 354,282 / 17,330 | 1.94 |
 | 2026-10-29 | `make index-local EMBED=vertex`: 20 biztech documents, 53 chunks (≤ 2,000 chars), plus 5 search queries | text-multilingual-embedding-002 | ≤ 110k chars | < 0.01 |
-| | **Total so far** | | | **14.51** |
+| 2026-11-03 | judge suite v3 (no search), all 264 cases, 1 pass (`suite-006ae9bc1cd35f6e2fa`, BASELINE of `suite-1142feb37083`): missed HIGH 1, false HIGH 4, held-out 1.05; `OUTDATED_SOURCE` recall 0 (cases cited no newer document, fixed after) | gemini-3.8-flash | 2,055,591 / 252,854 | 5.48 |
+| | | gemini-4-argon | 236,881 / 13,258 | 1.33 |
+| 2026-11-03 | judge suite v3, outdated cases fixed, all 264 cases, 1 pass (`suite-006ae9bf20b0ee57a65`, BASELINE of `suite-f132e1153ebc`): missed HIGH 1 (`budget_tab-contradicted` again), false HIGH 4, held-out 1.10 | gemini-3.8-flash | 2,055,877 / 224,879 | 5.25 |
+| | | gemini-4-argon | 237,986 / 13,729 | 1.35 |
+| | **Total so far** | | | **27.92** |
 
 Prices: Vertex AI billing catalog, regional (eu) online text: flash 1.65 / 8.25 USD per M tokens in / out, argon 4.40
 / 22.00 (thinking tokens count as output). A full 1-pass suite run is about 7 USD and 35 minutes (argon is slow).

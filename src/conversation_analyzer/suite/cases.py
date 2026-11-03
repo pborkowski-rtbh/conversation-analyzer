@@ -31,7 +31,7 @@ EDGE_TAGS = ("refusal", "wrong_language", "people_lookup", "private_details", "l
 
 
 class SuiteDocument(BaseModel):
-    """A document of the suite's small corpus: what the index finds and what the bucket holds."""
+    """A document of the suite's small corpus: what a case cites or links and what the bucket holds."""
 
     doc_id: str
     data_store: str

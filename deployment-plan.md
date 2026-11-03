@@ -158,15 +158,19 @@ stored; the leak guard and `safe_log` are unchanged.
 
 ### A4. Judge v3 and the suite
 
-- [ ] `judge_versions/v3` (copy of v2): stage 2 rubric and prompt without found documents; form schema with the new
+- [x] `judge_versions/v3` (copy of v2): stage 2 rubric and prompt without found documents; form schema with the new
   code. New version ID by hash.
-- [ ] Suite cases: rewrite expected stage 2 forms of every `RETRIEVAL_MISS` / `KNOWLEDGE_GAP` case; drop the
+- [x] Suite cases: rewrite expected stage 2 forms of every `RETRIEVAL_MISS` / `KNOWLEDGE_GAP` case; drop the
   `documents` that only search could reach; `make suite-coverage` still meets the §11.1 minimums (adjust the scenario
   minimums for the merged code). Suite version changes, so the next full run is a new BASELINE.
-- [ ] `tests/test_suite.py` (oracle judge) at distance 0.
+- [x] `tests/test_suite.py` (oracle judge) at distance 0.
 - [ ] **Paid:** `make suite-live JUDGE_VERSION=v3`, one pass (~7 USD, ~35 min). Accept v3 when: missed HIGH = 0, false
   HIGH ≤ 4, held-out distance ≤ 1.15 (v2's), no label below 70 % recall other than `REASONING_ERROR`. Otherwise tune
   (v4…) on the tuning part only. Log the spend.
+  (2026-11-03, two passes of v3, 13.4 USD, total 27.92: false HIGH 4, held-out 1.05 / 1.10, only `REASONING_ERROR`
+  below 70 % recall; **missed HIGH 1** both times (`budget_tab-contradicted`: a different time window judged
+  unsupported, not contradicted). Open: a v4 stage 1 rubric clarification, tuned on the tuning part only, then one pass.
+  First pass also showed `OUTDATED_SOURCE` recall 0: the outdated cases cited no newer document; fixed in the cases.)
 - [ ] Settings: `judge.current_version: v3` (pre-launch: no parallel run).
 
 ### A5. Department
