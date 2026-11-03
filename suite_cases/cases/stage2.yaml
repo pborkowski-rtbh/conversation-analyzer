@@ -1,6 +1,8 @@
-# Flagged turns and their causes (§7.3): chunking, outdated and conflicting sources, reasoning errors, and content in
-# none of the cited or linked documents (an unrelated document cited, or nothing in the corpus). Drafted against the judge_versions/v1 rubric; reviewed: false until an engineer has checked the
-# expected forms (§11.1). Every 5th case is in the held-out part.
+# Flagged turns and their causes (§7.3): chunking, outdated and conflicting sources, reasoning errors (a rule
+# applied to the wrong case is contradicted and HIGH at stage 1, a reasoning error at stage 2), and content in
+# none of the cited or linked documents (an unrelated document cited, or nothing in the corpus). Drafted against the
+# judge_versions/v1 rubric; reviewed: false until an engineer has checked the expected forms (§11.1). Every 5th case
+# is in the held-out part.
 - id: leave_ondemand-chunking
   part: TUNING
   reviewed: false
@@ -697,12 +699,12 @@
       relevance: 5
       completeness: 5
       clarity: 5
-      groundedness: 2
+      groundedness: 1
       unsupported_spans: 1
       needs_internal_knowledge: true
-      failure_types: [UNSUPPORTED_CLAIM]
-      primary_failure: UNSUPPORTED_CLAIM
-      severity: MEDIUM
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
     stage2:
       primary_failure: REASONING_ERROR
       cause: NONE
@@ -726,12 +728,12 @@
       relevance: 5
       completeness: 5
       clarity: 5
-      groundedness: 2
+      groundedness: 1
       unsupported_spans: 1
       needs_internal_knowledge: true
-      failure_types: [UNSUPPORTED_CLAIM]
-      primary_failure: UNSUPPORTED_CLAIM
-      severity: MEDIUM
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
     stage2:
       primary_failure: REASONING_ERROR
       cause: NONE
@@ -755,12 +757,12 @@
       relevance: 5
       completeness: 5
       clarity: 5
-      groundedness: 2
+      groundedness: 1
       unsupported_spans: 1
       needs_internal_knowledge: true
-      failure_types: [UNSUPPORTED_CLAIM]
-      primary_failure: UNSUPPORTED_CLAIM
-      severity: MEDIUM
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
     stage2:
       primary_failure: REASONING_ERROR
       cause: NONE
@@ -814,12 +816,12 @@
       relevance: 5
       completeness: 5
       clarity: 5
-      groundedness: 2
+      groundedness: 1
       unsupported_spans: 1
       needs_internal_knowledge: true
-      failure_types: [UNSUPPORTED_CLAIM]
-      primary_failure: UNSUPPORTED_CLAIM
-      severity: MEDIUM
+      failure_types: [CONTRADICTED_CLAIM]
+      primary_failure: CONTRADICTED_CLAIM
+      severity: HIGH
     stage2:
       primary_failure: REASONING_ERROR
       cause: NONE

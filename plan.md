@@ -16,7 +16,7 @@ unchecked item of the current milestone.
   `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
   judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
 - Tests: `make coverage` (~15 min, 98.37 %, 229 tests), `make test-unit` 10 s.
-- Paid Vertex spend: **27.92 USD** of the 50 USD cap (Spend log below).
+- Paid Vertex spend: **34.71 USD** of the 50 USD cap (Spend log below).
 
 ## Next steps, in order
 
@@ -340,7 +340,9 @@ coverage, lint, fmt, build`.
 | | | gemini-4-argon | 236,881 / 13,258 | 1.33 |
 | 2026-11-03 | judge suite v3, outdated cases fixed, all 264 cases, 1 pass (`suite-006ae9bf20b0ee57a65`, BASELINE of `suite-f132e1153ebc`): missed HIGH 1 (`budget_tab-contradicted` again), false HIGH 4, held-out 1.10 | gemini-3.8-flash | 2,055,877 / 224,879 | 5.25 |
 | | | gemini-4-argon | 237,986 / 13,729 | 1.35 |
-| | **Total so far** | | | **27.92** |
+| 2026-11-03 | judge suite v4, reasoning cases contradicted at stage 1, all 264 cases, 1 pass (`suite-006ae9c5dbc7572ac5b`, BASELINE of `suite-7e9176290da4`): missed HIGH 0, false HIGH 2, held-out 0.815, every label ≥ 70 % recall; v4 kept | gemini-3.8-flash | 2,136,159 / 207,335 | 5.24 |
+| | | gemini-4-argon | 254,641 / 19,675 | 1.55 |
+| | **Total so far** | | | **34.71** |
 
 Prices: Vertex AI billing catalog, regional (eu) online text: flash 1.65 / 8.25 USD per M tokens in / out, argon 4.40
 / 22.00 (thinking tokens count as output). A full 1-pass suite run is about 7 USD and 35 minutes (argon is slow).

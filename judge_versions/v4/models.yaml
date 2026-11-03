@@ -1,0 +1,4 @@
+# Models of this judge version (§2.2). Stage 1 and the evidence check use stage1; stage 2, session grades and the
+# second-model check use stage2.
+stage1: gemini-3.8-flash
+stage2: gemini-4-argon
