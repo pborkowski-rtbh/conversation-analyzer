@@ -52,6 +52,7 @@ product). Otherwise **confirmed**.
 | Situation | What | Why | Document to fix |
 |---|---|---|---|
 | The answer says 6 days of on-demand leave. The cited snippet is about sick leave; the full text of the same document says 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | The cited leave policy |
+| Same answer, no references; it links the leave policy, whose full text says 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | The linked leave policy |
 | Same answer, no references and no links. No document you read says anything about on-demand leave. | `UNSUPPORTED_CLAIM` | `NOT_IN_CITED_SOURCES` | (none) |
 | The answer says 6 days, as the cited 2024 leave policy does. The 2026 policy, also cited, says 4. | `CONTRADICTED_CLAIM` | `OUTDATED_SOURCE` | The 2024 leave policy |
 | The snippet says trips outside Europe need finance approval; the answer says all trips do. | `REASONING_ERROR` | (none) | (none) |

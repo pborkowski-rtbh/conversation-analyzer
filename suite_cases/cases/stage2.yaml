@@ -1,5 +1,5 @@
-# Flagged turns and their causes (§7.3): chunking, retrieval miss, outdated and conflicting sources, reasoning errors,
-# knowledge gaps. Drafted against the judge_versions/v1 rubric; reviewed: false until an engineer has checked the
+# Flagged turns and their causes (§7.3): chunking, outdated and conflicting sources, reasoning errors, and content in
+# none of the cited or linked documents (an unrelated document cited, or nothing in the corpus). Drafted against the judge_versions/v1 rubric; reviewed: false until an engineer has checked the
 # expected forms (§11.1). Every 5th case is in the held-out part.
 - id: leave_ondemand-chunking
   part: TUNING
@@ -181,7 +181,7 @@
       primary_failure: CHUNKING_ISSUE
       cause: CHUNKING_ISSUE
       document_to_fix: leave_pl
-- id: trips_expenses-retrieval-miss
+- id: trips_expenses-wrong-source
   part: TUNING
   reviewed: false
   turn:
@@ -210,7 +210,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: office_hours-retrieval-miss
+- id: office_hours-wrong-source
   part: TUNING
   reviewed: false
   turn:
@@ -239,7 +239,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: password_length-retrieval-miss
+- id: password_length-wrong-source
   part: TUNING
   reviewed: false
   language: pl
@@ -269,7 +269,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: rate_limit-retrieval-miss
+- id: rate_limit-wrong-source
   part: HELD_OUT
   reviewed: false
   turn:
@@ -301,7 +301,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: floor_prices-retrieval-miss
+- id: floor_prices-wrong-source
   part: TUNING
   reviewed: false
   turn:
@@ -333,7 +333,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: click_dedup-retrieval-miss
+- id: click_dedup-wrong-source
   part: TUNING
   reviewed: false
   turn:
@@ -371,6 +371,8 @@
     references:
     - doc: leave_2024
       snippet: You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
     spans:
     - text: You can take up to 6 days of on-demand leave per year.
       refs: [0]
@@ -400,6 +402,8 @@
     references:
     - doc: leave_2024
       snippet: Request annual leave at least 7 days in advance.
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
     spans:
     - text: Request annual leave at least 7 days in advance.
       refs: [0]
@@ -429,6 +433,8 @@
     references:
     - doc: leave_2024
       snippet: You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+    - doc: leave
+      snippet: Sick leave is confirmed with an electronic sick note (e-ZLA). Inform your manager on the first day of absence.
     spans:
     - text: Request it by e-mail to your manager.
       refs: [0]
@@ -458,6 +464,8 @@
     references:
     - doc: trips_2023
       snippet: Settle your expenses within 30 days after the trip.
+    - doc: trips
+      snippet: Book every business trip in Travel Tool. Book hotels through Travel Tool as well.
     spans:
     - text: Settle your expenses within 30 days after the trip.
       refs: [0]
@@ -488,6 +496,8 @@
     references:
     - doc: leave_2024
       snippet: You can take up to 6 days of on-demand leave per year. Request it by e-mail to your manager.
+    - doc: leave_pl
+      snippet: Pracownik ze stażem krótszym niż 10 lat ma 20 dni urlopu w roku, od 10 lat – 26 dni.
     spans:
     - text: Przysługuje Ci do 6 dni urlopu na żądanie w roku.
       refs: [0]
@@ -814,7 +824,7 @@
       primary_failure: REASONING_ERROR
       cause: NONE
       document_to_fix: null
-- id: meal-allowance-gap
+- id: meal-allowance-not-in-sources
   part: TUNING
   reviewed: false
   turn:
@@ -843,7 +853,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: guest-wifi-gap
+- id: guest-wifi-not-in-sources
   part: TUNING
   reviewed: false
   turn:
@@ -872,7 +882,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: monitors-gap
+- id: monitors-not-in-sources
   part: HELD_OUT
   reviewed: false
   turn:
@@ -901,7 +911,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: dress-code-gap
+- id: dress-code-not-in-sources
   part: TUNING
   reviewed: false
   turn:
@@ -925,7 +935,7 @@
       primary_failure: NOT_IN_CITED_SOURCES
       cause: NOT_IN_CITED_SOURCES
       document_to_fix: null
-- id: christmas-party-gap
+- id: christmas-party-not-in-sources
   part: TUNING
   reviewed: false
   language: pl

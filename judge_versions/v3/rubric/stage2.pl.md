@@ -52,6 +52,7 @@ w dokumencie, który przeszedł oba sprawdzenia, albo fragment pokazujący, że 
 | Sytuacja | Co | Dlaczego | Dokument do poprawy |
 |---|---|---|---|
 | Odpowiedź mówi o 6 dniach urlopu na żądanie. Cytowany fragment dotyczy zwolnienia lekarskiego; pełny tekst tego samego dokumentu mówi 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | Cytowana polityka urlopowa |
+| Ta sama odpowiedź, bez źródeł; linkuje politykę urlopową, której pełny tekst mówi 4. | `CONTRADICTED_CLAIM` | `CHUNKING_ISSUE` | Podlinkowana polityka urlopowa |
 | Ta sama odpowiedź, bez źródeł i linków. Żaden przeczytany dokument nie mówi nic o urlopie na żądanie. | `UNSUPPORTED_CLAIM` | `NOT_IN_CITED_SOURCES` | (brak) |
 | Odpowiedź mówi 6 dni, tak jak cytowana polityka z 2024. Polityka z 2026, także cytowana, mówi 4. | `CONTRADICTED_CLAIM` | `OUTDATED_SOURCE` | Polityka z 2024 |
 | Fragment mówi, że podróże poza Europę wymagają zgody finansów; odpowiedź mówi, że wszystkie podróże. | `REASONING_ERROR` | (brak) | (brak) |

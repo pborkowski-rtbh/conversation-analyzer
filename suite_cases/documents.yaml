@@ -1,5 +1,5 @@
-# The suite's corpus: made-up documents in the shape of our data stores. Searches in a case return the documents it
-# lists; reading a document returns its text. Facts here are invented; only their consistency matters.
+# The suite's corpus: made-up documents in the shape of our data stores. A case reaches only the documents it cites or
+# links in its answer (there is no search); reading a document returns its text. Facts here are invented; only their consistency matters.
 leave:
   doc_id: sites_google_com_rtbhouse_com_hr-house_leave
   data_store: rtb-crj-hr-house
