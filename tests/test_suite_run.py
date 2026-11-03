@@ -16,7 +16,7 @@ from conversation_analyzer.reporting.monitor import reliable_labels
 from conversation_analyzer.suite import runner
 from conversation_analyzer.suite.cases import load_suite
 from tests.conftest import rows, wipe
-from tests.test_suite import NoPii, Oracle
+from tests.test_suite import Oracle
 
 pytestmark = pytest.mark.emulator
 
@@ -47,7 +47,7 @@ class PerCase:
 
 def test_runs_are_stored_and_compared(emulator, small_suite, tmp_path, monkeypatch):
     wipe(SUITE_RUNS)
-    kw = {"suite": small_suite, "analyzer": NoPii(), "reports_dir": tmp_path}
+    kw = {"suite": small_suite, "reports_dir": tmp_path}
     first = runner.run(passes=2, judge=FakeJudge(), **kw)
     assert first["decision"] == "BASELINE" and first["baseline_run_id"] is None and not first["partial"]
     report = json.loads((tmp_path / f"{first['suite_run_id']}.json").read_text())
@@ -89,4 +89,4 @@ def test_spend_guard_stops_and_reports(emulator, small_suite, tmp_path, monkeypa
 
     monkeypatch.setattr(get_settings().suite, "max_usd_per_run", 0.0001)
     with pytest.raises(TokenLimitError):
-        runner.run(passes=2, judge=FakeJudge(), suite=small_suite, analyzer=NoPii(), reports_dir=tmp_path)
+        runner.run(passes=2, judge=FakeJudge(), suite=small_suite, reports_dir=tmp_path)

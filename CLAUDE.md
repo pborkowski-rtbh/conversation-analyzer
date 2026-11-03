@@ -35,7 +35,6 @@ src/conversation_analyzer/
   settings.py vocab.py safe_log.py errors.py secrets.py keys.py leak_guard.py
   bq/                  schema (all tables), client (query, guarded MERGE writes), views, external tables, init
   log/                 audit-log parsing (turns, references, spans, feedback, searches) and the window read
-  pii/                 Presidio en/pl scrubber with per-session placeholders
   judge/               forms, version, case rendering, Vertex client, fake judge, stage 1, evidence check,
                        stage 2, session grades
   docs/                content bucket reader; links resolved to documents (no search, §12.7)
@@ -50,7 +49,7 @@ docker/stubs/server.py Slack, GitHub and Cloud Run stubs for local runs
 ## Running
 
 ```bash
-make install          # uv sync (pulls the spaCy lg models, ~1 GB)
+make install          # uv sync
 make up               # emulator :9050, fake GCS :4443, stubs :8088, then db-init
 make demo             # reset, seed the synthetic scenario, run every job once
 make test             # all tests except paid ones (~10 min; needs make up)
@@ -59,7 +58,6 @@ make lint / make fmt
 make suite-coverage   # suite cases against the §11.1 scenario minimums (no judge)
 make suite LIMIT=20   # the suite runner with the fake judge (free)
 make suite-restore    # load the stored suite runs (suite_reports/) back into a reset emulator
-make pii-eval         # PII scrubber recall on the synthetic Polish/English set (§6.12)
 make help             # every target
 ```
 

@@ -9,7 +9,7 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-02)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). All code is in the private repo (M0–M7 done, 229 tests, 98.37 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). All code is in the private repo (M0–M7 done, 207 tests, 98.31 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -140,19 +140,21 @@ steps that need them. Each ends with `make coverage` green.
 Decided 2026-11-02: conversations reach the judge as they are. Text still goes only to EU endpoints and is never
 stored; the leak guard and `safe_log` are unchanged.
 
-- [ ] Remove `pii/` (scrubber, Presidio recognisers, `evaluate.py`, `eval_set.yaml`), the `pii` settings,
+- [x] Remove `pii/` (scrubber, Presidio recognisers, `evaluate.py`, `eval_set.yaml`), the `pii` settings,
   `make pii-eval`, `tests/test_pii.py`, and the `presidio-analyzer`, `spacy`, `en-core-web-lg` and `pl-core-news-lg`
   dependencies.
-- [ ] Assessor, documents (`RunDocuments.view`), suite runner and case rendering work without a `PiiMap`: no
+- [x] Assessor, documents (`RunDocuments.view`), suite runner and case rendering work without a `PiiMap`: no
   placeholders in the conversation, the references or the documents.
-- [ ] Judge v3 (still a draft, A4 validates it): the stage 1 rubric (en, pl) loses the placeholder paragraph; the
+- [x] Judge v3 (still a draft, A4 validates it): the stage 1 rubric (en, pl) loses the placeholder paragraph; the
   version ID changes by hash.
-- [ ] Suite runner reads the cases as they are (no case uses placeholders today); the oracle stays at distance 0.
-- [ ] Kept: the leak tests with planted personal data (stored rows, logs, Sentry) still fail if any of it appears.
-- [ ] `CLAUDE.md` (layout, `make install`, `make pii-eval`), Dockerfile and Makefile comments updated; image size
+- [x] Suite runner reads the cases as they are (no case uses placeholders today); the oracle stays at distance 0.
+- [x] Kept: the leak tests with planted personal data (stored rows, logs, Sentry) still fail if any of it appears.
+- [x] `CLAUDE.md` (layout, `make install`, `make pii-eval`), Dockerfile and Makefile comments updated; image size
   without the spaCy models noted for step 1.
-- [ ] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "presidio\|spacy\|placeholder" src` finds
+- [x] Verify: `make coverage` ≥ 90 %, `make demo` runs, `grep -ri "presidio\|spacy\|placeholder" src` finds
   nothing live.
+  (2026-11-03: 207 tests, 98.31 %; demo end to end; grep clean. v3 ID `v3-22911c7119fd` → `v3-d3d21286d11e`.
+  Local image 2.84 GB → 344 MB.)
 
 ### A4. Judge v3 and the suite
 
@@ -271,7 +273,7 @@ Goal: the official repo builds and tests the foundations and pushes an image. No
   - [ ] CI green on the PR; a deliberately broken test makes it red.
   - [ ] Image digest in both registries; `docker run <digest> --help` lists the step-1 commands; `docker run <digest>
     db-init --help`.
-  - [ ] Image size recorded (no spaCy models since A3).
+  - [ ] Image size recorded (no spaCy models since A3; local build 344 MB, was 2.84 GB).
 - Rollback: none needed (no runtime).
 
 ### Step 2. Datasets, service accounts, tables (stage, then prod)

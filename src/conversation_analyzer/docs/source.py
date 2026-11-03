@@ -8,7 +8,6 @@ from conversation_analyzer.docs.content import ContentReader
 from conversation_analyzer.judge.case import DocRef, DocText
 from conversation_analyzer.leak_guard import is_people_directory, link_data_store
 from conversation_analyzer.log.parse import Reference
-from conversation_analyzer.pii.scrubber import PiiMap
 
 
 def link_doc_id(uri: str) -> str:
@@ -46,22 +45,5 @@ class RunDocuments:
         """The data store of each document ID that a reference in the window names (§12.6 retrieval counts)."""
         return {d: self._store_of[d] for d in doc_ids if d in self._store_of}
 
-    def view(self, pii: PiiMap | None) -> SessionDocuments:
-        return SessionDocuments(self, pii)
-
-
-class SessionDocuments:
-    """The DocumentSource of one session: documents get that session's placeholders when read (§6.3)."""
-
-    def __init__(self, docs: RunDocuments, pii: PiiMap | None) -> None:
-        self.docs = docs
-        self.pii = pii
-
-    def lookup_uri(self, uri: str) -> DocRef | None:
-        return self.docs.lookup_uri(uri)
-
     def read(self, ref: DocRef) -> DocText | None:
-        doc = self.docs.reader.read(ref)
-        if doc is None or self.pii is None:
-            return doc
-        return DocText(ref=doc.ref, title=self.pii.apply(doc.title), text=self.pii.apply(doc.text))
+        return self.reader.read(ref)

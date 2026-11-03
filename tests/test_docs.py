@@ -14,7 +14,6 @@ from conversation_analyzer.docs.content import ContentReader, content_path, deri
 from conversation_analyzer.docs.source import RunDocuments, link_doc_id
 from conversation_analyzer.judge.case import DocRef
 from conversation_analyzer.log.parse import Reference
-from conversation_analyzer.pii.scrubber import PiiMap
 from conversation_analyzer.settings import get_settings
 
 pytestmark = pytest.mark.emulator
@@ -95,12 +94,8 @@ def test_retrieved_ids_take_their_data_store_from_window_references():
     assert docs.data_stores_of([]) == {}
 
 
-def test_session_view_gives_documents_the_sessions_placeholders(indexed):
-    pii = PiiMap()
-    pii.placeholder("PERSON", "Travel Tool")  # pretend a name, to see it replaced in the document
-    view = indexed.view(pii)
-    doc = view.read(DocRef(scenario.TRIP.doc_id, scenario.TRIP.data_store, scenario.TRIP.uri))
-    assert "<PERSON_1>" in doc.text and "Travel Tool" not in doc.text
-    assert view.lookup_uri(scenario.TRIP.uri) is not None
-    assert indexed.view(None).read(LEAVE).text == scenario.LEAVE.text
-    assert view.read(DocRef("x", "rtb-crj-confluence", None)) is None
+def test_documents_are_read_as_stored(indexed):
+    doc = indexed.read(DocRef(scenario.TRIP.doc_id, scenario.TRIP.data_store, scenario.TRIP.uri))
+    assert doc.text == scenario.TRIP.text  # no placeholders
+    assert indexed.read(LEAVE).text == scenario.LEAVE.text
+    assert indexed.read(DocRef("x", "rtb-crj-confluence", None)) is None

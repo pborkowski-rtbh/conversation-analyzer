@@ -17,9 +17,6 @@ form. Every field has a closed list of values; there is no free text.
 
 A **key claim** is one the user would act on: a number, name, date, rule, step, place or link.
 
-Personal details in the conversation are replaced with placeholders such as `<PERSON_1>`. The same placeholder
-means the same value everywhere, also in the documents.
-
 ## Intent
 
 | Value | The question |

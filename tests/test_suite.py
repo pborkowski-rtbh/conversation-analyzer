@@ -12,9 +12,8 @@ from conversation_analyzer.errors import JudgeApiError, TokenLimitError
 from conversation_analyzer.judge import forms
 from conversation_analyzer.judge.case import DocRef
 from conversation_analyzer.judge.version import current
-from conversation_analyzer.pii.scrubber import Entity, PiiMap
 from conversation_analyzer.suite.cases import ExpectedStage1, Suite, SuiteCase, load_suite
-from conversation_analyzer.suite.runner import CasePass, FixedDocuments, SuiteRun, decide, scrubbed, select, summarize
+from conversation_analyzer.suite.runner import CasePass, FixedDocuments, SuiteRun, decide, select, summarize
 from conversation_analyzer.suite.scoring import (
     Distance,
     add_evidence,
@@ -28,25 +27,6 @@ from conversation_analyzer.vocab import EvidenceKind
 
 JUDGED = set(forms.JudgedCodeL.__args__)
 _DOC = re.compile(r"^\[(\d+)\] data store \S+, title: (.*)$", re.M)
-
-
-class NoPii:
-    def analyze(self, text: str) -> list[Entity]:
-        return []
-
-
-class Names:
-    """Finds the names given, as the real scrubber would."""
-
-    def __init__(self, *names: str) -> None:
-        self.names = names
-
-    def analyze(self, text: str) -> list[Entity]:
-        out = []
-        for name in self.names:
-            for m in re.finditer(re.escape(name), text):
-                out.append(Entity(m.start(), m.end(), "PERSON", 0.9))
-        return out
 
 
 class Oracle:
@@ -145,7 +125,7 @@ def test_a_perfect_judge_is_at_distance_zero_on_every_case(suite):
     version = current()
     off = {}
     for case in suite.cases:
-        result = SuiteRun(suite, version, Oracle(case, suite), NoPii(), concurrency=1).run_case(case)
+        result = SuiteRun(suite, version, Oracle(case, suite), concurrency=1).run_case(case)
         if result.distance.total or result.errors:
             off[case.id] = (result.distance.parts, result.errors)
     assert off == {}
@@ -289,14 +269,10 @@ def test_evidence_stage2_and_session_parts():
     add_session(d, None, None, WEIGHTS)
 
 
-def test_fixed_documents_and_scrubbing(suite):
-    pii = PiiMap()
-    case = next(c for c in suite.cases if c.id == "trips_booking-private-details")
-    jc = scrubbed(case.judge_case(suite.documents), pii, Names("Anna Nowak"))
-    assert "<PERSON_1>" in jc.question and "Anna" not in jc.question
-    docs = FixedDocuments(suite, pii)
+def test_fixed_documents(suite):
+    docs = FixedDocuments(suite)
     person = suite.documents["person_finance"]
-    assert docs.read(person.ref).text.startswith("<PERSON_1>, Head of Finance Operations")
+    assert docs.read(person.ref).text == person.text  # read as stored, no placeholders
     assert docs.read(DocRef("gone", "rtb-crj-hr-house", None)) is None
     assert docs.lookup_uri(suite.documents["trips"].uri) == suite.documents["trips"].ref
     assert docs.lookup_uri("https://elsewhere") is None
@@ -369,13 +345,13 @@ class Failing(Oracle):
 )
 def test_a_failed_call_counts_as_missed(suite, case_id, form, field):
     case = next(c for c in suite.cases if c.id == case_id)
-    result = SuiteRun(suite, current(), Failing(case, suite, form), NoPii(), concurrency=1).run_case(case)
+    result = SuiteRun(suite, current(), Failing(case, suite, form), concurrency=1).run_case(case)
     assert result.errors == ["JUDGE_API"] and result.distance.parts[field] > 0
 
 
 def test_spend_guard_stops_the_run(suite):
     case = suite.cases[0]
-    run = SuiteRun(suite, current(), Oracle(case, suite), NoPii(), concurrency=1)
+    run = SuiteRun(suite, current(), Oracle(case, suite), concurrency=1)
     run.usage.add("gemini-4-argon", 10_000_000, 0)
     assert run.estimated_usd() == pytest.approx(44.0)  # 10 M input tokens at 4.40 USD per M
     with pytest.raises(TokenLimitError):
