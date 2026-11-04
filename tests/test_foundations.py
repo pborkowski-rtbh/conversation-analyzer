@@ -64,7 +64,7 @@ def test_vocab_helpers():
 
 def test_department_families_are_closed(monkeypatch):
     s = get_settings().strata
-    assert set(s.department_families) <= set(DepartmentFamily) - {DepartmentFamily.OTHER, DepartmentFamily.UNKNOWN}
+    assert set(s.department_families) <= set(DepartmentFamily) - {DepartmentFamily.UNKNOWN}
     before = closed_lists_version()
     monkeypatch.setitem(s.department_families, "ENGINEERING", [*s.department_families["ENGINEERING"], "Board"])
     closed_lists_version.cache_clear()
@@ -204,6 +204,9 @@ def _turn_row(**over):
 
 def test_leak_guard_accepts_derived_values():
     assert check_row(QUALITY_TURNS, _turn_row(department="CAMPAIGNS"))["department"] == "CAMPAIGNS"
+    row = check_row(QUALITY_TURNS, _turn_row(base_function="Technical Support", user_key=keys.user_key("a@b.com")))
+    assert row["base_function"] == "Technical Support" and len(row["user_key"]) == 32
+    assert check_row(QUALITY_TURNS, _turn_row(base_function="OTHER"))["base_function"] == "OTHER"
     seg = {"session_key": "b" * 32, "segment_no": 1, "department": "UNKNOWN"}
     assert check_row(SEGMENTS, seg)["department"] == "UNKNOWN"
     with pytest.raises(LeakGuardError):
@@ -231,6 +234,10 @@ def test_leak_guard_accepts_derived_values():
         {"department": "IT"},  # a base_function, never stored (§8.4)
         {"department": "HIGH"},  # a closed value, but not a department family
         {"department": "anna@rtbhouse.com"},
+        {"base_function": "Jan Kowalski"},  # not a listed base_function
+        {"base_function": "ENGINEERING"},
+        {"base_function": "anna@rtbhouse.com"},
+        {"user_key": "anna@rtbhouse.com"},
     ],
 )
 def test_leak_guard_rejects_text(over):

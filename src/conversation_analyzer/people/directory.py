@@ -15,12 +15,19 @@ from conversation_analyzer.settings import get_settings, now
 from conversation_analyzer.vocab import DepartmentFamily
 
 
+def email_of(principal: str | None) -> str | None:
+    """The email in `user:<email>`, `principal://goog/subject/<email>` or a bare email (after the last `:` or `/`)."""
+    email = (principal or "").strip().lower().rsplit(":", 1)[-1].rsplit("/", 1)[-1]
+    return email or None
+
+
 @dataclass(frozen=True)
 class Directory:
     """`email -> base_function` of every active associate; held in memory for one run, never stored."""
 
     departments: dict[str, str]
     families: dict[str, str] = field(init=False)  # base_function -> family code, the privacy floor applied
+    stored: dict[str, str] = field(init=False)  # base_function -> the value stored for it
 
     def __post_init__(self) -> None:
         s = get_settings().strata
@@ -33,17 +40,24 @@ class Directory:
             for f in [family.get(b, DepartmentFamily.OTHER.value)]
         }
         object.__setattr__(self, "families", folded)
+        # The base_function is stored as is when listed in settings (the closed list); a new value as OTHER.
+        kept = {b: b if b in family else DepartmentFamily.OTHER.value for b in set(self.departments.values())}
+        object.__setattr__(self, "stored", kept)
 
     def base_function(self, principal: str | None) -> str | None:
         """The user's `base_function`; None for a user not in the map (service accounts, externals)."""
-        # `user:<email>`, `principal://goog/subject/<email>` or a bare email: the email is after the last `:` or `/`.
-        email = (principal or "").strip().lower().rsplit(":", 1)[-1].rsplit("/", 1)[-1]
+        email = email_of(principal)
         return self.departments.get(email) if email else None
 
     def family(self, principal: str | None) -> str:
         """The user's department family; a family under the privacy floor is OTHER, a user not in the map UNKNOWN."""
         b = self.base_function(principal)
         return DepartmentFamily.UNKNOWN.value if b is None else self.families[b]
+
+    def stored_base_function(self, principal: str | None) -> str:
+        """The `base_function` as stored: itself when listed in settings, else OTHER; UNKNOWN when not in the map."""
+        b = self.base_function(principal)
+        return DepartmentFamily.UNKNOWN.value if b is None else self.stored[b]
 
 
 def split_uri(uri: str) -> tuple[str, str]:

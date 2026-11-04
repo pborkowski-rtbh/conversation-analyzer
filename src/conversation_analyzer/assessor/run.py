@@ -39,11 +39,11 @@ from conversation_analyzer.judge.client import Judge, Usage, default_judge
 from conversation_analyzer.judge.stage1 import Stage1Result
 from conversation_analyzer.judge.stage2 import Stage2Result
 from conversation_analyzer.judge.version import JudgeVersion, current, in_parallel_run, metric_version, previous
-from conversation_analyzer.keys import stable_fraction
+from conversation_analyzer.keys import stable_fraction, user_key
 from conversation_analyzer.leak_guard import check_row
 from conversation_analyzer.log.parse import Feedback, Turn
 from conversation_analyzer.log.reader import Window, read_window
-from conversation_analyzer.people.directory import Directory, load_directory
+from conversation_analyzer.people.directory import Directory, email_of, load_directory
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.settings import now as utc_now
 from conversation_analyzer.vocab import (
@@ -94,6 +94,8 @@ class TurnState:
     reaction: str | None = None
     pace_excluded: bool = False
     department: str = DepartmentFamily.UNKNOWN.value
+    base_function: str = DepartmentFamily.UNKNOWN.value
+    user_key: str | None = None
     second_model_checked: bool = False
     needs_stage1: bool = False
 
@@ -250,7 +252,9 @@ class AssessmentRun:
                 ts = TurnState(place=place, stored=stored.turns.get(t.turn_key))
                 ts.feedback = latest_feedback.get(t.assist_token or "")
                 ts.pace_excluded = t.principal in paced and not t.is_canary
-                ts.department = self.department(t, ts.stored)
+                ts.department, ts.base_function = self.department(t, ts.stored)
+                email = email_of(t.principal)
+                ts.user_key = user_key(email) if email else (ts.stored or {}).get("user_key")
                 if ts.stored:
                     ts.flag_reasons = list(ts.stored.get("flag_reasons") or [])
                     ts.stage2_state = ts.stored.get("stage2_state") or Stage2State.NOT_FLAGGED.value
@@ -280,14 +284,15 @@ class AssessmentRun:
                 states.append(ts)
         return states
 
-    def department(self, t: Turn, stored: dict[str, Any] | None) -> str:
-        """The user's family, from the identity while it is in the log; a known family once stored is kept (§8.4)."""
+    def department(self, t: Turn, stored: dict[str, Any] | None) -> tuple[str, str]:
+        """Family and base_function, from the identity while it is in the log; known values once stored are kept."""
+        unknown = DepartmentFamily.UNKNOWN.value
         known = (stored or {}).get("department")
-        if known and known != DepartmentFamily.UNKNOWN:
-            return known
+        if known and known != unknown:
+            return known, (stored or {}).get("base_function") or unknown
         if self.directory is None:
-            return known or DepartmentFamily.UNKNOWN.value
-        return self.directory.family(t.principal)
+            return known or unknown, (stored or {}).get("base_function") or unknown
+        return self.directory.family(t.principal), self.directory.stored_base_function(t.principal)
 
     def pace_marked(self) -> set[str]:
         """Users with more than 10 turns in 10 minutes are most likely scripts (§8.2); only a mark is kept."""
@@ -605,6 +610,8 @@ class AssessmentRun:
             "is_canary": t.is_canary,
             "pace_excluded": ts.pace_excluded,
             "department": ts.department,
+            "base_function": ts.base_function,
+            "user_key": ts.user_key,
             "gap_bucket": p.gap_bucket,
             "resumed": p.segment.resumed,
             "earlier_text_missing": p.earlier_text_missing,
@@ -659,9 +666,12 @@ class AssessmentRun:
         if not complete:
             counts = {k: max(v, stored.get(k) or 0) for k, v in counts.items()}
         # One session, one user: the segment takes its turns' family; a known family once stored is kept.
-        departments = {states_by_key[t.turn_key].department for t in seg.turns if t.turn_key in states_by_key}
-        known = sorted(departments - {DepartmentFamily.UNKNOWN.value})
-        department = known[0] if known else stored.get("department") or DepartmentFamily.UNKNOWN.value
+        mine = [states_by_key[t.turn_key] for t in seg.turns if t.turn_key in states_by_key]
+        known = [m for m in mine if m.department != DepartmentFamily.UNKNOWN]
+        unknown = DepartmentFamily.UNKNOWN.value
+        department = known[0].department if known else stored.get("department") or unknown
+        base_function = known[0].base_function if known else stored.get("base_function") or unknown
+        user = next((m.user_key for m in mine if m.user_key), None) or stored.get("user_key")
         return {
             "session_key": seg.session_key,
             "segment_no": seg.segment_no,
@@ -679,6 +689,8 @@ class AssessmentRun:
             "duration_bucket": seg.duration_bucket(),
             "first_turn_relation": first_rel,
             "department": department,
+            "base_function": base_function,
+            "user_key": user,
         }
 
     def guarded(

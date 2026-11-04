@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from conversation_analyzer import keys
 from conversation_analyzer.assessor import run as run_mod
 from conversation_analyzer.assessor.run import run
 from conversation_analyzer.bq.external import AUDIT_LOGS
@@ -235,7 +236,10 @@ def test_department_map_missing_then_found_then_stale(clean):
     assert assess(NOW + timedelta(minutes=10))["directory_unavailable"] is False
     assert [t["department"] for t in statuses().values()] == ["COMMERCIAL"]
     assert [s["department"] for s in rows(SEGMENTS)] == ["COMMERCIAL"]
+    assert [(t["base_function"], t["user_key"]) for t in statuses().values()] == [
+        ("Sales", keys.user_key("ola@rtbhouse.com"))
+    ]
     # A stale map is not used, and a family once stored is kept.
     record = assess(NOW + timedelta(hours=get_settings().people_directory.max_age_hours, minutes=1))
     assert record["directory_unavailable"] is True
-    assert [t["department"] for t in statuses().values()] == ["COMMERCIAL"]
+    assert [(t["department"], t["base_function"]) for t in statuses().values()] == [("COMMERCIAL", "Sales")]

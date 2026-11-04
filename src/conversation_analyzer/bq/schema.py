@@ -86,7 +86,11 @@ def ver(name: str) -> Col:
 
 
 def dept(name: str) -> Col:
-    return Col(name, "STRING", "department")  # a DepartmentFamily code only, never base_function (§8.4)
+    return Col(name, "STRING", "department")  # a DepartmentFamily code only (§8.4)
+
+
+def base_fn(name: str) -> Col:
+    return Col(name, "STRING", "base_function")  # a base_function listed in settings, OTHER or UNKNOWN
 
 
 def struct(name: str, *fields: Col, repeated: bool = False) -> Col:
@@ -135,6 +139,8 @@ QUALITY_TURNS = Table(
         b("is_canary"),
         b("pace_excluded"),
         dept("department"),
+        base_fn("base_function"),
+        h("user_key"),
         enum("gap_bucket"),
         b("resumed"),
         b("earlier_text_missing"),
@@ -244,6 +250,8 @@ SEGMENTS = Table(
         enum("duration_bucket"),
         enum("first_turn_relation"),
         dept("department"),
+        base_fn("base_function"),
+        h("user_key"),
     ),
     key=("session_key", "segment_no"),
     writer="assessor",

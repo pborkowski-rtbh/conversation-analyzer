@@ -14,12 +14,12 @@ As the Conversation Analyzer owner, when standardized AQR is split by department
 
 ### Context
 
-The department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bolek_associates_active`, the table the people indexer already reads. The assessor gets `Email` and `base_function` from the map the associates indexer writes to its state bucket (AIENGLAB-853), not from the table. Only a department family code is stored; a family with fewer than 30 active associates is merged into `OTHER`. On 2026-11-02 Paweł Borkowski's own account had no access to the table; on 2026-11-04 the values and counts were read from the stage associates indexer's map instead (46 values, 1536 associates; `deployment-plan.md` A5).
+The department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bolek_associates_active`, the table the people indexer already reads. The assessor gets `Email` and `base_function` from the map the associates indexer writes to its state bucket (AIENGLAB-853), not from the table. Stored per turn: the department family (a family under 30 active associates is merged into `OTHER`), the `base_function` as is, and a keyed hash of the email. On 2026-11-02 Paweł Borkowski's own account had no access to the table; on 2026-11-04 the values and counts were read from the stage associates indexer's map instead (45 values, 1536 associates; `deployment-plan.md` A5).
 
 ### Acceptance criteria
 
 * No assessor access to the table: the associates indexer, which already reads it, writes an `email → base_function` map to its state bucket (AIENGLAB-853); the assessor reads that
-* The HR data owner and SECOPS approve storing a department family code per turn with the 30-associate floor (link in the ticket)
+* The HR data owner and SECOPS approve storing per turn a department family code, the `base_function` as is (some have 1 associate) and a keyed hash of the user's email (link in the ticket)
 * The distinct `base_function` values with their associate counts are delivered (counts only, no names) and attached to the ticket (read from the stage map on 2026-11-04)
 * The HR contact for future changes to `base_function` values is named in the ticket
 * G2 in `deployment-plan.md` is ticked with the date

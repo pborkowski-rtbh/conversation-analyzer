@@ -9,7 +9,7 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-04)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). All code is in the private repo (M0–M7 done, 228 tests, 98.34 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). All code is in the private repo (M0–M7 done, 233 tests, 98.35 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -181,12 +181,11 @@ stored; the leak guard and `safe_log` are unchanged.
 ### A5. Department
 
 - [x] **Input:** the distinct `base_function` values and their associate counts, read from the stage associates
-  indexer's map (2026-11-04: 1536 associates, 46 values; no HR-table query needed). Four families in `settings.yaml`
+  indexer's map (2026-11-04: 1536 associates, 45 values; no HR-table query needed). Four families in `settings.yaml`
   (`strata.department_families`): `ENGINEERING` 314, `CAMPAIGNS` 443, `COMMERCIAL` 514, `CORPORATE` 258; the rest
   (7) `OTHER`; users not in the map `UNKNOWN`.
-- [x] Privacy floor: a family with fewer than `strata.department_min_associates` (30) active associates in the run's
-  map is folded into `OTHER`, so the stored code never narrows a turn down to a handful of people. `base_function`
-  itself is never stored; only the family code.
+- [x] Privacy floor for families: a family with fewer than `strata.department_min_associates` (30) active associates
+  in the run's map is stored as `OTHER`. The `base_function` itself has no floor (decision 2026-11-04).
 - [x] `vocab.DepartmentFamily` (closed list; the mapping is part of `closed_lists_version()`), `SliceKind.DEPARTMENT`.
 - [x] `people/directory.py`: reads the department map (`CA_DEPARTMENT_MAP_URI`, default
   `gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json`) once per assessor run, in memory;
@@ -202,8 +201,12 @@ stored; the leak guard and `safe_log` are unchanged.
   (existing rule). Data-store families collapse to 3 (`ENGINEERING`, `COMPANY`, `NONE` incl. Drive), so there are at
   most 4 × 3 × 6 = 72 strata, most of them pooled; the final list freezes with the baseline (§8.9).
 - [x] Emulator: the department map in fake GCS (`scenario.DEPARTMENTS`, `store_department_map`); synthetic turns carry principals that map to every family.
-- [x] Tests: leak guard rejects anything but a family code in `department`; e2e department rows and strata; a family
-  below the floor is folded; a missing, then found, then stale map.
+- [x] `base_function` as is (kind `base_function`: any value listed in `strata.department_families`, every current
+  value is, under its family or `OTHER`; a new HR value is stored as `OTHER` until listed) and `user_key` (HMAC of the
+  email, kind `hash`) on turns and segments.
+- [x] Tests: leak guard rejects anything but a family code in `department` and a listed value in `base_function`; e2e
+  department rows, strata and user keys, no email stored; a family below the floor is folded; a missing, then found,
+  then stale map.
 
 ### A6. Ready for real GCP
 
@@ -243,7 +246,7 @@ They don't block early steps, but each blocks the step named. Start them now; re
 | # | Gate | Who | Blocks | Status |
 |---|---|---|---|---|
 | G1 | SECOPS: stage service accounts read prod conversation text (assessor) and prod content bucket; the judge gets conversation text without PII scrubbing; audit-log content check of Vertex/Secret Manager/GCS calls (§12.13); exclusion of our SAs from the 7-year log copy if needed | SECOPS | step 4 (stage assessor with judge) | [ ] |
-| G2 | HR/SECOPS: department as a stored per-turn code with the privacy floor, read from the associates indexer's `email → base_function` map (no assessor access to the HR table) | HR data owner, SECOPS | step 5 | [ ] |
+| G2 | HR/SECOPS: department family, `base_function` as is (no floor: small departments name their people) and a keyed hash of the user's email stored per turn, read from the associates indexer's `email → base_function` map (no assessor access to the HR table) | HR data owner, SECOPS | step 5 | [ ] |
 | G3 | Slack app (post, `reactions.read`) in the workspace; channels `#bolek-quality-stage`, `#bolek-quality`, `#aiel-alerts`; bot token in Secret Manager per project | Slack admins | step 9 | [ ] |
 | G4 | Central Grafana: a BigQuery datasource per instance (test → stage SA, prod → prod SA), plugin installed, folder `AI-Engineering-Lab/Conversation-Analyzer` | Platform Engineering | step 8 | [ ] |
 | G5 | Evaluator (AIENGLAB-519): daily canary on the prod engine, `aiel_evals` contract (`bq/external.py`), gate results naming our change IDs | evaluator owner | step 11, step 13 | [ ] |
@@ -364,7 +367,7 @@ baseline, and the strata, department included, freeze with it.
   (stage bucket) and `quality-assessor` (prod bucket); `CA_DEPARTMENT_MAP_URI` on the stage job.
 - Verify (stage, 2 open hours):
   - [ ] `department` distribution per day: `UNKNOWN` share < 5 % of non-canary turns (else check principals format).
-  - [ ] No family below the privacy floor appears; `base_function` appears nowhere (`leak-audit` + schema).
+  - [ ] No family below the privacy floor appears; no email in any row (`leak-audit` + schema).
   - [ ] Run records: `DIRECTORY_UNAVAILABLE` = 0.
 - [ ] Promote to prod.
 
@@ -488,7 +491,7 @@ Goal: daily aggregates exist and the team can read them in Grafana.
 | Without search, stage 2 can't tell retrieval misses from knowledge gaps | Fewer actionable "document to fix" findings | Merged code clustered by topic; revisit adding search later as its own step (the A2 commit can be reverted in the private history) |
 | Evidence check with answer links only rarely runs | Turns without references stay unchecked for contradictions | Measured in step 6 (`NO_DOCUMENTS` share); remove it if it never runs |
 | 72 strata with department | Many small strata pooled; standardized AQR noisier | Fewer data-store and department families (A5); freeze after week 1 of the baseline |
-| Department is a quasi-identifier | Small departments + day could point at a person in `bolek_quality_turns` | Family codes only, privacy floor of 30 associates, G2 sign-off |
+| Department is a quasi-identifier | `base_function` + `user_key` point at a person in `bolek_quality_turns` for small departments | Hashed email only, hash key readable by the assessor alone, 365-day expiry, explicit G2 sign-off |
 | Stage reads prod text | Two places see conversations | Same SA rules as prod, gate closed by default, G1 sign-off |
 | Real BigQuery behaves differently from the emulator | Write or view failures on first deploy | Dry run (step 3) and `db-init --check` before any judge call |
 | Central Grafana has no BigQuery datasource | No dashboard | G4 early; fallback: a Looker Studio report over the metrics dataset until it exists |

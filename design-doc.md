@@ -70,7 +70,7 @@ Terms used in this document. Each term has exactly one meaning.
 | **Answer span** | A part of an answer's text that the log links to the references it cites. Used to count unsupported claims. |
 | **Data store** | A collection of documents Bolek searches, such as HR House or the API docs. Each reference belongs to one data store. All data stores together are the **corpus**; a **corpus owner** decides what a data store should contain. Our **indexers** load documents into the data stores and cut them into the snippets that search returns. |
 | **People directory** | The data store of employee profiles, used to answer questions about people. Its documents are personal data: they are never stored, never read by the evidence check, and dropped by the leak guard. |
-| **Department** | The company department the user works in, such as IT or Sales: the `base_function` of the user in HR's table of active associates. It is known only while the user's identity is in the log, and is stored only as a **department family**, a code from a closed list (§8.4). |
+| **Department** | The company department the user works in, such as IT or Sales: the `base_function` of the user in HR's table of active associates. It is known only while the user's identity is in the log, and is stored as a **department family**, a code from a closed list, and as the `base_function` itself (§8.4). |
 | **Evaluator** | Our existing offline test tool. It holds sets of synthetic questions, each with an expected answer and its source document, sends them to an engine, and scores the answers. |
 | **Canary** | Evaluator questions answered by the production engine, so they pass through the same log as real turns. They are synthetic, so engineers may read them, and they are used to test the judge on the real path. They are assessed like real turns but kept apart, and never count in any metric. |
 | **Derived value** | Anything this system stores: a number, a label from a closed list, a document ID or link, a hash (such as the session key), a version. Never question or answer text, summaries, or identity. |
@@ -138,7 +138,7 @@ The design follows from a few rules and from what the log lets us see. Everythin
 
 | Rule | What it means | Why |
 |---|---|---|
-| **Derived values only** | The system stores scores, closed-list labels, counts, versions, document IDs and links, and the session ID only as a keyed hash. It never stores question text, answer text, summaries, feedback comments or identity. The user's department is kept only as a department family; a family with fewer than 30 active associates is merged into `OTHER`, so it never narrows a turn down to a few people. A turn's time is kept only as its day, and alerts give no time finer than the hour. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. An exact time could match a turn to a person through other records of when people used Bolek. |
+| **Derived values only** | The system stores scores, closed-list labels, counts, versions, document IDs and links, and the session ID and the user's email only as keyed hashes. It never stores question text, answer text, summaries, feedback comments or identity in clear. The user's department is kept as a department family (a family with fewer than 30 active associates is stored as `OTHER`) and as the `base_function` itself; with the user key, a small department can point at its person, so only the assessor holds the hashing key. A turn's time is kept only as its day, and alerts give no time finer than the hour. | Questions and answers can contain personal and confidential data. The anonymizer already erases the answers after 4 hours, and we must not rebuild what it removes. An exact time could match a turn to a person through other records of when people used Bolek. |
 | **Synthetic questions only** | Tests use questions generated from the documents that real traffic retrieves or cites. Real questions are never re-asked or copied into a test set. | Same reason: real questions stay out of anything we keep. |
 | **EU endpoints only** | Text reaches a model only on an EU endpoint (an EU region or the `eu` multi-region, never `global`). Conversations and our documents reach the judge as they are, with no PII scrubbing; nothing the judge reads is stored. | Question and answer text must not leave the EU. Our documents are already processed by Google in the EU, in Bolek's data stores. Whether the security team accepts the `eu` multi-region is still open. |
 | **Slack for notifications, one dashboard for looking** | Alerts and the digest are sent only to Slack, in messages built from derived values. The dashboard shows only aggregates (daily and weekly, and per run for pipeline health), with no way down to a single turn. There are no per-session tickets. | One place to be notified and one place to look, and no path for text to leave the system. |
@@ -323,7 +323,8 @@ The 30 minutes are a starting value. A longer wait cuts fewer conversations, but
 | Gap to the previous turn, as a bucket | under 1 min, 1-5 min, 5-30 min, 30-60 min, over 60 min |
 | Resumed | yes or no |
 | Earlier text missing | yes or no |
-| Department family of the user | `ENGINEERING` |
+| Department family and `base_function` of the user | `CAMPAIGNS`, `Technical Support` |
+| The user, as a keyed hash of the email | `user_key` |
 
 **For each segment:** the session facts, computed again each time the segment gets a new turn. A segment with a flagged turn also gets a session grade (§7.7).
 
@@ -858,9 +859,9 @@ Raw AQR rose by 9 points, but no answer got better. Standardized AQR shows that 
 
 **Department.** People in different departments ask different things, from different data stores, and the mix changes, for example when a department starts using Bolek. Without the department in the strata, such a change would look like a change in quality.
 
-- The assessor reads the **department map** once per run, in memory: `email → base_function` of every active associate, which the people directory's indexer writes each hour from HR's table of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`) to `gs://<project>-indexers-state/directory/associates-departments.json` in its own project. The assessor needs no access to the HR table. A map that is missing, malformed or older than `people_directory.max_age_hours` (3) is not used: every user gets `UNKNOWN`, the run records `DIRECTORY_UNAVAILABLE` and the monitor alerts once a day.
+- The assessor reads the **department map** once per run, in memory: `email → base_function` of every active associate, which the people directory's indexer writes from HR's table (hourly in prod, every 6 hours in stage) of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`) to `gs://<project>-indexers-state/directory/associates-departments.json` in its own project. The assessor needs no access to the HR table. A map that is missing, malformed or older than `people_directory.max_age_hours` (7) is not used: every user gets `UNKNOWN`, the run records `DIRECTORY_UNAVAILABLE` and the monitor alerts once a day.
 - While a turn's user identity is still in the log, it maps the user to a department family through a setting (`base_function` → family). Users not in the map, such as service accounts, get `UNKNOWN`. A family once stored for a turn is kept; `UNKNOWN` is replaced while the identity is still in the log. A segment takes the family of its turns.
-- Only the family is stored, never `base_function` or the identity. A family with fewer than 30 active associates in the run's map is merged into `OTHER`, and so is a `base_function` in no family.
+- Stored per turn and segment: the family; the `base_function` itself when it is listed in settings (all current values are; a new one is `OTHER` until listed); and `user_key`, an HMAC of the email with the environment's hashing key (§12.5), so turns of one person can be grouped but not named, and stage and prod can't be joined. The email itself is never stored. A family with fewer than 30 active associates is merged into `OTHER`, and so is a `base_function` in no family.
 
 The weights stay fixed. They change only by a deliberate rebase, for example when a new data store is added, and the rebase is recorded as a change event.
 
@@ -1445,7 +1446,7 @@ All datasets are in the EU, the same location as `analytics`. Their tables and v
 
 | Dataset | Table | One row per | Written by |
 |---|---|---|---|
-| `bolek_quality_turns` | `quality_turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, department family, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
+| `bolek_quality_turns` | `quality_turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, department family and `base_function`, user key, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
 | | `quality_stage1_results` | Turn and judge version: the form (§6.4), fingerprint, versions (§6.11) | Assessor |
 | | `quality_stage2_results` | Flagged turn and judge version: the stage 2 form (§7.4), with up to 3 problem claims | Assessor |
 | | `quality_segments` | Session segment: its session facts, department family, and whether it is open or closed | Assessor |

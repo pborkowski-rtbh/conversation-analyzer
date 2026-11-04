@@ -106,6 +106,11 @@ def _check_scalar(col: Col, value: Any, row: dict[str, Any]) -> Any:
         if value not in DepartmentFamily.__members__:
             raise LeakGuardError()
         return value
+    if k == "base_function":
+        listed = {m for ms in get_settings().strata.department_families.values() for m in ms}
+        if value not in listed | {DepartmentFamily.OTHER.value, DepartmentFamily.UNKNOWN.value}:
+            raise LeakGuardError()
+        return value
     if k in patterns:
         if not patterns[k].match(value):
             raise LeakGuardError()

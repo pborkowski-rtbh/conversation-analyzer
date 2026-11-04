@@ -106,8 +106,8 @@ strata:
     ENGINEERING: [CONFLUENCE, BIZTECH, API_DOCS, BQ_DOCS, APP_HINTS, TRAFFIC_WIKI, DOC_REPO]
     COMPANY: [HR_HOUSE, HELPDESK_QA, INHOUSE, KNOWHOW, ABOUT_BOLEK]
     NONE: [GOOGLE_DRIVE, OTHER]
-  # base_function (HR's bolek_associates_active, via the associates indexer's map) -> family; values not listed are
-  # OTHER, users not in the map UNKNOWN. Associates per family on stage, 2026-11-04: 314, 443, 514, 258, OTHER 7 (of 1536).
+  # base_function (HR's bolek_associates_active, via the associates indexer's map) -> family. Every value is listed: only
+  # listed values are stored (new ones as OTHER until added); users not in the map are UNKNOWN. Associates per family on stage, 2026-11-04: 314, 443, 514, 258, OTHER 7 (of 1536).
   department_families:
     ENGINEERING:
       - IT
@@ -156,7 +156,10 @@ strata:
       - Project Management Office
       - Talent Acquisition
       - Team of Business Strategic Projects
-  department_min_associates: 30         # privacy floor (§2.1): a smaller family is stored as OTHER
+    OTHER:
+      - rtb.com
+      - WhitePress
+  department_min_associates: 30         # a smaller family is stored as OTHER (base_function is stored as is)
 
 # --- Alerts, clusters, digest (§9) ---
 alerts:
@@ -222,5 +225,5 @@ people_directory:
   data_store_prefixes: [people-connections_]
   doc_id_prefixes: [associate-]
   uri_schemes: [mailto]
-  # The user's department comes from the map the associates indexer writes each hour (CA_DEPARTMENT_MAP_URI).
-  max_age_hours: 3
+  # The user's department comes from the map the associates indexer writes (CA_DEPARTMENT_MAP_URI).
+  max_age_hours: 7                      # stage's associates job runs every 6 hours, prod's every hour

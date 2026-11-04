@@ -9,7 +9,7 @@ import pytest
 
 from conversation_analyzer.devtools.synthetic import ensure_bucket, store_department_map
 from conversation_analyzer.docs.content import storage_client
-from conversation_analyzer.people.directory import Directory, load_directory, split_uri
+from conversation_analyzer.people.directory import Directory, email_of, load_directory, split_uri
 from conversation_analyzer.settings import get_settings
 
 pytestmark = pytest.mark.emulator
@@ -35,6 +35,7 @@ def test_base_function_by_principal():
     assert d.base_function("principal://goog/subject/anna@rtbhouse.com") == "IT"
     assert d.base_function("user:bot@rtbhouse.com") is None
     assert d.base_function(None) is None and d.base_function("") is None
+    assert email_of(" user:Anna@rtbhouse.com") == "anna@rtbhouse.com" and email_of(None) is None
 
 
 def _people(base_function: str, n: int, tag: str) -> dict[str, str]:
@@ -56,7 +57,14 @@ def test_family_with_the_privacy_floor():
     assert d.family("user:fin0@rtbhouse.com") == "OTHER"
     assert d.family("user:wp0@rtbhouse.com") == "OTHER"
     assert d.family("user:bot@rtbhouse.com") == "UNKNOWN" and d.family(None) == "UNKNOWN"
-    assert set(d.families.values()) <= {"ENGINEERING", "OTHER"}  # base_function never leaves the directory
+    assert set(d.families.values()) <= {"ENGINEERING", "OTHER"}
+    # The stored base_function: itself whenever listed in settings, however few people have it (§8.4).
+    assert d.stored_base_function("user:wp0@rtbhouse.com") == "WhitePress"  # listed under OTHER
+    assert d.stored_base_function("user:fin0@rtbhouse.com") == "Finance"
+    assert d.stored_base_function("user:rot0@rtbhouse.com") == "Revenue Operations Tooling"
+    assert d.stored_base_function("user:bot@rtbhouse.com") == "UNKNOWN"
+    new = Directory({"x@rtbhouse.com": "Brand New Team"})
+    assert new.stored_base_function("user:x@rtbhouse.com") == "OTHER" and new.family("x@rtbhouse.com") == "OTHER"
 
 
 @pytest.mark.parametrize("uri", ["bucket/path.json", "gs://bucket", "gs:///path.json"])
