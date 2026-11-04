@@ -43,10 +43,12 @@ from conversation_analyzer.keys import stable_fraction
 from conversation_analyzer.leak_guard import check_row
 from conversation_analyzer.log.parse import Feedback, Turn
 from conversation_analyzer.log.reader import Window, read_window
+from conversation_analyzer.people.directory import Directory, load_directory
 from conversation_analyzer.settings import get_settings
 from conversation_analyzer.settings import now as utc_now
 from conversation_analyzer.vocab import (
     LATE_TRIGGER_RELATIONS,
+    DepartmentFamily,
     ErrorClass,
     FlagReason,
     FormField,
@@ -91,6 +93,7 @@ class TurnState:
     feedback: Feedback | None = None
     reaction: str | None = None
     pace_excluded: bool = False
+    department: str = DepartmentFamily.UNKNOWN.value
     second_model_checked: bool = False
     needs_stage1: bool = False
 
@@ -145,6 +148,7 @@ class AssessmentRun:
         self.grades: dict[tuple[str, int], session.GradeResult] = {}
         self.canary_rows: list[dict[str, Any]] = []
         self.window: Window | None = None
+        self.directory: Directory | None = None
 
     # ------------------------------------------------------------------ helpers
 
@@ -246,6 +250,7 @@ class AssessmentRun:
                 ts = TurnState(place=place, stored=stored.turns.get(t.turn_key))
                 ts.feedback = latest_feedback.get(t.assist_token or "")
                 ts.pace_excluded = t.principal in paced and not t.is_canary
+                ts.department = self.department(t, ts.stored)
                 if ts.stored:
                     ts.flag_reasons = list(ts.stored.get("flag_reasons") or [])
                     ts.stage2_state = ts.stored.get("stage2_state") or Stage2State.NOT_FLAGGED.value
@@ -274,6 +279,15 @@ class AssessmentRun:
                         ts.needs_stage1 = True
                 states.append(ts)
         return states
+
+    def department(self, t: Turn, stored: dict[str, Any] | None) -> str:
+        """The user's family, from the identity while it is in the log; a known family once stored is kept (§8.4)."""
+        known = (stored or {}).get("department")
+        if known and known != DepartmentFamily.UNKNOWN:
+            return known
+        if self.directory is None:
+            return known or DepartmentFamily.UNKNOWN.value
+        return self.directory.family(t.principal)
 
     def pace_marked(self) -> set[str]:
         """Users with more than 10 turns in 10 minutes are most likely scripts (§8.2); only a mark is kept."""
@@ -590,6 +604,7 @@ class AssessmentRun:
             "channel": t.channel.value,
             "is_canary": t.is_canary,
             "pace_excluded": ts.pace_excluded,
+            "department": ts.department,
             "gap_bucket": p.gap_bucket,
             "resumed": p.segment.resumed,
             "earlier_text_missing": p.earlier_text_missing,
@@ -643,6 +658,10 @@ class AssessmentRun:
         }
         if not complete:
             counts = {k: max(v, stored.get(k) or 0) for k, v in counts.items()}
+        # One session, one user: the segment takes its turns' family; a known family once stored is kept.
+        departments = {states_by_key[t.turn_key].department for t in seg.turns if t.turn_key in states_by_key}
+        known = sorted(departments - {DepartmentFamily.UNKNOWN.value})
+        department = known[0] if known else stored.get("department") or DepartmentFamily.UNKNOWN.value
         return {
             "session_key": seg.session_key,
             "segment_no": seg.segment_no,
@@ -659,6 +678,7 @@ class AssessmentRun:
             **counts,
             "duration_bucket": seg.duration_bucket(),
             "first_turn_relation": first_rel,
+            "department": department,
         }
 
     def guarded(
@@ -803,6 +823,7 @@ class AssessmentRun:
             "failed_by_class": [{"error_class": k, "n": v} for k, v in sorted(self.counters.failed_by_class.items())],
             "canary_assessed": c["canary_assessed"],
             "pace_marked": c["pace_marked"],
+            "directory_unavailable": self.window is not None and self.directory is None,
             "evidence_checks": c["evidence_checks"],
             "evidence_no_documents": c["evidence_no_documents"],
             "stage2_done": c["stage2_done"],
@@ -871,6 +892,7 @@ class AssessmentRun:
             )
             search_cutoff, feedback_cutoff = self.now - timedelta(minutes=15), self.now
             self.window = read_window(self.now, feedback_since, search_since, search_cutoff)
+            self.directory = load_directory(self.now)
             self.docs.register([r for t in self.window.turns for r in t.references])
             stored = state_mod.load(sorted({t.session_key for t in self.window.turns}), self.today)
             stored.versions = run_info.versions
@@ -898,6 +920,7 @@ class AssessmentRun:
             covered=record["covered"],
             missed=record["missed"],
             failed=record["failed"],
+            directory_unavailable=record["directory_unavailable"],
             stage2_done=record["stage2_done"],
             tokens=self.usage.total(),
         )

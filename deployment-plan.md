@@ -7,9 +7,9 @@ passed, and write what was observed next to it.
 
 To resume: read **Status**, then the first unchecked step.
 
-## Status (2026-11-02)
+## Status (2026-11-04)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). All code is in the private repo (M0–M7 done, 207 tests, 98.31 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). All code is in the private repo (M0–M7 done, 228 tests, 98.34 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -180,28 +180,30 @@ stored; the leak guard and `safe_log` are unchanged.
 
 ### A5. Department
 
-- [ ] **Input needed:** the distinct `base_function` values and their associate counts, from a read-only query run by
-  an engineer (`SELECT base_function, COUNT(*) FROM \`rtb-house-hr-reporting-data.IT.bolek_associates_active\` GROUP BY 1`).
-  From them, 3–5 department families (e.g. `ENGINEERING`, `SALES`, `OPERATIONS`, `CORPORATE`), plus `OTHER` and
-  `UNKNOWN`, in `settings.yaml` (`strata.department_families: {FAMILY: [base_function, …]}`).
-- [ ] Privacy floor: a family with fewer than `strata.department_min_associates` (proposed 30) active associates is
-  folded into `OTHER`, so the stored code never narrows a turn down to a handful of people. `base_function` itself is
-  never stored; only the family code.
-- [ ] `vocab.DepartmentFamily` (closed list; part of `closed_lists_version()`), `SliceKind.DEPARTMENT`.
+- [x] **Input:** the distinct `base_function` values and their associate counts, read from the stage associates
+  indexer's map (2026-11-04: 1536 associates, 46 values; no HR-table query needed). Four families in `settings.yaml`
+  (`strata.department_families`): `ENGINEERING` 314, `CAMPAIGNS` 443, `COMMERCIAL` 514, `CORPORATE` 258; the rest
+  (7) `OTHER`; users not in the map `UNKNOWN`.
+- [x] Privacy floor: a family with fewer than `strata.department_min_associates` (30) active associates in the run's
+  map is folded into `OTHER`, so the stored code never narrows a turn down to a handful of people. `base_function`
+  itself is never stored; only the family code.
+- [x] `vocab.DepartmentFamily` (closed list; the mapping is part of `closed_lists_version()`), `SliceKind.DEPARTMENT`.
 - [x] `people/directory.py`: reads the department map (`CA_DEPARTMENT_MAP_URI`, default
   `gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json`) once per assessor run, in memory;
   missing, malformed or older than `people_directory.max_age_hours` → `None`, and the run uses `UNKNOWN` for everyone
-  and counts `DIRECTORY_UNAVAILABLE`. The map is written by the associates indexer
-  (RTBHouse-OEET/aiel-content-indexers#187, RTBHouse-OEET/infrastructure#1176), so the assessor needs no HR-table grant. Users not found (service accounts, externals) → `UNKNOWN`.
-  Canary accounts are excluded anyway.
-- [ ] Assessor: `department` column (kind `CODE`) on `quality_turns` and `quality_segments`, set in memory from
-  `userIamPrincipal` during the window; the principal is never stored (as today).
-- [ ] Metrics: stratum = `intent__datastore__department`; department slice; small strata fall back to intent family
+  and records `directory_unavailable` (the monitor alerts `DIRECTORY_UNAVAILABLE` once a day). The map is written by
+  the associates indexer (RTBHouse-OEET/aiel-content-indexers#187, RTBHouse-OEET/infrastructure#1176), so the assessor
+  needs no HR-table grant. Users not found (service accounts, externals) → `UNKNOWN`. Canary accounts are excluded
+  anyway.
+- [x] Assessor: `department` column (leak-guard kind `department`: family codes only) on `quality_turns` and
+  `quality_segments`, set in memory from `userIamPrincipal` during the window; the principal is never stored (as
+  today). A family once stored is kept; `UNKNOWN` is replaced while the identity is in the log.
+- [x] Metrics: stratum = `intent__datastore__department`; department slice; small strata fall back to intent family
   (existing rule). Data-store families collapse to 3 (`ENGINEERING`, `COMPANY`, `NONE` incl. Drive), so there are at
-  most 4 × 3 × 5 = 60 strata, most of them pooled; the final list freezes with the baseline (§8.9).
+  most 4 × 3 × 6 = 72 strata, most of them pooled; the final list freezes with the baseline (§8.9).
 - [x] Emulator: the department map in fake GCS (`scenario.DEPARTMENTS`, `store_department_map`); synthetic turns carry principals that map to every family.
-- [ ] Tests: leak guard rejects anything but a family code in `department`; e2e stratum rows; a family below the floor
-  is folded.
+- [x] Tests: leak guard rejects anything but a family code in `department`; e2e department rows and strata; a family
+  below the floor is folded; a missing, then found, then stale map.
 
 ### A6. Ready for real GCP
 
@@ -485,7 +487,7 @@ Goal: daily aggregates exist and the team can read them in Grafana.
 |---|---|---|
 | Without search, stage 2 can't tell retrieval misses from knowledge gaps | Fewer actionable "document to fix" findings | Merged code clustered by topic; revisit adding search later as its own step (the A2 commit can be reverted in the private history) |
 | Evidence check with answer links only rarely runs | Turns without references stay unchecked for contradictions | Measured in step 6 (`NO_DOCUMENTS` share); remove it if it never runs |
-| 80 strata with department | Many small strata pooled; standardized AQR noisier | Fewer data-store and department families (A5); freeze after week 1 of the baseline |
+| 72 strata with department | Many small strata pooled; standardized AQR noisier | Fewer data-store and department families (A5); freeze after week 1 of the baseline |
 | Department is a quasi-identifier | Small departments + day could point at a person in `bolek_quality_turns` | Family codes only, privacy floor of 30 associates, G2 sign-off |
 | Stage reads prod text | Two places see conversations | Same SA rules as prod, gate closed by default, G1 sign-off |
 | Real BigQuery behaves differently from the emulator | Write or view failures on first deploy | Dry run (step 3) and `db-init --check` before any judge call |
@@ -496,8 +498,7 @@ Resolved with the user (2026-11-02):
 
 1. The merged stage 2 code is `NOT_IN_CITED_SOURCES` (A2).
 2. Department: 3–5 families from `base_function`, privacy floor 30 associates, data-store families cut to 3
-   (`ENGINEERING`, `COMPANY`, `NONE`). Still needed: the `base_function` values and counts from the read-only query
-   in A5, to fill the mapping.
+   (`ENGINEERING`, `COMPANY`, `NONE`). The mapping was filled from the stage department map on 2026-11-04 (A5).
 3. The official repository is `RTBHouse-OEET/aiel-conversation-analyzer` (G6).
 
 ## 10. Deployment spend log

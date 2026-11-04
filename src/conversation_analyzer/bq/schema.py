@@ -85,6 +85,10 @@ def ver(name: str) -> Col:
     return Col(name, "STRING", "version")
 
 
+def dept(name: str) -> Col:
+    return Col(name, "STRING", "department")  # a DepartmentFamily code only, never base_function (§8.4)
+
+
 def struct(name: str, *fields: Col, repeated: bool = False) -> Col:
     return Col(name, "STRUCT", "struct", "REPEATED" if repeated else "NULLABLE", fields)
 
@@ -130,6 +134,7 @@ QUALITY_TURNS = Table(
         enum("channel"),
         b("is_canary"),
         b("pace_excluded"),
+        dept("department"),
         enum("gap_bucket"),
         b("resumed"),
         b("earlier_text_missing"),
@@ -238,6 +243,7 @@ SEGMENTS = Table(
         i("n_frustrations"),
         enum("duration_bucket"),
         enum("first_turn_relation"),
+        dept("department"),
     ),
     key=("session_key", "segment_no"),
     writer="assessor",
@@ -368,6 +374,7 @@ RUNS = Table(
         struct("failed_by_class", enum("error_class"), i("n"), repeated=True),
         i("canary_assessed"),
         i("pace_marked"),
+        b("directory_unavailable"),  # no usable department map: every turn of the run got UNKNOWN (§8.4)
         i("evidence_checks"),
         i("evidence_no_documents"),  # knowledge turns without evidence whose answer links no readable document
         i("stage2_done"),

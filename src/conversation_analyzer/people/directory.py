@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from google.api_core.exceptions import GoogleAPIError
+from google.auth.exceptions import GoogleAuthError
 
 from conversation_analyzer.docs.content import storage_client
 from conversation_analyzer.settings import get_settings, now
+from conversation_analyzer.vocab import DepartmentFamily
 
 
 @dataclass(frozen=True)
@@ -17,11 +20,30 @@ class Directory:
     """`email -> base_function` of every active associate; held in memory for one run, never stored."""
 
     departments: dict[str, str]
+    families: dict[str, str] = field(init=False)  # base_function -> family code, the privacy floor applied
+
+    def __post_init__(self) -> None:
+        s = get_settings().strata
+        family = {m: f for f, members in s.department_families.items() for m in members}
+        size = Counter(family.get(b, DepartmentFamily.OTHER.value) for b in self.departments.values())
+        floor = s.department_min_associates
+        folded = {
+            b: f if size[f] >= floor else DepartmentFamily.OTHER.value
+            for b in set(self.departments.values())
+            for f in [family.get(b, DepartmentFamily.OTHER.value)]
+        }
+        object.__setattr__(self, "families", folded)
 
     def base_function(self, principal: str | None) -> str | None:
         """The user's `base_function`; None for a user not in the map (service accounts, externals)."""
-        email = (principal or "").removeprefix("user:").strip().lower()
+        # `user:<email>`, `principal://goog/subject/<email>` or a bare email: the email is after the last `:` or `/`.
+        email = (principal or "").strip().lower().rsplit(":", 1)[-1].rsplit("/", 1)[-1]
         return self.departments.get(email) if email else None
+
+    def family(self, principal: str | None) -> str:
+        """The user's department family; a family under the privacy floor is OTHER, a user not in the map UNKNOWN."""
+        b = self.base_function(principal)
+        return DepartmentFamily.UNKNOWN.value if b is None else self.families[b]
 
 
 def split_uri(uri: str) -> tuple[str, str]:
@@ -31,13 +53,13 @@ def split_uri(uri: str) -> tuple[str, str]:
     return bucket, path
 
 
-def load_directory() -> Directory | None:
+def load_directory(at: datetime | None = None) -> Directory | None:
     """The current map; None when it is missing, malformed or stale, and the run then counts every user UNKNOWN."""
     s = get_settings()
     bucket, path = split_uri(s.env.department_map_uri)
     try:
         data = json.loads(storage_client().bucket(bucket).blob(path).download_as_bytes())
-    except (GoogleAPIError, ValueError):
+    except (GoogleAPIError, GoogleAuthError, OSError, ValueError):  # OSError covers the transport's errors
         return None
     if not isinstance(data, dict):
         return None
@@ -54,6 +76,6 @@ def load_directory() -> Directory | None:
     except (KeyError, TypeError, ValueError):
         return None
     # The indexer runs hourly; an older map means it has been failing, and its leavers and joiners are wrong.
-    if generated_at.tzinfo is None or now() - generated_at > timedelta(hours=s.people_directory.max_age_hours):
+    if generated_at.tzinfo is None or (at or now()) - generated_at > timedelta(hours=s.people_directory.max_age_hours):
         return None
     return Directory(departments)

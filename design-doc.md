@@ -851,16 +851,16 @@ Raw AQR rose by 9 points, but no answer got better. Standardized AQR shows that 
 
 **How.**
 
-1. Turns are split into **strata**: intent family × data-store family × department family. A family is a group of similar intents, of similar data stores, or of departments. The starting families are 4 intent families, 3 data-store families and 3 to 5 department families, frozen when the baseline starts (§8.9). That allows up to about 60 strata; most are small and merged (step 4), so about 10 to 20 carry weight.
+1. Turns are split into **strata**: intent family × data-store family × department family. A family is a group of similar intents, of similar data stores, or of departments. The starting families are 4 intent families, 3 data-store families (engineering, company, none; Google Drive counts as none) and 4 department families (engineering, campaigns, commercial, corporate) plus `OTHER` and `UNKNOWN`, frozen when the baseline starts (§8.9). That allows up to 72 strata; most are small and merged (step 4), so about 10 to 20 carry weight.
 2. AQR is computed per stratum and day.
 3. The stratum AQRs are added up, each weighted by the stratum's share of turns in the baseline.
 4. A stratum below the minimum slice size on a day is merged into a bigger slice (§8.5).
 
 **Department.** People in different departments ask different things, from different data stores, and the mix changes, for example when a department starts using Bolek. Without the department in the strata, such a change would look like a change in quality.
 
-- The assessor reads the **department map** once per run, in memory: `email → base_function` of every active associate, which the people directory's indexer writes each hour from HR's table of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`) to `gs://<project>-indexers-state/directory/associates-departments.json` in its own project. The assessor needs no access to the HR table. A map that is missing, malformed or older than `people_directory.max_age_hours` (3) is not used: every user gets `UNKNOWN` and the run counts `DIRECTORY_UNAVAILABLE`.
-- While a turn's user identity is still in the log, it maps the user to a department family through a setting (`base_function` → family). Users not in the map, such as service accounts, get `UNKNOWN`.
-- Only the family is stored, never `base_function` or the identity. A family with fewer than 30 active associates is merged into `OTHER`.
+- The assessor reads the **department map** once per run, in memory: `email → base_function` of every active associate, which the people directory's indexer writes each hour from HR's table of active associates (`rtb-house-hr-reporting-data.IT.bolek_associates_active`) to `gs://<project>-indexers-state/directory/associates-departments.json` in its own project. The assessor needs no access to the HR table. A map that is missing, malformed or older than `people_directory.max_age_hours` (3) is not used: every user gets `UNKNOWN`, the run records `DIRECTORY_UNAVAILABLE` and the monitor alerts once a day.
+- While a turn's user identity is still in the log, it maps the user to a department family through a setting (`base_function` → family). Users not in the map, such as service accounts, get `UNKNOWN`. A family once stored for a turn is kept; `UNKNOWN` is replaced while the identity is still in the log. A segment takes the family of its turns.
+- Only the family is stored, never `base_function` or the identity. A family with fewer than 30 active associates in the run's map is merged into `OTHER`, and so is a `base_function` in no family.
 
 The weights stay fixed. They change only by a deliberate rebase, for example when a new data store is added, and the rebase is recorded as a change event.
 
@@ -967,7 +967,7 @@ An anomaly check runs every day on standardized AQR, each failure rate, the nega
 
 | Problem | Why it matters | Next step |
 |---|---|---|
-| **The strata are not final** | Standardized AQR needs the intent, data-store and department families before the baseline starts. | Set the department families from the `base_function` values and their associate counts, check all strata on the first days of data, then freeze them with the baseline. |
+| **The strata are not final** | Standardized AQR needs the intent, data-store and department families before the baseline starts. | Department families set from the `base_function` values of the stage map on 2026-11-04 (all four over 1/6 of the 1536 associates). Check all strata on the first days of data, then freeze them with the baseline. |
 | **Slack Bolek and MCP can't be told apart yet** | Both call Bolek the same way, and the log does not yet show which one sent a turn. Until a rule is found, they are reported together as one channel. | Inspect the request fields of these turns to find a rule. |
 | **Slack feedback (optional)** | Where Slack emoji are recorded, and how they are matched to a turn, is not known. Until a way is found, the dislike rate covers the web UI only. | Added only if the Slack Bolek owner finds a way to collect them. |
 | **False alarms** | At the starting limits, about 50 daily checks give up to about 10 false alarms a month. That many would cost the team's trust in alerts. | Measure the false alarm rate during the baseline, then raise the limits or check fewer series, for example failure rates only for all channels together. |
@@ -1378,7 +1378,7 @@ The evidence check and stage 2 read the full text of our documents. They can't u
 | Message | Sent by | When | Slack channel |
 |---|---|---|---|
 | `HIGH` cluster alert | `quality-monitor` | 5 minutes after an assessment run that found new `HIGH` failures above the alert bar (§9.4) | The quality channel |
-| Pipeline health alert | `quality-monitor` | When coverage drops below 98%, a turn waits more than 3 hours, there has been no assessment run for 25 minutes, a run failed, the log has a gap, the window is shorter than 3h45, or the daily token limit was passed | The team's existing alerts channel |
+| Pipeline health alert | `quality-monitor` | When coverage drops below 98%, a turn waits more than 3 hours, there has been no assessment run for 25 minutes, a run failed, the log has a gap, the window is shorter than 3h45, the daily token limit was passed, or a run had no usable department map | The team's existing alerts channel |
 | Anomaly alert | `quality-daily` | After the daily anomaly check | The quality channel |
 | Digest | `quality-weekly` | Every Monday | The quality channel |
 
@@ -1448,13 +1448,13 @@ All datasets are in the EU, the same location as `analytics`. Their tables and v
 | `bolek_quality_turns` | `quality_turns` | Turn: channel, day, keys, positions, gap bucket, status (assessed, too large, missed or failed), canary and pace marks, department family, evidence kind, cited and found document IDs, flag reasons, stage 2 state, feedback | Assessor |
 | | `quality_stage1_results` | Turn and judge version: the form (§6.4), fingerprint, versions (§6.11) | Assessor |
 | | `quality_stage2_results` | Flagged turn and judge version: the stage 2 form (§7.4), with up to 3 problem claims | Assessor |
-| | `quality_segments` | Session segment: its session facts, and whether it is open or closed | Assessor |
+| | `quality_segments` | Session segment: its session facts, department family, and whether it is open or closed | Assessor |
 | | `quality_session_grades` | Graded segment (§7.7) | Assessor |
 | | `quality_canary_results` | Canary turn, as answered or with a planted error: its forms, a hash of the question, the planted error, whether it was caught | Assessor |
 | | `quality_judge_checks` | Day and field: second-model disagreements (§11.5) | Assessor |
 | | `quality_retrieval_counts` | Day and document: how often Bolek's searches returned it | Assessor |
 | | `quality_judge_versions` | Judge version: what it consists of, when it started, its parallel run | Assessor |
-| | `quality_runs` | Assessment run: turns read, assessed, too large, missed, and failed by error class; oldest waiting turn; window margin; throttled calls; tokens used | Assessor |
+| | `quality_runs` | Assessment run: turns read, assessed, too large, missed, and failed by error class; oldest waiting turn; window margin; throttled calls; tokens used; whether the department map was unavailable | Assessor |
 | | `quality_alerts`, `quality_alert_sessions` | `HIGH` cluster or pipeline health alert; alert and session segment, for lookups by alert ID. Anomaly alerts are stored with their anomaly. | `quality-monitor` |
 | `bolek_quality_metrics` | `quality_metrics_daily` | Day, channel, metric and slice | Daily |
 | | `quality_anomalies`, `quality_acknowledgements` | Anomaly; acknowledgement | Daily; monitor |

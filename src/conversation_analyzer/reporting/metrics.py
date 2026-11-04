@@ -31,6 +31,7 @@ from conversation_analyzer.vocab import (
     Channel,
     CloseReason,
     DayKind,
+    DepartmentFamily,
     EvidenceKind,
     Severity,
     SliceKind,
@@ -62,6 +63,7 @@ class TurnFacts:
     pace_excluded: bool
     reaction: str | None
     disliked: bool
+    department: str = DepartmentFamily.UNKNOWN.value
     intent: str | None = None
     topic: str | None = None
     data_stores: tuple[str, ...] = ()
@@ -87,7 +89,8 @@ class TurnFacts:
             (SliceKind.TOPIC.value, self.topic),
             (SliceKind.INTENT_FAMILY.value, intent_family),
             (SliceKind.DATA_STORE_FAMILY.value, topic_family),
-            (SliceKind.STRATUM.value, stratum_code(intent_family, topic_family)),
+            (SliceKind.DEPARTMENT.value, self.department),
+            (SliceKind.STRATUM.value, stratum_code(intent_family, topic_family, self.department)),
         ]
         out += [(SliceKind.DATA_STORE.value, ds) for ds in self.data_stores]
         return out
@@ -101,6 +104,7 @@ def facts(row: dict[str, Any]) -> TurnFacts:
         pace_excluded=bool(row["pace_excluded"]),
         reaction=row.get("reaction"),
         disliked=row.get("feedback_thumbs") == Thumbs.DOWN,
+        department=row.get("department") or DepartmentFamily.UNKNOWN.value,
     )
     if not assessed:
         return t
@@ -177,7 +181,7 @@ class DayMetrics:
     def turns(self) -> list[TurnFacts]:
         rows = query(
             f"""
-SELECT {RESULT_COLUMNS}, t.status, t.data_stores
+SELECT {RESULT_COLUMNS}, t.status, t.data_stores, t.department
 FROM {tbl(QUALITY_TURNS)} t
 LEFT JOIN {tbl(STAGE1_RESULTS)} s1 ON s1.turn_key = t.turn_key AND s1.judge_version = @v
 LEFT JOIN {tbl(STAGE2_RESULTS)} s2 ON s2.turn_key = t.turn_key AND s2.judge_version = @v

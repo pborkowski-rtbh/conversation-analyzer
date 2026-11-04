@@ -336,6 +336,7 @@ class HealthCheck(StrEnum):
     LOG_GAP = "LOG_GAP"
     WINDOW_SHORT = "WINDOW_SHORT"
     TOKEN_LIMIT = "TOKEN_LIMIT"
+    DIRECTORY_UNAVAILABLE = "DIRECTORY_UNAVAILABLE"
 
 
 class AnomalyKind(StrEnum):
@@ -417,6 +418,18 @@ class SliceKind(StrEnum):
     STRATUM = "STRATUM"
     INTENT_FAMILY = "INTENT_FAMILY"
     DATA_STORE_FAMILY = "DATA_STORE_FAMILY"
+    DEPARTMENT = "DEPARTMENT"
+
+
+class DepartmentFamily(StrEnum):
+    """The user's department as stored: a family of `base_function` values, never the value itself (§8.4)."""
+
+    ENGINEERING = "ENGINEERING"
+    CAMPAIGNS = "CAMPAIGNS"
+    COMMERCIAL = "COMMERCIAL"
+    CORPORATE = "CORPORATE"
+    OTHER = "OTHER"  # base_function in no family, or a family under the privacy floor
+    UNKNOWN = "UNKNOWN"  # not in the department map (service accounts, externals) or no usable map
 
 
 ALL = "ALL"  # slice value and channel value of "everything together"
@@ -515,13 +528,15 @@ ANOMALY_METRICS = [
 ]
 
 
-def stratum_code(intent_family: str, data_store_family: str) -> str:
-    return f"{intent_family}__{data_store_family}"
+def stratum_code(intent_family: str, data_store_family: str, department: str) -> str:
+    return f"{intent_family}__{data_store_family}__{department}"
 
 
 def strata_codes() -> list[str]:
     s = get_settings().strata
-    return [stratum_code(i, d) for i in s.intent_families for d in s.data_store_families]
+    return [
+        stratum_code(i, d, dep) for i in s.intent_families for d in s.data_store_families for dep in DepartmentFamily
+    ]
 
 
 def topics() -> list[str]:
@@ -537,6 +552,8 @@ def closed_lists_version() -> str:
         "topics": topics(),
         "intents": [i.value for i in Intent],
         "relations": [r.value for r in Relation],
+        "departments": {f: sorted(members) for f, members in sorted(get_settings().strata.department_families.items())},
+        "department_min_associates": get_settings().strata.department_min_associates,
     }
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:12]
     return f"cl-{digest}"
@@ -591,6 +608,7 @@ def all_closed_values() -> frozenset[str]:
         RunStatus,
         HealthKind,
         SliceKind,
+        DepartmentFamily,
         FormField,
         JudgeMeasure,
         SuitePart,

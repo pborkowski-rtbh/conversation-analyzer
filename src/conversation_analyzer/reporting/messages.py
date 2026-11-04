@@ -88,6 +88,8 @@ def health(alert_id: str, check: HealthCheck, value: float | None, day: date, ho
         "turns may be erased before they are assessed.",
         HealthCheck.TOKEN_LIMIT: f"Judge tokens used today: {v / 1e6:.1f}M, over the daily limit of "
         f"{ctx.get('limit', 0) / 1e6:.1f}M.",
+        HealthCheck.DIRECTORY_UNAVAILABLE: f"Assessment run `{ctx.get('run_id')}` found no usable department map "
+        "(missing, malformed or stale): its turns are stored with department `UNKNOWN`.",
     }[check]
     return f":warning: *Conversation Analyzer pipeline* `{check.value}`, {when(day, hour)}\n{text}\nAlert `{alert_id}`."
 

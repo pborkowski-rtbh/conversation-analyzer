@@ -193,15 +193,21 @@ def suite_run(day: date) -> dict[str, Any]:
     }
 
 
-# The associates indexer's department map; evaluator@ and script@ are left out, as service accounts are.
+# The associates indexer's department map: every family once, OTHER (a base_function in no family) and, for
+# evaluator@ and script@, UNKNOWN (left out, as service accounts are). Each family is padded over the privacy floor.
 DEPARTMENTS = {
-    "anna.test@rtbhouse.com": "IT",
-    "piotr@rtbhouse.com": "IT",
-    "ola@rtbhouse.com": "Sales",
-    "marek@rtbhouse.com": "Operations",
-    "kasia@rtbhouse.com": "Finance",
-    "tomek@rtbhouse.com": "Sales",
-    "ewa@rtbhouse.com": "People",
+    "anna.test@rtbhouse.com": "IT",  # ENGINEERING
+    "piotr@rtbhouse.com": "Technical Support",  # CAMPAIGNS
+    "ola@rtbhouse.com": "Sales",  # COMMERCIAL
+    "marek@rtbhouse.com": "Finance",  # CORPORATE
+    "kasia@rtbhouse.com": "WhitePress",  # OTHER
+    "tomek@rtbhouse.com": "Account Management",  # COMMERCIAL
+    "ewa@rtbhouse.com": "Traffic",  # CAMPAIGNS
+    **{
+        f"associate{i:03d}.{n}@rtbhouse.com": base_function
+        for n, base_function in enumerate(["IT", "Technical Support", "Sales", "Finance"])
+        for i in range(30)
+    },
 }
 
 

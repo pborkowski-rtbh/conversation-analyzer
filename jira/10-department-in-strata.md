@@ -14,7 +14,7 @@ As a team member reading AQR, when the mix of departments using Bolek changes, I
 
 ### Context
 
-Stratum = intent family × data-store family × department family. The department comes from `base_function` in the HR table, mapped to 3-5 families plus `OTHER` and `UNKNOWN`. Data-store families collapse to 3 (`ENGINEERING`, `COMPANY`, `NONE` incl. Drive), so there are at most 60 strata. Only the family code is stored; families under 30 active associates fold into `OTHER`. Work happens in the private repository.
+Stratum = intent family × data-store family × department family. The department comes from `base_function` in the HR table, mapped to 3-5 families plus `OTHER` and `UNKNOWN`. Data-store families collapse to 3 (`ENGINEERING`, `COMPANY`, `NONE` incl. Drive), so there are at most 72 strata (4 families plus `OTHER` and `UNKNOWN`). Only the family code is stored; families under 30 active associates fold into `OTHER`. Work happens in the private repository.
 
 ### Acceptance criteria
 
@@ -25,7 +25,7 @@ Stratum = intent family × data-store family × department family. The departmen
 * Daily metrics produce `intent__datastore__department` strata and a department slice; small strata fall back as today
 * The emulator has the department map in fake GCS; synthetic principals cover every family
 * Tests: the leak guard rejects anything but a family code; a family below the floor is folded; e2e stratum rows
-* Families filled from the real `base_function` list once ticket 03 delivers it
+* Families filled from the real `base_function` list (read from the stage associates indexer's map)
 * `make coverage` ≥ 90 %
 
 ### If something is not clear

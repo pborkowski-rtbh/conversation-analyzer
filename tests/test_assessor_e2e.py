@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -69,6 +70,15 @@ def test_run_record(first_run):
     assert record["evidence_checks"] >= 1 and record["pace_marked"] == 12
     stored = rows(RUNS)
     assert len(stored) == 1 and stored[0]["tokens"][0]["input_tokens"] > 0
+    assert record["directory_unavailable"] is False
+
+
+def test_departments(first_run):
+    """Every family from the department map; the canary account and the script are not in it (§8.4)."""
+    found = Counter(r["department"] for r in rows(QUALITY_TURNS))
+    assert found == {"ENGINEERING": 2, "CAMPAIGNS": 3, "COMMERCIAL": 1, "CORPORATE": 1, "OTHER": 1, "UNKNOWN": 13}
+    segments = Counter(r["department"] for r in rows(SEGMENTS))
+    assert segments["CAMPAIGNS"] == 3 and segments["UNKNOWN"] == 13  # S2, and S9's two segments; canary, script
 
 
 def test_statuses_and_positions(first_run):

@@ -11,10 +11,12 @@ from conversation_analyzer.assessor.run import run
 from conversation_analyzer.bq.external import AUDIT_LOGS
 from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, SEGMENTS, SESSION_GRADES, STAGE1_RESULTS
 from conversation_analyzer.devtools import scenario
-from conversation_analyzer.devtools.synthetic import SynthTurn, insert_log, turn_rows
+from conversation_analyzer.devtools.synthetic import SynthTurn, insert_log, store_department_map, turn_rows
+from conversation_analyzer.docs.content import storage_client
 from conversation_analyzer.docs.source import RunDocuments
 from conversation_analyzer.judge import stage1
 from conversation_analyzer.judge.fake import FakeJudge
+from conversation_analyzer.people.directory import split_uri
 from conversation_analyzer.settings import get_settings
 from tests.conftest import rows, wipe
 
@@ -212,3 +214,28 @@ def test_feedback_after_the_window_reaches_its_turn_when_switched_on(clean, monk
     after = {r["position_in_session"]: r for r in rows(QUALITY_TURNS)}
     assert after[2]["feedback_thumbs"] == "DOWN" and after[2]["feedback_reasons"] == ["INACCURATE", "UNRECOGNIZED"]
     assert after[1]["feedback_thumbs"] is None and after[2]["status"] == stored[2]["status"]
+
+
+def _drop_department_map() -> None:
+    bucket, path = split_uri(get_settings().env.department_map_uri)
+    blob = storage_client().bucket(bucket).blob(path)
+    if blob.exists():
+        blob.delete()
+
+
+def test_department_map_missing_then_found_then_stale(clean):
+    seed([SynthTurn("D1", 20, "How many leave days?", "Four.", principal="user:ola@rtbhouse.com")])
+    _drop_department_map()
+    record = assess()
+    assert record["directory_unavailable"] is True and rows(RUNS)[0]["directory_unavailable"] is True
+    assert [t["department"] for t in statuses().values()] == ["UNKNOWN"]
+    assert [s["department"] for s in rows(SEGMENTS)] == ["UNKNOWN"]
+    # The map is back: the user's identity is still in the log, so the turn gets its family.
+    store_department_map(scenario.DEPARTMENTS, NOW)
+    assert assess(NOW + timedelta(minutes=10))["directory_unavailable"] is False
+    assert [t["department"] for t in statuses().values()] == ["COMMERCIAL"]
+    assert [s["department"] for s in rows(SEGMENTS)] == ["COMMERCIAL"]
+    # A stale map is not used, and a family once stored is kept.
+    record = assess(NOW + timedelta(hours=get_settings().people_directory.max_age_hours, minutes=1))
+    assert record["directory_unavailable"] is True
+    assert [t["department"] for t in statuses().values()] == ["COMMERCIAL"]

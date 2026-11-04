@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -114,6 +114,15 @@ class Metrics(BaseModel):
 class Strata(BaseModel):
     intent_families: dict[str, list[str]]
     data_store_families: dict[str, list[str]]
+    department_families: dict[str, list[str]]  # family -> base_function values; the rest are OTHER (§8.4)
+    department_min_associates: int  # privacy floor: a smaller family is stored as OTHER
+
+    @model_validator(mode="after")
+    def _one_family_each(self) -> Strata:
+        members = [m for ms in self.department_families.values() for m in ms]
+        if len(members) != len(set(members)):
+            raise ValueError("a base_function belongs to more than one department family")
+        return self
 
 
 class Alerts(BaseModel):
