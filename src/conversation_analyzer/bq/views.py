@@ -7,10 +7,12 @@ from conversation_analyzer.settings import get_settings
 
 
 def partition_filter(days: int) -> str:
-    """The log requires a partition filter in production; the emulator copy is not ingestion-time partitioned."""
+    """The log requires a partition filter in production; rows not yet in a partition (NULL) are the newest ones."""
     if get_settings().env.emulator:
         return "TRUE"
-    return f"_PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)"
+    # About 7 % of the last hour's turns had no partition yet (2026-11-04): without them, searches and feedback past
+    # the last run's cutoff would never be read.
+    return f"(_PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY) OR _PARTITIONTIME IS NULL)"
 
 
 def engine_filter(column: str = "JSON_VALUE(request, '$.name')") -> str:

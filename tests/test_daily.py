@@ -144,7 +144,15 @@ def day_turns() -> list[dict]:
     ]
     web += [t(DAY, pace=True), t(DAY, pace=True), t(DAY, status="TOO_LARGE"), t(DAY, canary=True)]
     slack = [
-        t(DAY, channel="SLACK_MCP", intent="HOW_TO", topic="CONFLUENCE", cited=(stored.CONF,), reaction="FOLLOW_UP")
+        t(
+            DAY,
+            channel="SLACK_MCP",
+            intent="HOW_TO",
+            topic="CONFLUENCE",
+            cited=(stored.CONF,),
+            reaction="FOLLOW_UP",
+            department="COMMERCIAL",
+        )
         for _ in range(3)
     ]
     slack += [
@@ -231,7 +239,11 @@ def test_day_metrics_from_stored_turns_and_the_log(clean):
     assert metric(out, "AQR_RAW", "ALL", "INTENT", "FACT_LOOKUP")["n_turns"] == 24
     merged = metric(out, "AQR_RAW", "ALL", "INTENT", "MERGED_OTHER")
     assert merged["merged"] and merged["n_turns"] == 6
-    assert metric(out, "AQR_RAW", "SLACK_MCP", "STRATUM", "PROCEDURE__ENGINEERING")["n_turns"] == 4
+    assert metric(out, "AQR_RAW", "SLACK_MCP", "STRATUM", "PROCEDURE__ENGINEERING__ENGINEERING")["n_turns"] == 1
+    assert metric(out, "AQR_RAW", "SLACK_MCP", "STRATUM", "PROCEDURE__ENGINEERING__COMMERCIAL")["n_turns"] == 3
+    assert metric(out, "AQR_RAW", "ALL", "DEPARTMENT", "ENGINEERING")["n_turns"] == 27
+    department = metric(out, "AQR_RAW", "ALL", "DEPARTMENT", "MERGED_OTHER")  # COMMERCIAL: 3 turns, under 20
+    assert department["merged"] and department["n_turns"] == 3
     std = metric(out, "AQR_STANDARDIZED", "ALL")
     assert std["value"] == pytest.approx((24 / 28) * (20 / 24) + (4 / 28) * (23 / 28))  # small stratum: overall AQR
     assert metric(out, "COVERAGE", "WEB_UI")["value"] == pytest.approx(27 / 28)
@@ -247,7 +259,7 @@ def test_standardized_aqr_uses_the_baseline_mix(clean, monkeypatch):
     monkeypatch.setattr(get_settings().metrics, "go_live_day", DAY - timedelta(days=10))
     base = []
     for d in range(1, 4):
-        for stratum, n in (("FACT__COMPANY", 10.0), ("PROCEDURE__ENGINEERING", 30.0)):
+        for stratum, n in (("FACT__COMPANY__ENGINEERING", 10.0), ("PROCEDURE__ENGINEERING__ENGINEERING", 30.0)):
             base.append(
                 {
                     "day": DAY - timedelta(days=d),

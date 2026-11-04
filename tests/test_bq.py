@@ -114,5 +114,7 @@ def test_views_production_sql(monkeypatch):
     from conversation_analyzer.bq.views import partition_filter, views
 
     monkeypatch.setattr(get_settings().env, "bq_endpoint", None)
-    assert partition_filter(3).startswith("_PARTITIONTIME")
+    assert partition_filter(3) == (
+        "(_PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY) OR _PARTITIONTIME IS NULL)"
+    )
     assert "_PARTITIONTIME" in views()["quality_turn_counts_hourly"]

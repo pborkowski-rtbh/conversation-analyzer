@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from conversation_analyzer import keys
 from conversation_analyzer.assessor.run import run
 from conversation_analyzer.bq.schema import (
     CANARY_RESULTS,
@@ -69,6 +71,30 @@ def test_run_record(first_run):
     assert record["evidence_checks"] >= 1 and record["pace_marked"] == 12
     stored = rows(RUNS)
     assert len(stored) == 1 and stored[0]["tokens"][0]["input_tokens"] > 0
+    assert record["directory_unavailable"] is False
+
+
+def test_departments(first_run):
+    """Every family from the department map; the canary account and the script are not in it (§8.4)."""
+    found = Counter(r["department"] for r in rows(QUALITY_TURNS))
+    assert found == {"ENGINEERING": 2, "CAMPAIGNS": 3, "COMMERCIAL": 1, "CORPORATE": 1, "OTHER": 1, "UNKNOWN": 13}
+    segments = Counter(r["department"] for r in rows(SEGMENTS))
+    assert segments["CAMPAIGNS"] == 3 and segments["UNKNOWN"] == 13  # S2, and S9's two segments; canary, script
+    # The base_function as is, even Traffic (S9) and WhitePress (S5), one associate each in the map.
+    found = Counter(r["base_function"] for r in rows(QUALITY_TURNS))
+    expected = {"IT": 2, "Technical Support": 1, "Sales": 1, "Finance": 1, "WhitePress": 1, "Traffic": 2}
+    assert found == {**expected, "UNKNOWN": 13}
+
+
+def test_user_keys(first_run):
+    """Turns of one user share a keyed hash of the email; the email itself is stored nowhere."""
+    by_user = Counter(r["user_key"] for r in rows(QUALITY_TURNS))
+    assert by_user[keys.user_key("script@rtbhouse.com")] == 12 and by_user[keys.user_key("ewa@rtbhouse.com")] == 2
+    assert None not in by_user
+    assert {r["user_key"] for r in rows(SEGMENTS)} <= set(by_user)
+    dump = json.dumps([rows(t) for t in TABLES], default=str)
+    assert not any(email in dump for email in scenario.DEPARTMENTS)
+    assert "@rtbhouse.com" not in dump
 
 
 def test_statuses_and_positions(first_run):

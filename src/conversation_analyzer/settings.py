@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -114,6 +114,15 @@ class Metrics(BaseModel):
 class Strata(BaseModel):
     intent_families: dict[str, list[str]]
     data_store_families: dict[str, list[str]]
+    department_families: dict[str, list[str]]  # family -> base_function values; the rest are OTHER (§8.4)
+    department_min_associates: int  # privacy floor: a smaller family is stored as OTHER
+
+    @model_validator(mode="after")
+    def _one_family_each(self) -> Strata:
+        members = [m for ms in self.department_families.values() for m in ms]
+        if len(members) != len(set(members)):
+            raise ValueError("a base_function belongs to more than one department family")
+        return self
 
 
 class Alerts(BaseModel):
@@ -179,6 +188,7 @@ class PeopleDirectory(BaseModel):
     data_store_prefixes: list[str]
     doc_id_prefixes: list[str]
     uri_schemes: list[str]
+    max_age_hours: int  # older department maps are not used (§8.4)
 
 
 class Environment(BaseModel):
@@ -187,6 +197,7 @@ class Environment(BaseModel):
     bq_project: str
     bq_endpoint: str | None
     gcs_endpoint: str | None
+    department_map_uri: str
     slack_api: str
     slack_token: str
     github_api: str
@@ -251,6 +262,9 @@ def _environment() -> Environment:
         bq_project=e("CA_BQ_PROJECT", "rtbhouse-agentspace"),
         bq_endpoint=e("CA_BQ_ENDPOINT") or None,
         gcs_endpoint=e("CA_GCS_ENDPOINT") or None,
+        department_map_uri=e(
+            "CA_DEPARTMENT_MAP_URI", "gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json"
+        ),
         slack_api=e("CA_SLACK_API", "https://slack.com/api"),
         slack_token=e("CA_SLACK_TOKEN", ""),
         github_api=e("CA_GITHUB_API", "https://api.github.com"),

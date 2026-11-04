@@ -103,7 +103,7 @@ class Monitor:
         runs = query(
             f"""
 SELECT run_id, run_day, started_at, status, error_class, eligible, covered, assessed, too_large, missed, failed,
-       oldest_waiting_minutes, window_margin_minutes
+       oldest_waiting_minutes, window_margin_minutes, directory_unavailable
 FROM {tbl(RUNS)} WHERE run_day >= @d""",
             d=since,
         )
@@ -163,6 +163,11 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
                 checks.append(HealthCheck.WINDOW_SHORT)
                 self.send_health(
                     alert_id("WINDOW", r["run_day"]), HealthCheck.WINDOW_SHORT, margin, limit=t.window_alert_minutes
+                )
+            if r["directory_unavailable"]:
+                checks.append(HealthCheck.DIRECTORY_UNAVAILABLE)
+                self.send_health(
+                    alert_id("DIRECTORY", r["run_day"]), HealthCheck.DIRECTORY_UNAVAILABLE, None, run_id=r["run_id"]
                 )
             if used[r["run_day"]] > self.s.judge.daily_token_limit:
                 checks.append(HealthCheck.TOKEN_LIMIT)

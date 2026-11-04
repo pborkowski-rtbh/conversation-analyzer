@@ -85,6 +85,14 @@ def ver(name: str) -> Col:
     return Col(name, "STRING", "version")
 
 
+def dept(name: str) -> Col:
+    return Col(name, "STRING", "department")  # a DepartmentFamily code only (§8.4)
+
+
+def base_fn(name: str) -> Col:
+    return Col(name, "STRING", "base_function")  # a base_function listed in settings, OTHER or UNKNOWN
+
+
 def struct(name: str, *fields: Col, repeated: bool = False) -> Col:
     return Col(name, "STRUCT", "struct", "REPEATED" if repeated else "NULLABLE", fields)
 
@@ -130,6 +138,9 @@ QUALITY_TURNS = Table(
         enum("channel"),
         b("is_canary"),
         b("pace_excluded"),
+        dept("department"),
+        base_fn("base_function"),
+        h("user_key"),
         enum("gap_bucket"),
         b("resumed"),
         b("earlier_text_missing"),
@@ -238,6 +249,9 @@ SEGMENTS = Table(
         i("n_frustrations"),
         enum("duration_bucket"),
         enum("first_turn_relation"),
+        dept("department"),
+        base_fn("base_function"),
+        h("user_key"),
     ),
     key=("session_key", "segment_no"),
     writer="assessor",
@@ -368,6 +382,7 @@ RUNS = Table(
         struct("failed_by_class", enum("error_class"), i("n"), repeated=True),
         i("canary_assessed"),
         i("pace_marked"),
+        b("directory_unavailable"),  # no usable department map: every turn of the run got UNKNOWN (§8.4)
         i("evidence_checks"),
         i("evidence_no_documents"),  # knowledge turns without evidence whose answer links no readable document
         i("stage2_done"),

@@ -198,6 +198,16 @@ def ensure_bucket(name: str) -> None:
         storage_client().create_bucket(name)
 
 
+def store_department_map(departments: dict[str, str], generated_at: datetime) -> None:
+    """What the associates indexer writes each hour: `email -> base_function` as one JSON object (§8.4)."""
+    from conversation_analyzer.people.directory import split_uri
+
+    bucket, path = split_uri(get_settings().env.department_map_uri)
+    ensure_bucket(bucket)
+    payload = {"generated_at": generated_at.isoformat(), "count": len(departments), "departments": departments}
+    storage_client().bucket(bucket).blob(path).upload_from_string(json.dumps(payload), content_type="application/json")
+
+
 def store_documents(docs: list[SynthDoc]) -> None:
     """What the indexers already do for real (§12.7): each document's text, encrypted, into the content bucket."""
     s = get_settings()

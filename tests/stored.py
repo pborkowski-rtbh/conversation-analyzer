@@ -41,6 +41,7 @@ def turn(
     status: str = "ASSESSED",
     pace: bool = False,
     canary: bool = False,
+    department: str = "ENGINEERING",
 ) -> dict[str, Any]:
     """One turn: its quality_turns row and, when assessed, its stage 1 (and stage 2) result."""
     knowledge = intent in KNOWLEDGE
@@ -57,6 +58,7 @@ def turn(
             "channel": channel,
             "is_canary": canary,
             "pace_excluded": pace,
+            "department": department,
             "status": status,
             "evidence_kind": evidence,
             "data_stores": sorted({d["data_store"] for d in cited}),

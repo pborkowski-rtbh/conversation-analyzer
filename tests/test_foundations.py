@@ -6,12 +6,13 @@ from datetime import UTC, date, datetime
 import pytest
 
 from conversation_analyzer import errors, keys, safe_log, secrets
-from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, STAGE2_RESULTS, Table, ddl
+from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, SEGMENTS, STAGE2_RESULTS, Table, ddl
 from conversation_analyzer.errors import LeakGuardError
 from conversation_analyzer.leak_guard import allowed_link, check_row, is_people_directory
 from conversation_analyzer.settings import get_settings, now
 from conversation_analyzer.vocab import (
     ANOMALY_METRICS,
+    DepartmentFamily,
     ErrorClass,
     FailureCode,
     all_closed_values,
@@ -57,7 +58,23 @@ def test_vocab_helpers():
     assert closed_lists_version().startswith("cl-")
     assert len(ANOMALY_METRICS) == 17  # standardized AQR, 14 failure rates, negative reactions, coverage (§8.7)
     assert failure_rate_metric(FailureCode.NOT_IN_CITED_SOURCES) in all_closed_values()
-    assert len(strata_codes()) == 16
+    assert len(strata_codes()) == 4 * 3 * 6  # intent × data-store × department families (§8.4)
+    assert "PROCEDURE__ENGINEERING__UNKNOWN" in all_closed_values()
+
+
+def test_department_families_are_closed(monkeypatch):
+    s = get_settings().strata
+    assert set(s.department_families) <= set(DepartmentFamily) - {DepartmentFamily.UNKNOWN}
+    before = closed_lists_version()
+    monkeypatch.setitem(s.department_families, "ENGINEERING", [*s.department_families["ENGINEERING"], "Board"])
+    closed_lists_version.cache_clear()
+    try:
+        assert closed_lists_version() != before  # a change of the mapping is a new closed-lists version
+    finally:
+        monkeypatch.undo()
+        closed_lists_version.cache_clear()
+    with pytest.raises(ValueError, match="more than one"):
+        type(s)(**{**s.model_dump(), "department_families": {"ENGINEERING": ["IT"], "CORPORATE": ["IT"]}})
 
 
 def test_safe_log_rejects_text(capsys):
@@ -186,6 +203,14 @@ def _turn_row(**over):
 
 
 def test_leak_guard_accepts_derived_values():
+    assert check_row(QUALITY_TURNS, _turn_row(department="CAMPAIGNS"))["department"] == "CAMPAIGNS"
+    row = check_row(QUALITY_TURNS, _turn_row(base_function="Technical Support", user_key=keys.user_key("a@b.com")))
+    assert row["base_function"] == "Technical Support" and len(row["user_key"]) == 32
+    assert check_row(QUALITY_TURNS, _turn_row(base_function="OTHER"))["base_function"] == "OTHER"
+    seg = {"session_key": "b" * 32, "segment_no": 1, "department": "UNKNOWN"}
+    assert check_row(SEGMENTS, seg)["department"] == "UNKNOWN"
+    with pytest.raises(LeakGuardError):
+        check_row(SEGMENTS, {**seg, "department": "Technical Support"})
     out = check_row(QUALITY_TURNS, _turn_row())
     assert out["cited_docs"][0]["uri"].startswith("https://rtbhouseproduct")
     assert out["found_docs"] == [] and out["gap_bucket"] is None
@@ -206,6 +231,13 @@ def test_leak_guard_accepts_derived_values():
         {"judge_version": "has space"},
         {"cited_docs": [{"doc_id": "x", "data_store": "rtb-crj-confluence", "q": 1}]},
         {"cited_docs": [{"doc_id": PLANTED, "data_store": "rtb-crj-confluence"}]},
+        {"department": "IT"},  # a base_function, never stored (§8.4)
+        {"department": "HIGH"},  # a closed value, but not a department family
+        {"department": "anna@rtbhouse.com"},
+        {"base_function": "Jan Kowalski"},  # not a listed base_function
+        {"base_function": "ENGINEERING"},
+        {"base_function": "anna@rtbhouse.com"},
+        {"user_key": "anna@rtbhouse.com"},
     ],
 )
 def test_leak_guard_rejects_text(over):

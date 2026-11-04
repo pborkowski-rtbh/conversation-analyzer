@@ -76,7 +76,7 @@ def test_every_run_check_alerts_once_per_period(clean, monkeypatch):
     write(
         RUNS,
         [
-            run_row("run-00000001", 4, covered=18),
+            run_row("run-00000001", 4, covered=18, directory_unavailable=True),
             run_row(
                 "run-00000002",
                 3,
@@ -86,18 +86,26 @@ def test_every_run_check_alerts_once_per_period(clean, monkeypatch):
                 oldest_waiting_minutes=190.0,
                 window_margin_minutes=200.0,
             ),
-            run_row("run-00000003", 2, covered=10),
+            run_row("run-00000003", 2, covered=10, directory_unavailable=True),
         ],
     )
     monitor.run(NOW)
     sent = messages(clean)
     assert all(m["channel"] == get_settings().alerts.alerts_channel for m in sent)
     checks = sorted(a["check"] for a in rows(ALERTS))
-    # coverage once per hour; tokens once per day; the failed run once
-    assert checks == ["COVERAGE", "RUN_FAILED", "TOKEN_LIMIT", "WAITING_TOO_LONG", "WINDOW_SHORT"]
+    # coverage once per hour; tokens and the department map once per day; the failed run once
+    assert checks == [
+        "COVERAGE",
+        "DIRECTORY_UNAVAILABLE",
+        "RUN_FAILED",
+        "TOKEN_LIMIT",
+        "WAITING_TOO_LONG",
+        "WINDOW_SHORT",
+    ]
     assert any("`JUDGE_API`" in m["text"] for m in sent) and any("90.0%" in m["text"] for m in sent)
     fired = {r["run_id"]: r["checks_fired"] for r in rows(PIPELINE_HEALTH) if r["run_id"]}
-    assert fired["run-00000003"] == ["COVERAGE", "TOKEN_LIMIT"]
+    assert fired["run-00000003"] == ["COVERAGE", "DIRECTORY_UNAVAILABLE", "TOKEN_LIMIT"]
+    assert any("no usable department map" in m["text"] for m in sent)
     monitor.run(NOW + timedelta(minutes=10))
     assert len(messages(clean)) == len(sent)
 

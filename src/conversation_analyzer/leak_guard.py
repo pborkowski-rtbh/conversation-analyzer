@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from conversation_analyzer.bq.schema import Col, Table
 from conversation_analyzer.errors import LeakGuardError
 from conversation_analyzer.settings import get_settings
-from conversation_analyzer.vocab import all_closed_values
+from conversation_analyzer.vocab import DepartmentFamily, all_closed_values
 
 _HASH = re.compile(r"^[0-9a-f]{12,64}$")
 _ID = re.compile(r"^(run|alert|anom|evt|cluster|suite)-[0-9a-f]{8,64}$")
@@ -100,6 +100,15 @@ def _check_scalar(col: Col, value: Any, row: dict[str, Any]) -> Any:
     }
     if k == "enum":
         if value not in all_closed_values():
+            raise LeakGuardError()
+        return value
+    if k == "department":
+        if value not in DepartmentFamily.__members__:
+            raise LeakGuardError()
+        return value
+    if k == "base_function":
+        listed = {m for ms in get_settings().strata.department_families.values() for m in ms}
+        if value not in listed | {DepartmentFamily.OTHER.value, DepartmentFamily.UNKNOWN.value}:
             raise LeakGuardError()
         return value
     if k in patterns:

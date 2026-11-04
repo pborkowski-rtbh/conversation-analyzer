@@ -23,6 +23,11 @@ def turn_key(answer_name: str) -> str:
     return _keyed("turn", answer_name)
 
 
+def user_key(email: str) -> str:
+    """The user, pseudonymous: turns of one person can be grouped, never named (§8.4)."""
+    return _keyed("user", email)
+
+
 def parse_answer_name(answer_name: str) -> tuple[str, str] | None:
     """Engine and session ID from `.../engines/<e>/sessions/<s>/assistAnswers/<a>`."""
     m = _ANSWER_NAME.search(answer_name or "")

@@ -14,6 +14,7 @@ from conversation_analyzer.devtools.synthetic import (
     SynthTurn,
     insert_log,
     search_row,
+    store_department_map,
     store_documents,
     turn_rows,
 )
@@ -192,6 +193,24 @@ def suite_run(day: date) -> dict[str, Any]:
     }
 
 
+# The associates indexer's department map: every family once, OTHER (a base_function in no family) and, for
+# evaluator@ and script@, UNKNOWN (left out, as service accounts are). Each family is padded over the privacy floor.
+DEPARTMENTS = {
+    "anna.test@rtbhouse.com": "IT",  # ENGINEERING
+    "piotr@rtbhouse.com": "Technical Support",  # CAMPAIGNS
+    "ola@rtbhouse.com": "Sales",  # COMMERCIAL
+    "marek@rtbhouse.com": "Finance",  # CORPORATE
+    "kasia@rtbhouse.com": "WhitePress",  # OTHER
+    "tomek@rtbhouse.com": "Account Management",  # COMMERCIAL
+    "ewa@rtbhouse.com": "Traffic",  # CAMPAIGNS
+    **{
+        f"associate{i:03d}.{n}@rtbhouse.com": base_function
+        for n, base_function in enumerate(["IT", "Technical Support", "Sales", "Finance"])
+        for i in range(30)
+    },
+}
+
+
 def seed(now: datetime) -> None:
     rows = [r for t in turns() for r in turn_rows(t, now)]
     rows.append(search_row("user:anna.test@rtbhouse.com", 60.5, [LEAVE.doc_id, "associate-0123", "unknown_doc"], now))
@@ -199,6 +218,7 @@ def seed(now: datetime) -> None:
     rows.append(search_row("user:evaluator@rtbhouse.com", 50.5, [LEAVE.doc_id], now))
     insert_log(rows)
     store_documents(DOCUMENTS)
+    store_department_map(DEPARTMENTS, now)
     write(SUITE_RUNS, [suite_run(now.date())])
     s = get_settings()
     client().insert_rows_json(
