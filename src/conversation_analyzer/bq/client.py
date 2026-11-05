@@ -121,33 +121,32 @@ def schema_fields(cols: tuple[Col, ...]) -> list[bigquery.SchemaField]:
 
 
 def _dedupe(table: Table, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """One source row per key: a MERGE may match each target row once. Additive columns are summed."""
-    by_key: dict[tuple, dict[str, Any]] = {}
-    for row in rows:
-        k = tuple(row.get(c) for c in table.key)
-        if k in by_key and table.additive:
-            for col in table.additive:
-                by_key[k][col] = (by_key[k].get(col) or 0) + (row.get(col) or 0)
-        else:
-            by_key[k] = dict(row)
-    return list(by_key.values())
+    """One source row per key (the last one wins): a MERGE may match each target row once."""
+    return list({tuple(row.get(c) for c in table.key): row for row in rows}.values())
 
 
-def merge_sql(table: Table, staging: str) -> str:
-    on = " AND ".join(f"(T.{k} = S.{k} OR (T.{k} IS NULL AND S.{k} IS NULL))" for k in table.key)
-    updates = []
-    for col in table.cols:
-        if col.name in table.key:
-            continue
-        if col.name in table.additive:
-            updates.append(f"{col.name} = COALESCE(T.{col.name}, 0) + COALESCE(S.{col.name}, 0)")
-        else:
-            updates.append(f"{col.name} = S.{col.name}")
+def _partition_filter(table: Table, rows: list[dict[str, Any]]) -> str | None:
+    """`T.<partition> IN (<days>)` for the staged rows' days, so the MERGE reads only those partitions."""
+    if not table.prunable or not rows:
+        return None
+    assert table.partition is not None and table.col(table.partition).type == "DATE"
+    days = {row.get(table.partition) for row in rows}
+    if None in days:
+        return None
+    literals = ", ".join(f"DATE '{d}'" for d in sorted(date.fromisoformat(str(d)[:10]) for d in days))
+    return f"T.{table.partition} IN ({literals})"
+
+
+def merge_sql(table: Table, staging: str, rows: list[dict[str, Any]] | None = None) -> str:
+    conditions = [f"(T.{k} = S.{k} OR (T.{k} IS NULL AND S.{k} IS NULL))" for k in table.key]
+    pruning = _partition_filter(table, rows or [])
+    on = " AND ".join(([pruning] if pruning else []) + conditions)
+    updates = ", ".join(f"{col.name} = S.{col.name}" for col in table.cols if col.name not in table.key)
     names = ", ".join(c.name for c in table.cols)
     values = ", ".join(f"S.{c.name}" for c in table.cols)
     return (
         f"MERGE {tbl(table)} T USING {staging} S ON {on}\n"
-        f"WHEN MATCHED THEN UPDATE SET {', '.join(updates)}\n"
+        f"WHEN MATCHED THEN UPDATE SET {updates}\n"
         f"WHEN NOT MATCHED THEN INSERT ({names}) VALUES ({values})"
     )
 
@@ -170,7 +169,7 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
             try:
                 if client().insert_rows_json(stg_id, payload, retry=retry()):
                     raise RuntimeError("staging insert failed")
-                execute(merge_sql(table, f"`{stg_id}`") + ";\n" + empty)
+                execute(merge_sql(table, f"`{stg_id}`", checked) + ";\n" + empty)
             except Exception:
                 execute(empty)
                 raise
@@ -183,7 +182,7 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
             schema=schema_fields(table.cols), write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
         )
         client().load_table_from_json(payload, stg_id, job_config=job_config).result()
-        execute(merge_sql(table, f"`{stg_id}`"))
+        execute(merge_sql(table, f"`{stg_id}`", checked))
     finally:
         client().delete_table(stg_id, not_found_ok=True, retry=retry())
     return len(checked)

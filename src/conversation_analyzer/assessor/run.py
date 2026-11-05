@@ -112,7 +112,6 @@ class TurnState:
 class Counters:
     values: Counter[str] = field(default_factory=Counter)
     failed_by_class: Counter[str] = field(default_factory=Counter)
-    disagreements: dict[str, list[int]] = field(default_factory=lambda: defaultdict(lambda: [0, 0]))
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def add(self, name: str, n: int = 1) -> None:
@@ -142,6 +141,10 @@ class AssessmentRun:
         self.run_id = "run-" + uuid.uuid4().hex[:16]
         self.started = time.monotonic()
         self.stop_at = self.started + s.timing.stop_new_calls_after_seconds
+        # Judge calls still running at the deadline are cut off, so the run keeps time to store its rows.
+        self.usage.deadline = self.started + s.timing.run_time_limit_seconds - s.timing.write_reserve_seconds
+        self.write_seconds = 0.0
+        self.check_rows: list[dict[str, Any]] = []
         self.hard = timedelta(minutes=s.timing.hard_limit_minutes)
         self.eligible_after = timedelta(minutes=s.timing.eligible_after_minutes)
         self.cur = current()
@@ -358,10 +361,18 @@ class AssessmentRun:
             return
         ts.second_model_checked = True
         self.counters.add("second_model_checks")
+        rows = [
+            {
+                "day": ts.turn.timestamp.date(),
+                "turn_key": ts.key,
+                "field": f.value,
+                "n_compared": 1,
+                "n_disagreements": int(getattr(base, attr) != getattr(other, attr)),
+            }
+            for f, attr in SECOND_MODEL_FIELDS.items()
+        ]
         with self.counters.lock:
-            for f, attr in SECOND_MODEL_FIELDS.items():
-                self.counters.disagreements[f.value][0] += 1
-                self.counters.disagreements[f.value][1] += getattr(base, attr) != getattr(other, attr)
+            self.check_rows.extend(rows)
 
     def phase2(self, states: list[TurnState]) -> None:
         """The evidence check: one judge call for each turn whose answer links documents we can read (§6.9, §12.6)."""
@@ -572,19 +583,19 @@ class AssessmentRun:
         }
 
     def retrieval_counts(self) -> list[dict[str, Any]]:
-        """How often Bolek's searches returned each document, per day, while the results still exist (§12.6)."""
+        """How often Bolek's searches returned each document, per whole hour, while the results still exist (§12.6)."""
         assert self.window is not None
         accounts = set(self.s.evaluator.accounts)
-        counts: Counter[tuple[Any, str]] = Counter()
+        counts: Counter[tuple[Any, int, str]] = Counter()
         for search in self.window.searches:
             if search.principal in accounts:
                 continue
             for doc_id in set(search.doc_ids):
-                counts[(search.timestamp.date(), doc_id)] += 1
-        stores = self.docs.data_stores_of(sorted({d for _, d in counts}))
+                counts[(search.timestamp.date(), search.timestamp.hour, doc_id)] += 1
+        stores = self.docs.data_stores_of(sorted({d for _, _, d in counts}))
         rows = [
-            {"day": day, "doc_id": doc_id, "data_store": stores[doc_id], "n_returned": n}
-            for (day, doc_id), n in counts.items()
+            {"day": day, "hour": hour, "doc_id": doc_id, "data_store": stores[doc_id], "n_returned": n}
+            for (day, hour, doc_id), n in counts.items()
             if doc_id in stores
         ]
         self.counters.add("retrieval_rows", len(rows))
@@ -761,10 +772,6 @@ class AssessmentRun:
             {"session_key": sk, "segment_no": no, "day": self.today, "judge_version": self.cur.version_id, **g.row()}
             for (sk, no), g in self.grades.items()
         ]
-        checks = [
-            {"day": self.today, "field": f, "n_compared": n, "n_disagreements": d}
-            for f, (n, d) in self.counters.disagreements.items()
-        ]
         versions = [
             {
                 "judge_version": v.version_id,
@@ -781,13 +788,15 @@ class AssessmentRun:
             for v in self.versions
             if v.version_id not in stored.versions
         ]
+        # Second-model rows go before the turns: a stored turn is never checked again, so rows written after it
+        # would be lost if the run stopped in between. Every table is keyed, so a re-run only replaces rows.
+        write(JUDGE_CHECKS, self.check_rows)
         write(QUALITY_TURNS, turn_rows)
         write(STAGE1_RESULTS, s1_rows)
         write(STAGE2_RESULTS, s2_rows)
         write(SEGMENTS, self.guarded(SEGMENTS, seg_rows, None, set()))
         write(SESSION_GRADES, self.guarded(SESSION_GRADES, grade_rows, None, set()))
         write(CANARY_RESULTS, self.guarded(CANARY_RESULTS, self.canary_rows, None, set()))
-        write(JUDGE_CHECKS, checks)
         write(RETRIEVAL_COUNTS, self.guarded(RETRIEVAL_COUNTS, self.retrieval_counts(), None, set()))
         write(JUDGE_VERSIONS, versions)
         c = self.counters.values
@@ -855,6 +864,7 @@ class AssessmentRun:
             "oldest_waiting_minutes": max(waiting) if waiting else 0.0,
             "window_margin_minutes": self.window.oldest_answer_age_minutes if self.window else None,
             "throttled_calls": self.usage.throttled,
+            "write_seconds": round(self.write_seconds),
             "tokens": self.usage.rows(),
             "judge_versions": [v.version_id for v in self.versions],
             "search_cutoff": search_cutoff,
@@ -908,7 +918,7 @@ class AssessmentRun:
             search_since, feedback_since = state_mod.window_cutoffs(
                 run_info, self.now, self.s.timing.window_read_minutes
             )
-            search_cutoff, feedback_cutoff = self.now - timedelta(minutes=15), self.now
+            search_cutoff, feedback_cutoff = state_mod.search_until(self.now), self.now
             self.window = read_window(self.now, feedback_since, search_since, search_cutoff)
             self.directory = load_directory(self.now)
             self.docs.register([r for t in self.window.turns for r in t.references])
@@ -932,8 +942,10 @@ class AssessmentRun:
             self.flags(states, stored)
             self.phase3(states, stored)
             self.run_canary(states)
+            writing = time.monotonic()
             self.write_all(states, stored)
             write(QUALITY_TURNS, late_feedback)
+            self.write_seconds = time.monotonic() - writing
             record = self.run_record(states, RunStatus.OK, None, search_cutoff, feedback_cutoff)
         except Exception as exc:
             error_class = classify(exc)  # the job wrapper reports it to Sentry

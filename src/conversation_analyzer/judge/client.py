@@ -26,12 +26,17 @@ class Usage:
     output_tokens: Counter[str] = field(default_factory=Counter)
     throttled: int = 0
     tokens_before_today: int = 0  # tokens already used today by earlier runs
+    deadline: float | None = None  # time.monotonic() after which no call runs or waits; None = no limit
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def add(self, model: str, inp: int, out: int) -> None:
         with self.lock:
             self.input_tokens[model] += inp
             self.output_tokens[model] += out
+
+    def remaining(self) -> float | None:
+        """Seconds left before the deadline, or None without one."""
+        return None if self.deadline is None else self.deadline - time.monotonic()
 
     def total(self) -> int:
         return sum(self.input_tokens.values()) + sum(self.output_tokens.values())
@@ -118,6 +123,9 @@ class BearerToken:
             return self._credentials.token
 
 
+REQUEST_TIMEOUT_SECONDS = 300.0
+
+
 def backoff_seconds(attempt: int) -> float:
     """Exponential backoff with jitter, from the configured base."""
     return get_settings().judge.retry_base_seconds * 2**attempt * (1 + random.random() / 2)
@@ -131,9 +139,17 @@ class VertexJudge:
         check_location(s.location)
         self.location = s.location
         self.project = get_settings().env.vertex_project
-        self.http = httpx.Client(timeout=httpx.Timeout(300.0), transport=transport)
+        self.http = httpx.Client(timeout=httpx.Timeout(REQUEST_TIMEOUT_SECONDS), transport=transport)
         self.sleep = sleep
         self._token = token or BearerToken()
+
+    def _wait(self, attempt: int, usage: Usage) -> None:
+        """Back off before a retry, unless the wait would pass the run's deadline."""
+        pause = backoff_seconds(attempt)
+        left = usage.remaining()
+        if left is not None and pause >= left:
+            raise JudgeApiError(ErrorClass.TIMEOUT)
+        self.sleep(pause)
 
     def url(self, model: str) -> str:
         return (
@@ -155,14 +171,28 @@ class VertexJudge:
             },
         }
         for attempt in range(s.max_retries + 1):
+            left = usage.remaining()
+            if left is not None and left <= 0:
+                raise JudgeApiError(ErrorClass.TIMEOUT)
+            timeout = REQUEST_TIMEOUT_SECONDS if left is None else min(REQUEST_TIMEOUT_SECONDS, left)
             try:
                 resp = self.http.post(
-                    self.url(model), json=payload, headers={"Authorization": f"Bearer {self._token()}"}
+                    self.url(model),
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self._token()}"},
+                    timeout=timeout,
                 )
+            except httpx.TimeoutException as exc:
+                if left is not None and timeout < REQUEST_TIMEOUT_SECONDS:
+                    raise JudgeApiError(ErrorClass.TIMEOUT) from exc
+                if attempt == s.max_retries:
+                    raise JudgeApiError() from exc
+                self._wait(attempt, usage)
+                continue
             except httpx.HTTPError as exc:
                 if attempt == s.max_retries:
                     raise JudgeApiError() from exc
-                self.sleep(backoff_seconds(attempt))
+                self._wait(attempt, usage)
                 continue
             if resp.status_code == 429 or resp.status_code >= 500:
                 if resp.status_code == 429:
@@ -170,7 +200,7 @@ class VertexJudge:
                         usage.throttled += 1
                 if attempt == s.max_retries:
                     raise JudgeApiError(ErrorClass.JUDGE_THROTTLED if resp.status_code == 429 else None)
-                self.sleep(backoff_seconds(attempt))
+                self._wait(attempt, usage)
                 continue
             if resp.status_code != 200:
                 raise JudgeApiError()

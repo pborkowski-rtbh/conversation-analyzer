@@ -4,42 +4,13 @@ Source of truth: `design-doc.md`. Every checkbox below traces to a section (§) 
 and tested; add a short note when something deviates. To resume: read **Status** and **Handover**, then the first
 unchecked item of the current milestone.
 
-## Status (2026-10-30, session 5)
+## Status (2026-11-05)
 
-- Branch `AIENGLAB-782` here and in the submodule `aiel-content-indexers` (also `AIENGLAB-782`, from its `origin/main`
-  2b92f03). Both pushed; the submodule is unchanged since session 2 (48dc7ad).
-- Milestones M0–M7 done in code and tests (see the checklists). `make index-local` ran (fake and real embeddings),
-  `make demo` runs end to end (~50 s). §11.3 now applied strictly: experimental labels neither alert nor rank.
-- Judge: the suite (264 drafted cases, `reviewed: false`) ran live twice: v1 BASELINE, v2 KEEP (tuning 0.77 → 0.46,
-  held-out 1.47 → 1.15, false HIGH 4 → 4, missed HIGH 6 → 0). Settings name v2 as current. Only REASONING_ERROR is
-  below 70 % recall (experimental). Cases that look like drafting mistakes, for the engineer review:
-  `budget_tab-contradicted` (the "wrong" answer is not strictly contradicted), the `*-reasoning` cases (stage 1
-  judges them contradicted, the drafts say unsupported), `people-7` and `unclear-unstated-1` (intent).
-- Tests: `make coverage` (~15 min, 98.37 %, 229 tests), `make test-unit` 10 s.
-- Paid Vertex spend: **34.71 USD** of the 50 USD cap (Spend log below).
-
-## Next steps, in order
-
-Session 5 (2026-10-30, branch `AIENGLAB-782_v2`, fresh clone: `uv sync`, `git submodule update --init`, stack started).
-The Makefile and `tests/conftest.py` fall back to `docker compose` when `docker-compose` is missing. `make lint` and
-`make test-unit` pass.
-
-1. Done (session 5): `make coverage` 228 tests, 98.10 % (15 min). One flaky test fixed: suite run IDs had seconds +
-   random suffix, so "latest run" was random for two runs in one second; IDs now carry microseconds after the seconds.
-2. Done (session 5, on the user's request): `make build` builds the image (1.64 GB); see Final for the checks run in it.
-3. Requirement sweep of design-doc.md against the code, section by section (done by hand in session 5; the agents
-   were stopped): [x] §1-5 + §12.5-12.6; [x] §6-7; [x] §8-10 + §12.8-12.9; [x] §11 + §12.1-4, 12.7, 12.10-17.
-   Spot checks of every concrete rule (settings, closed lists, metrics, health checks, access rules, tables) against
-   the code. Gaps found and fixed: KNOWLEDGE_GAP was not shown with its miss rate (§7.5, §11.4): the digest prints
-   the week's canary miss rate on every KNOWLEDGE_GAP cluster; quality-daily did not read the release gate verdicts
-   (§12.11): `quality_release_impact.gate_verdict` now carries them for the dashboard. New deviation rows below:
-   gate verdicts, anchor set rotation, release impact slices. Schema change: `make db-reset` before local runs.
-4. Done (session 5) except the push: CLAUDE.md complete, `make help` lists every target, `make coverage` green at
-   98.37 % (229 tests). The submodule is unchanged (48dc7ad on `origin/AIENGLAB-782`); this repo's commits are on the
-   local branch `AIENGLAB-782_v2`, not pushed yet.
-
-Budget note: 9 USD of conversation budget left when this was written; paid Vertex spend is 14.51 of 50 USD (no further
-paid runs are needed for the steps above).
+The build is finished (M0–M7). Deployment work is planned and logged in **`deployment-plan.md`**, which replaces this
+file's Status and Next steps from 2026-11-02 on: read its Status first. What changed since session 5 (the document
+index and the submodule, PII scrubbing and Presidio, judge v2) is recorded there (A2–A8) and in the deviations below.
+This file stays the record of the build: the milestone checklists, the deviations, the emulator quirks and the spend
+log of the build (34.71 of 50 USD).
 
 ## Decisions (interview, 2026-10-29)
 
@@ -292,10 +263,10 @@ coverage, lint, fmt, build`.
 | Data stores | `rtb-crj-*` + Drive + people directory (`rtb-crj-associates`, `people-connections_*`); new topic `DOC_REPO`. Content bucket `rtbhouse-agentspace-mcp-document-content`, content secrets in `rtbhouse-agentspace` (Terraform of `infrastructure`). Indexer jobs `indexer-*` in `europe-west4`. |
 | Channel | `agentsSpec` → WEB_UI; `query.text` → SLACK_MCP; anything else → WEB_UI. Canary turns have `query.text`, so they carry SLACK_MCP but are excluded via `is_canary`. |
 | Feedback reasons | Google's list is not known; a provisional closed list in `vocab.FeedbackReason`, anything else stored as `UNRECOGNIZED`. |
-| Employee IDs | Pattern is a placeholder (`pii.employee_id_patterns`), to confirm with HR. |
+| Employee IDs | Superseded: PII scrubbing was dropped (2026-11-02, `deployment-plan.md` A3). |
 | Engine change methods | List in `engine_change_methods` is a guess at the export's admin method names. |
-| Stage 2 phrasings | "Question and problem claim" search needs claims: one extra in-memory judge call (`Stage2Phrasings`) lists ≤3 claims as search phrases; never stored. Fallback phrasing: first 500 chars of the answer. |
-| Stage 2 found documents | Reads up to `sizes.stage2_found_documents` (5) found documents besides all cited ones. |
+| Stage 2 phrasings | Superseded: there is no search, so no phrasings call (2026-11-02, `deployment-plan.md` A2). |
+| Stage 2 documents | No search: stage 2 reads all cited documents and up to `sizes.stage2_linked_documents` (5) documents linked in the answer (A2). The merged code `NOT_IN_CITED_SOURCES` replaces `RETRIEVAL_MISS` and `KNOWLEDGE_GAP`. |
 | Cause path | Judge answers the yes/no path questions; `stage2._cause` derives the why. A turn without references starts at question 3 (§7.3). |
 | Canary planted share | `canary.planted_share` = 0.25 (6 extra judge calls per planted canary turn). |
 | Retrieval counts | Only document IDs the index resolves to an allowlisted data store are counted (people directory never). |
@@ -327,6 +298,9 @@ coverage, lint, fmt, build`.
 | Department source | The assessor never reads the HR table. The associates indexer writes `email → base_function` (hourly in prod, every 6 hours in stage) to `gs://<project>-indexers-state/directory/associates-departments.json`; `people/directory.py` reads it (`people_directory.map_uri`, per environment since AIENGLAB-854) and refuses a map older than `people_directory.max_age_hours` (7, AIENGLAB-853). |
 | Log partition filter | `partition_filter()` also takes rows with a NULL `_PARTITIONTIME` (not yet in a partition): on 2026-11-04, 10 of 153 `StreamAssist` rows of the last hour had none. Without them, searches and feedback read from the last run's cutoff would be skipped for good, and the newest turns read late. The required-partition-filter check accepts this form (checked on prod, read-only, by the user). |
 | Department families | Four families (`ENGINEERING`, `CAMPAIGNS` = Technical Support + Traffic, `COMMERCIAL`, `CORPORATE`) plus `OTHER` and `UNKNOWN`, from the stage map's 45 `base_function` values (2026-11-04); 72 strata, not 60. The privacy floor is applied to each run's map. A stored family is kept, so a leaver or a later stale map never turns a known turn `UNKNOWN`. The `department` column has its own leak-guard kind (family codes only), not `enum`. At the user's request (2026-11-04) turns and segments also hold `base_function` as is, with no floor (every value listed in settings; a new one is `OTHER` until listed) and `user_key` (HMAC of the email): a change to §6.10's "no identity" that G2 must approve, as a 1-associate `base_function` names its person. A run without a usable map sets `quality_runs.directory_unavailable`; the monitor alerts `DIRECTORY_UNAVAILABLE` once a day. |
+| No document index, no PII scrubbing | Decided 2026-11-02 (`deployment-plan.md` §1, A2, A3): no embeddings or indexer sink, the submodule is gone; conversations reach the judge as logged (EU endpoints, never stored). Judge v4 is current. |
+| Environments | Stage and prod run the same image and settings in two projects (`CA_PROJECT`); stage alone has the run gate (`CA_RUN_GATE_URI`). No environment switch, no dataset prefix (`deployment-plan.md` §1, A6). |
+| Re-runs replace, never add | No table adds up on `MERGE` any more (`deployment-plan.md` A8): second-model checks are one row per turn and field, written before the turns; search counts are per whole hour, each hour read by one run. Judge calls stop at a deadline that keeps `timing.write_reserve_seconds` for the writes. |
 | Release impact slices | Measured on slice ALL per channel (web UI, Slack+MCP, all). The spec's "about 8 points for a data store with 15 % of the traffic" is read as a detection limit, not a per-data-store measurement. |
 
 ## Spend log (paid Vertex calls, cap 50 USD)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Literal
 
 import httpx
@@ -194,3 +195,28 @@ def test_bearer_token_refreshes_only_when_invalid(monkeypatch):
     token = jc.BearerToken()
     assert token() == "abc" and token() == "abc"
     assert creds.refreshed == 1
+
+
+def test_deadline_passed_makes_no_call():
+    judge, seen = judge_with([])
+    usage = Usage(deadline=time.monotonic() - 1)
+    with pytest.raises(JudgeApiError) as exc:
+        judge.generate("m", "s", "p", Form, usage)
+    assert exc.value.error_class == ErrorClass.TIMEOUT and not seen
+
+
+def test_deadline_caps_the_request_timeout_and_the_backoff():
+    payload = {"label": "A", "score": 2, "items": [], "either": 1}
+    judge, seen = judge_with([answer(payload)])
+    judge.generate("m", "s", "p", Form, Usage(deadline=time.monotonic() + 30))
+    assert seen[0].extensions["timeout"]["read"] <= 30
+    judge, _ = judge_with([httpx.ReadTimeout("t")])
+    with pytest.raises(JudgeApiError) as exc:  # cut off by the deadline: no retry
+        judge.generate("m", "s", "p", Form, Usage(deadline=time.monotonic() + 30))
+    assert exc.value.error_class == ErrorClass.TIMEOUT
+    sleeps: list = []
+    judge, _ = judge_with([httpx.Response(503)], sleeps)
+    with pytest.raises(JudgeApiError) as exc:  # the backoff would pass the deadline
+        judge.generate("m", "s", "p", Form, Usage(deadline=time.monotonic() + 0.5))
+    assert exc.value.error_class == ErrorClass.TIMEOUT and not sleeps
+    assert Usage().remaining() is None

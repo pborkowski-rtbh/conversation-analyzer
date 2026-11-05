@@ -1361,8 +1361,8 @@ sequenceDiagram
 | Phase 3 | Stage 2 and session grades for flagged turns, oldest first, for as long as the run has time. |
 | Write | The leak guard checks every row (§6.10). Then one `MERGE` per table writes the results. Rows are keyed by turn key, stage and judge version, so writing the same result twice replaces the row instead of adding a second one. |
 
-- Stage 1 always goes first. After 7 minutes, the run stops starting new judge calls. A flagged turn that didn't get to stage 2 is marked as pending and goes first in the next run. If it is still pending when the turn is 3h30 old, we give up on its stage 2 and count it, because the turn's text is about to be erased.
-- The assessor also counts retrievals. The anchor set gives more weight to documents that traffic often cites or retrieves (§10.1). The documents returned by Bolek's searches are erased together with the answers, so the assessor counts them per document and day while they still exist. Searches made by canary accounts are not counted. A search record names only document IDs, so each ID takes its data store from the references seen in the window; an ID that no reference names is not counted.
+- Stage 1 always goes first. After 6 minutes, the run stops starting new judge calls; at 7 minutes it cuts off the calls still running, so storing the results fits in the 9 minutes. A flagged turn that didn't get to stage 2 is marked as pending and goes first in the next run. If it is still pending when the turn is 3h30 old, we give up on its stage 2 and count it, because the turn's text is about to be erased.
+- The assessor also counts retrievals. The anchor set gives more weight to documents that traffic often cites or retrieves (§10.1). The documents returned by Bolek's searches are erased together with the answers, so the assessor counts them per document and hour while they still exist. It counts only whole hours that ended at least 15 minutes ago, each in one run, so a run that is repeated counts the same hours again and replaces its rows instead of adding to them. Searches made by canary accounts are not counted. A search record names only document IDs, so each ID takes its data store from the references seen in the window; an ID that no reference names is not counted.
 
 ### 12.7 Reading our documents
 
@@ -1452,8 +1452,8 @@ All datasets are in the EU, the same location as `analytics`. Their tables and v
 | | `quality_segments` | Session segment: its session facts, department family, and whether it is open or closed | Assessor |
 | | `quality_session_grades` | Graded segment (§7.7) | Assessor |
 | | `quality_canary_results` | Canary turn, as answered or with a planted error: its forms, a hash of the question, the planted error, whether it was caught | Assessor |
-| | `quality_judge_checks` | Day and field: second-model disagreements (§11.5) | Assessor |
-| | `quality_retrieval_counts` | Day and document: how often Bolek's searches returned it | Assessor |
+| | `quality_judge_checks` | Day, turn and field: second-model disagreements (§11.5) | Assessor |
+| | `quality_retrieval_counts` | Day, hour and document: how often Bolek's searches returned it | Assessor |
 | | `quality_judge_versions` | Judge version: what it consists of, when it started, its parallel run | Assessor |
 | | `quality_runs` | Assessment run: turns read, assessed, too large, missed, and failed by error class; oldest waiting turn; window margin; throttled calls; tokens used; whether the department map was unavailable | Assessor |
 | | `quality_alerts`, `quality_alert_sessions` | `HIGH` cluster or pipeline health alert; alert and session segment, for lookups by alert ID. Anomaly alerts are stored with their anomaly. | `quality-monitor` |

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from conversation_analyzer.settings import get_settings
 
@@ -35,7 +35,12 @@ class Table:
     writer: str
     partition: str | None = None
     expiration_days: int | None = None
-    additive: tuple[str, ...] = field(default=())  # columns a MERGE adds up instead of replacing
+    stable_partition: bool = False  # the key fixes the partition value, so a MERGE may prune by it
+
+    @property
+    def prunable(self) -> bool:
+        """A MERGE may restrict the target to the partitions present in the staged rows."""
+        return self.partition is not None and (self.partition in self.key or self.stable_partition)
 
     def col(self, name: str) -> Col:
         return next(c for c in self.cols if c.name == name)
@@ -163,6 +168,7 @@ QUALITY_TURNS = Table(
     key=("turn_key",),
     writer="assessor",
     partition="day",
+    stable_partition=True,
     expiration_days=PER_TURN_DAYS,
 )
 
@@ -201,6 +207,7 @@ STAGE1_RESULTS = Table(
     key=("turn_key", "judge_version"),
     writer="assessor",
     partition="day",
+    stable_partition=True,
     expiration_days=PER_TURN_DAYS,
 )
 
@@ -225,6 +232,7 @@ STAGE2_RESULTS = Table(
     key=("turn_key", "judge_version"),
     writer="assessor",
     partition="day",
+    stable_partition=True,
     expiration_days=PER_TURN_DAYS,
 )
 
@@ -256,6 +264,7 @@ SEGMENTS = Table(
     key=("session_key", "segment_no"),
     writer="assessor",
     partition="first_day",
+    stable_partition=True,
     expiration_days=PER_TURN_DAYS,
 )
 
@@ -308,6 +317,7 @@ CANARY_RESULTS = Table(
     key=("turn_key", "planted_error", "with_references", "judge_version"),
     writer="assessor",
     partition="day",
+    stable_partition=True,
     expiration_days=PER_TURN_DAYS,
 )
 
@@ -316,15 +326,15 @@ JUDGE_CHECKS = Table(
     "quality_judge_checks",
     (
         d("day"),
+        h("turn_key"),
         enum("field"),
         i("n_compared"),
         i("n_disagreements"),
     ),
-    key=("day", "field"),
+    key=("day", "turn_key", "field"),  # one row per checked turn and field, so a re-run replaces it
     writer="assessor",
     partition="day",
     expiration_days=PER_TURN_DAYS,
-    additive=("n_compared", "n_disagreements"),
 )
 
 RETRIEVAL_COUNTS = Table(
@@ -332,15 +342,15 @@ RETRIEVAL_COUNTS = Table(
     "quality_retrieval_counts",
     (
         d("day"),
+        i("hour"),
         Col("doc_id", "STRING", "doc_id"),
         Col("data_store", "STRING", "data_store"),
         i("n_returned"),
     ),
-    key=("day", "doc_id", "data_store"),
+    key=("day", "hour", "doc_id", "data_store"),  # whole hours, each counted by one run, so a re-run replaces them
     writer="assessor",
     partition="day",
     expiration_days=PER_TURN_DAYS,
-    additive=("n_returned",),
 )
 
 JUDGE_VERSIONS = Table(
@@ -397,6 +407,7 @@ RUNS = Table(
         f("oldest_waiting_minutes"),
         f("window_margin_minutes"),
         i("throttled_calls"),
+        i("write_seconds"),  # time the run spent storing its rows; the deadline keeps timing.write_reserve_seconds
         TOKENS,
         Col("judge_versions", "STRING", "version", "REPEATED"),
         ts("search_cutoff"),
@@ -405,6 +416,7 @@ RUNS = Table(
     key=("run_id",),
     writer="assessor",
     partition="run_day",
+    stable_partition=True,
     expiration_days=PER_TURN_DAYS,
 )
 
@@ -745,7 +757,12 @@ def ddl(table: Table, emulator: bool, name_override: str | None = None) -> str:
     full = f"`{s.table(table.dataset, name)}`"
     cols = ",\n  ".join(col.ddl() for col in table.cols)
     sql = f"CREATE TABLE IF NOT EXISTS {full} (\n  {cols}\n)"
-    if table.partition and not name_override:
+    if name_override:
+        # A staging table outlives its write only when the job is killed mid-write; then it expires by itself.
+        if not emulator:
+            sql += "\nOPTIONS (expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 DAY))"
+        return sql
+    if table.partition:
         sql += f"\nPARTITION BY {table.partition}"
         if table.expiration_days and not emulator:
             sql += f"\nOPTIONS (partition_expiration_days = {table.expiration_days})"

@@ -116,7 +116,16 @@ def test_weekly_clusters_documents_eval_sets_and_digest(clean, monkeypatch):
     )
     write(
         RETRIEVAL_COUNTS,
-        [{"day": WEEK + timedelta(days=1), "doc_id": "hr_leave", "data_store": "rtb-crj-hr-house", "n_returned": 42}],
+        [
+            {
+                "day": WEEK + timedelta(days=1),
+                "hour": h,
+                "doc_id": "hr_leave",
+                "data_store": "rtb-crj-hr-house",
+                "n_returned": n,
+            }
+            for h, n in ((9, 40), (10, 2))
+        ],
     )
     write(
         SUITE_RUNS,
