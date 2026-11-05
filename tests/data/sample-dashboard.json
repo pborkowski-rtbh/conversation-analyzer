@@ -1,0 +1,37 @@
+{
+  "apiVersion": "dashboard.grafana.app/v1beta1",
+  "kind": "Dashboard",
+  "metadata": {"name": "sample"},
+  "spec": {
+    "title": "Sample",
+    "time": {"from": "now-7d", "to": "now"},
+    "templating": {"list": [
+      {"type": "datasource", "name": "datasource", "query": "grafana-bigquery-datasource"},
+      {"type": "custom", "name": "channel", "current": {"text": "ALL", "value": "ALL"}, "options": [{"value": "ALL"}]},
+      {"type": "custom", "name": "metric", "current": {}, "options": [{"value": "VOLUME"}, {"value": "COVERAGE"}]}
+    ]},
+    "annotations": {"list": [
+      {"name": "Built-in", "datasource": {"type": "grafana", "uid": "-- Grafana --"}},
+      {"name": "Changes", "datasource": {"type": "grafana-bigquery-datasource", "uid": "${datasource}"},
+       "target": {"refId": "A", "rawSql": "SELECT TIMESTAMP(day) AS time FROM `bolek_quality_metrics.quality_change_events` WHERE $__timeFilter(TIMESTAMP(day))"}}
+    ]},
+    "panels": [
+      {"type": "stat", "title": "Volume", "datasource": {"type": "grafana-bigquery-datasource", "uid": "${datasource}"},
+       "targets": [{"refId": "A", "rawSql": "SELECT value FROM `bolek_quality_metrics.quality_metrics_daily` WHERE metric = '${metric}' AND channel = '$channel' AND $__timeFilter(TIMESTAMP(day))"}]},
+      {"type": "row", "title": "Collapsed", "collapsed": true, "panels": [
+        {"type": "timeseries", "title": "Per hour",
+         "targets": [{"refId": "A", "datasource": {"type": "grafana-bigquery-datasource", "uid": "${datasource}"},
+                      "rawSql": "SELECT $__timeGroupAlias(TIMESTAMP(day), 1h), COUNT(*) AS n FROM `bolek_quality_metrics.quality_anomalies` WHERE day >= DATE($__timeFrom()) GROUP BY 1"}]}
+      ]},
+      {"type": "table", "title": "Open anomalies", "description": "May be empty: nothing unusual.",
+       "datasource": {"type": "grafana-bigquery-datasource", "uid": "${datasource}"},
+       "targets": [{"refId": "A", "rawSql": "SELECT anomaly_id FROM `bolek_quality_metrics.quality_anomalies` WHERE state = 'OPEN'"}]},
+      {"type": "table", "title": "Broken", "datasource": {"type": "grafana-bigquery-datasource", "uid": "${datasource}"},
+       "targets": [{"refId": "A", "rawSql": "SELECT no_such_column FROM `bolek_quality_metrics.quality_metrics_daily`"},
+                   {"refId": "B", "hide": true, "rawSql": "SELECT 1"}]},
+      {"type": "text", "title": "Notes"},
+      {"type": "stat", "title": "Other source", "datasource": {"type": "prometheus", "uid": "prom"},
+       "targets": [{"refId": "A", "rawSql": "up"}]}
+    ]
+  }
+}

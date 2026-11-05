@@ -553,7 +553,7 @@
             "editorMode": "code",
             "format": 0,
             "rawQuery": true,
-            "rawSql": "SELECT TIMESTAMP_ADD(TIMESTAMP(day), INTERVAL hour HOUR) AS time, coverage AS `coverage`\nFROM `bolek_quality_metrics.quality_pipeline_health` WHERE kind = 'RUN' AND channel = 'ALL' AND $__timeFilter(TIMESTAMP(day)) ORDER BY time"
+            "rawSql": "SELECT TIMESTAMP_ADD(TIMESTAMP(day), INTERVAL hour HOUR) AS time, coverage AS `coverage`\nFROM `bolek_quality_metrics.quality_pipeline_health` WHERE kind = 'RUN' AND $__timeFilter(TIMESTAMP(day)) ORDER BY time"
           }
         ],
         "options": {
@@ -602,7 +602,7 @@
         "type": "table",
         "id": 4,
         "title": "Runs with a check fired",
-        "description": "",
+        "description": "May be empty: no run fired a pipeline check.",
         "datasource": {
           "type": "grafana-bigquery-datasource",
           "uid": "${datasource}"
@@ -659,7 +659,7 @@
         "type": "table",
         "id": 6,
         "title": "Open anomalies (and acknowledged in the last 14 days)",
-        "description": "",
+        "description": "May be empty: nothing unusual, or every anomaly was acknowledged more than 14 days ago.",
         "datasource": {
           "type": "grafana-bigquery-datasource",
           "uid": "${datasource}"

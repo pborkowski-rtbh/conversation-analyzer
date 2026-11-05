@@ -260,7 +260,7 @@ class Mock:
                         "kind": "RUN",
                         "run_id": _id("run", day, hour),
                         "hour": hour,
-                        "channel": ALL,
+                        "channel": None,  # run rows have no channel, as the monitor writes them
                         "run_status": "FAILED" if failed_run else "OK",
                         "coverage": (eligible - missed) / eligible if eligible else 1.0,
                         "eligible": eligible,

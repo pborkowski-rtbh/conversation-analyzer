@@ -9,7 +9,7 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-05)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). A7 started (AIENGLAB-855): local Grafana with the proposed dashboard on mocked data; `make dashboard-check` still to do. All code is in the private repo (M0–M7 done, 253 tests, 98.12 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). A7 done (AIENGLAB-855): local Grafana with the proposed dashboard on mocked data, and `make dashboard-check`. All code is in the private repo (M0–M7 done, 253 tests, 98.12 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -262,10 +262,13 @@ stage and prod run the same code and settings in two projects, with no environme
 
 ### A7. Dashboard queries testable locally
 
-- [ ] `make dashboard-check DASHBOARD=<path to a dashboard JSON>`: extracts every panel's SQL from a Grafana
+- [x] `make dashboard-check DASHBOARD=<path to a dashboard JSON>`: extracts every panel's SQL from a Grafana
   dashboard file, replaces the Grafana macros (`$__timeFilter`, variables) with fixed values, and runs it on the
   emulator after `make demo`. Fails on any error or empty required panel. The dashboard's source stays in
-  `infra-grafana-dashboards`; this repo only tests it.
+  `infra-grafana-dashboards`; this repo only tests it. Deviation: every panel is required unless its description
+  says "May be empty" (no anomaly open is a valid state), so a new panel is checked without being marked. On the
+  `make demo` data the panels stay under the 20-turn minimum, so it runs there with `ALLOW_EMPTY=1`; the tests run
+  it on the mocked data (`tests/test_dashboard_mock.py`), where every required panel must have rows.
 - [x] Local Grafana to iterate on the dashboard (`make grafana`): the real BigQuery plugin over the emulator through
   a local proxy (no real GCP), 8 weeks of mocked metrics (`ca dev-seed-dashboard`), the proposed dashboard
   `docker/grafana/dashboards/bolek-quality.json` (v1beta1, rows 1–7 of §8.8) and its team guide (`README.md` there).

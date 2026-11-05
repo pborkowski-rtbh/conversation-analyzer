@@ -206,7 +206,15 @@ make grafana         # Grafana on http://localhost:3000 (no login), 8 weeks of m
                      # edit panels in the UI, then:
 make grafana-save    # write the UI's version back into bolek-quality.json
 make grafana-load    # or push the file into Grafana (also warms the query cache)
+make dashboard-check # every panel's SQL on the emulator, without Grafana: fails on an error or an empty panel
 ```
+
+`make dashboard-check` takes `DASHBOARD=<file>` (any v1beta1 or classic dashboard JSON), `VARS="channel=WEB_UI
+department=ENGINEERING"` and `ALLOW_EMPTY=1`. It fills in the variables (their saved values by default) and the time
+macros (`$__timeFilter`, `$__timeFrom`, `$__timeTo`, `$__timeGroup`) the way the plugin does, then runs each query.
+Every panel must return rows, unless its description says **"May be empty"** (for example the open anomalies table).
+After `make demo` there are too few turns to fill the panels, so run it there with `ALLOW_EMPTY=1`: only query errors
+fail. The tests run it on the mocked data, so a panel that breaks fails `make test`.
 
 Grafana runs the real BigQuery plugin, so the panels run the same SQL they will run on Central Grafana. A small local
 proxy (`docker/grafana/proxy/`) answers as Google's BigQuery and OAuth endpoints and forwards to the emulator. Grafana

@@ -1,8 +1,9 @@
-"""Mocked metrics for the local Grafana: the story shows, rows pass the leak guard, seeding needs empty tables."""
+"""Mocked metrics for the local Grafana: the story, the leak guard, empty tables first, the dashboard runs on them."""
 
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -15,6 +16,7 @@ from conversation_analyzer.devtools.dashboard_mock import Mock
 from tests.conftest import wipe
 
 pytestmark = pytest.mark.emulator
+DASHBOARD = Path(__file__).parents[1] / "docker" / "grafana" / "dashboards" / "bolek-quality.json"
 TODAY = date(2026, 11, 5)
 
 
@@ -42,3 +44,7 @@ def test_seed_writes_every_table_and_refuses_a_second_time(emulator) -> None:
     assert query(f"SELECT COUNT(*) AS n FROM {tbl(ANOMALIES)} WHERE state = 'OPEN'")[0]["n"] == 1
     with pytest.raises(RuntimeError, match="not empty"):
         dashboard_mock.seed(TODAY)
+
+    # The committed dashboard runs on the mocked data with every required panel filled.
+    check = CliRunner().invoke(cli.main, ["dashboard-check", str(DASHBOARD)], env={"CA_NOW": f"{TODAY}T12:00:00+00:00"})
+    assert check.exit_code == 0, check.output

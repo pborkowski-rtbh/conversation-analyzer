@@ -123,6 +123,10 @@ grafana-load: ## Load the dashboard file into the local Grafana and warm the que
 grafana-save: ## Write the local Grafana's version of the dashboard (edited in the UI) back into the file
 	$(UV) run python docker/grafana/sync.py save $(DASHBOARD)
 
+.PHONY: dashboard-check
+dashboard-check: ## Every panel's SQL of DASHBOARD on the emulator: errors and empty panels fail (after make grafana-seed)
+	$(CA) dashboard-check $(DASHBOARD) $(foreach v,$(VARS),--var $(v)) $(if $(ALLOW_EMPTY),--allow-empty)
+
 .PHONY: grafana-down
 grafana-down: ## Stop the local Grafana and its proxy
 	$(COMPOSE) --profile grafana stop grafana gcp-proxy
