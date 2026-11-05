@@ -17,7 +17,7 @@ and dependencies come from `deployment-plan.md`.
 | 08 | Drop PII scrubbing | Code (private repo) | — |
 | 09 | Judge v3 and the suite without search or PII scrubbing (paid, ~7 USD) | Code (private repo) | 07, 08 |
 | 10 | Department group on every turn and in the strata | Code (private repo) | 03 (values only) |
-| 11 | Per-environment settings, stage on/off switch, dry run, schema check, leak audit | Code (private repo) | — |
+| 11 | One code for stage and prod, stage on/off switch, dry run, schema check, leak audit | Code (private repo) | — |
 | 12 | Local check of the dashboard's SQL on the emulator | Code (private repo) | — |
 | 13 | Step 1: foundations in the official repo, CI, first image | Deploy | 01, 11 |
 | 14 | Step 2: datasets, service accounts, tables | Deploy | 13 |

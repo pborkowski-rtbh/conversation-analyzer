@@ -15,7 +15,7 @@ dependencies come from `deployment-plan.md`; when the two disagree, the plan win
 | 08 | [Drop PII scrubbing from the assessor](08-no-pii-scrubbing.md) | — | A3 |
 | 09 | [Judge v3 and the judge test suite without search](09-judge-v3-and-suite.md) | 07, 08 | A4 |
 | 10 | [Department family on every turn and in the AQR strata](10-department-in-strata.md) | 03 (values only; code can start with placeholder families) | A5 |
-| 11 | [Environment settings, run gate and operational commands for real GCP](11-ready-for-real-gcp.md) | — | A6 |
+| 11 | [One code for stage and prod, run gate and operational commands for real GCP](11-ready-for-real-gcp.md) | — | A6 |
 | 12 | [Local check of the Grafana dashboard's SQL on the emulator](12-dashboard-sql-check.md) | — | A7 |
 | 13 | [Step 1: foundations in the official repository, CI and the first image](13-step1-repo-ci-image.md) | 01, 11 | Step 1 |
 | 14 | [Step 2: datasets, service accounts and tables in stage and prod](14-step2-datasets-and-accounts.md) | 13 | Step 2 |
