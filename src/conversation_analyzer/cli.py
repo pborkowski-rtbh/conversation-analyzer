@@ -246,6 +246,63 @@ def dev_seed(now: str | None) -> None:
     safe_log.log("dev_seed", turns=len(scenario.turns()))
 
 
+@main.command("dev-seed-dashboard")
+@click.option("--today", default=None, help="Day after the last mocked day (YYYY-MM-DD); default today (or CA_NOW).")
+def dev_seed_dashboard(today: str | None) -> None:
+    """Local only: write eight weeks of mocked metrics rows for the local Grafana dashboard."""
+    from datetime import date
+
+    from conversation_analyzer.devtools import dashboard_mock
+    from conversation_analyzer.settings import get_settings
+    from conversation_analyzer.settings import now as current
+
+    if not get_settings().env.emulator:
+        raise click.UsageError("dev-seed-dashboard writes mocked rows and runs only against the emulator")
+    counts = dashboard_mock.seed(date.fromisoformat(today) if today else current().date())
+    safe_log.log("dev_seed_dashboard", **counts)
+
+
+@main.command("dashboard-check")
+@click.argument("dashboard", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--var", "variables", multiple=True, help="A variable's value, name=value; default its saved value.")
+@click.option("--from", "start", default=None, help="Start of the time range (now-56d, ISO); default the dashboard's.")
+@click.option("--to", "end", default=None, help="End of the time range; default the dashboard's.")
+@click.option(
+    "--allow-empty", is_flag=True, help="Fail on query errors only (the demo has too few turns to fill panels)."
+)
+def dashboard_check(
+    dashboard: Path, variables: tuple[str, ...], start: str | None, end: str | None, allow_empty: bool
+) -> None:
+    """Local only: run every panel's SQL of a Grafana dashboard file on the emulator; errors and empty panels fail."""
+    from conversation_analyzer.devtools import dashboard_check as dc
+    from conversation_analyzer.settings import get_settings
+    from conversation_analyzer.settings import now as current
+
+    if not get_settings().env.emulator:
+        raise click.UsageError("dashboard-check runs only against the emulator")
+    spec = dc.load(dashboard)
+    values = dc.defaults(spec)
+    for v in variables:
+        name, sep, value = v.partition("=")
+        if not sep:
+            raise click.UsageError(f"--var takes name=value, got {v!r}")
+        values[name] = value
+    when = current()
+    window = spec.get("time", {})
+    a = dc.time_point(start or window.get("from", "now-7d"), when)
+    b = dc.time_point(end or window.get("to", "now"), when)
+    results = dc.check(spec, values, a, b)
+    for r in results:
+        state = "ERROR" if r.error else ("ok" if r.rows else ("EMPTY" if r.query.required else "empty"))
+        click.echo(f"{state:5} {r.rows if r.rows is not None else '-':>6}  {r.query.title} [{r.query.ref}]")
+        if r.error:
+            click.echo(f"      {r.error}")
+    failed = [r for r in results if r.error or not (r.ok or allow_empty)]
+    click.echo(f"{len(results) - len(failed)} of {len(results)} queries passed ({a.date()} to {b.date()})")
+    if failed:
+        sys.exit(1)
+
+
 @main.command("dev-load-suite-runs")
 @click.argument("reports", nargs=-1, type=click.Path(exists=True, dir_okay=False, path_type=Path))
 def dev_load_suite_runs(reports: tuple[Path, ...]) -> None:
