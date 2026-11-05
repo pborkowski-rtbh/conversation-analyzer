@@ -9,6 +9,7 @@ COPY src ./src
 RUN uv sync --frozen --no-dev
 
 FROM python:3.12-slim
+ARG CODE_VERSION=dev
 RUN useradd --create-home --uid 10001 analyzer
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
@@ -16,6 +17,7 @@ COPY --from=build /app/src /app/src
 COPY config ./config
 COPY judge_versions ./judge_versions
 COPY suite_cases ./suite_cases
-ENV PATH=/app/.venv/bin:$PATH PYTHONUNBUFFERED=1
+# Every run record and Sentry event names the git SHA the image was built from (make build, CI: --build-arg).
+ENV PATH=/app/.venv/bin:$PATH PYTHONUNBUFFERED=1 CA_CODE_VERSION=$CODE_VERSION
 USER analyzer
 ENTRYPOINT ["ca"]

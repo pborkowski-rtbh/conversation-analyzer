@@ -372,6 +372,7 @@ RUNS = Table(
         ts("finished_at"),
         enum("status"),
         enum("error_class"),
+        b("dry_run"),  # --dry-run: the window was read and planned, nothing judged or stored but this record
         i("turns_read"),
         i("eligible"),
         i("covered"),
@@ -540,6 +541,7 @@ PIPELINE_HEALTH = Table(
         f("log_expected"),
         b("log_gap"),
         enums("checks_fired"),
+        b("no_run_expected"),  # stage paused, or within 3h30 of a paused run: coverage, no-run, log-gap checks off
     ),
     key=("day", "kind", "run_id", "hour", "channel"),
     writer="monitor",
@@ -740,7 +742,7 @@ TABLES: tuple[Table, ...] = (
 def ddl(table: Table, emulator: bool, name_override: str | None = None) -> str:
     s = get_settings()
     name = name_override or table.name
-    full = f"`{s.env.bq_project}.{getattr(s.datasets, table.dataset)}.{name}`"
+    full = f"`{s.table(table.dataset, name)}`"
     cols = ",\n  ".join(col.ddl() for col in table.cols)
     sql = f"CREATE TABLE IF NOT EXISTS {full} (\n  {cols}\n)"
     if table.partition and not name_override:

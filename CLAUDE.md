@@ -8,6 +8,9 @@ spec are in `plan.md`. Read `plan.md` **Status** and **Next steps** first when r
 
 - **Never touch real BigQuery.** No `bq`, no `gcloud bigquery`, no client pointed at a real project. Everything
   local and every test runs on the BigQuery emulator from `docker-compose.yml`. `gcloud` is read-only.
+- **Only what runs locally lives here.** Everything in this repo must be verifiable with the emulator, fake GCS and
+  the stubs. What only GCP needs (CI/CD and ops workflows, stage and prod settings, targets that reach real GCS or
+  BigQuery) is written during the migration, in the official repo (`deployment-plan.md`), even if a ticket lists it.
 - **No text leaves the assessor.** Stored rows hold only counts, scores, closed codes, hashes and IDs (§6.10).
   Every write goes through `bq/client.write`, which runs the leak guard (`leak_guard.py`) on every row: a column's
   `kind` in `bq/schema.py` decides what may be stored. A new column needs a kind; never add a free-text column.
@@ -25,15 +28,17 @@ spec are in `plan.md`. Read `plan.md` **Status** and **Next steps** first when r
 ## Layout
 
 ```text
-config/settings.yaml   every tunable (§12.14); env-specific values come from CA_* variables (local.env)
+config/settings.yaml   every tunable (§12.14); stage and prod run the same file in two projects. A job's own project,
+                       endpoints, tokens and the run gate come from CA_* variables (local.env)
 judge_versions/vN/     rubric (en, pl), prompts, models.yaml; v4 is current (`judge.current_version`)
 suite_cases/           judge test suite cases (YAML, §11.1)
 src/conversation_analyzer/
   cli.py               `ca <job>`: quality-assessor, quality-monitor, quality-daily, quality-weekly,
-                       quality-judge-suite, quality-record, quality-alert-lookup, db-init, dev-seed,
-                       dev-load-suite-runs
-  settings.py vocab.py safe_log.py errors.py secrets.py keys.py leak_guard.py
-  bq/                  schema (all tables), client (query, guarded MERGE writes), views, external tables, init
+                       quality-judge-suite, quality-record, quality-alert-lookup, db-init [--check],
+                       leak-audit, run-gate, dev-seed, dev-load-suite-runs
+  settings.py vocab.py safe_log.py errors.py secrets.py keys.py leak_guard.py run_gate.py
+  bq/                  schema (all tables), client (query, guarded MERGE writes), views, external tables, init,
+                       check (live schema vs schema.py), audit (stored rows back through the leak guard)
   log/                 audit-log parsing (turns, references, spans, feedback, searches) and the window read
   judge/               forms, version, case rendering, Vertex client, fake judge, stage 1, evidence check,
                        stage 2, session grades
@@ -58,8 +63,15 @@ make lint / make fmt
 make suite-coverage   # suite cases against the §11.1 scenario minimums (no judge)
 make suite LIMIT=20   # the suite runner with the fake judge (free)
 make suite-restore    # load the stored suite runs (suite_reports/) back into a reset emulator
+make db-check         # live emulator schema vs bq/schema.py (`ca db-init --check`)
+make leak-audit SINCE=2026-10-01   # stored rows back through the leak guard; counts only
 make help             # every target
 ```
+
+`uv run ca quality-assessor --dry-run` reads the window and writes only the run record. Stage and prod run the same
+code: no environment switch, no dataset prefix; `CA_PROJECT` (required) names the job's own project. A test that needs
+a deployed job's settings uses the `deployed` fixture in `tests/test_environments.py`; the run gate is tested on fake
+GCS (`gate` fixture there).
 
 ## Judge test suite (§11)
 
@@ -89,6 +101,9 @@ The tests load `local.env` themselves; for `uv run ca ...` by hand run `set -a; 
   fails, numeric params must be strings. All are handled in `bq/client.py`; the full table is in `plan.md`
   (**Emulator quirks**).
 - Tests read nested rows with `TO_JSON_STRING` (see `rows()` in `tests/test_assessor_e2e.py`).
+- It keeps no partitioning from DDL and returns view SQL rewritten (so `db-init --check` checks those two only on
+  real BigQuery), and its `TO_JSON_STRING` writes dates unquoted, booleans as 0/1 and a struct inside a repeated
+  struct as a list of one-key objects (`bq/audit.py` undoes all three).
 
 ## Testing conventions
 

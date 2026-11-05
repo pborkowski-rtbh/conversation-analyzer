@@ -1,4 +1,4 @@
-"""Settings: tunables from config/settings.yaml (§12.14), environment-specific values from CA_* variables."""
+"""Settings: tunables from config/settings.yaml (§12.14), the same in every project; the job's own project from CA_*."""
 
 from __future__ import annotations
 
@@ -14,8 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Secrets(BaseModel):
-    project: str
-    hash_key: str
+    hash_key: str  # in the job's own project, so stage and prod keys differ
     content_project: str
     content_key: str
     content_salt: str
@@ -27,6 +26,18 @@ class Datasets(BaseModel):
     metrics: str
     log_views: str
     evals: str
+
+
+OWN_DATASETS = ("turns", "metrics", "log_views")  # in the job's own project; the others are read from prod's
+
+
+class Switch(BaseModel):
+    enabled: bool = True
+
+
+class LeakAudit(BaseModel):
+    max_string_chars: int
+    max_link_chars: int
 
 
 class Evaluator(BaseModel):
@@ -69,7 +80,6 @@ class Pace(BaseModel):
 class Judge(BaseModel):
     location: str
     allowed_locations: list[str]
-    vertex_project: str
     current_version: str
     previous_version: str | None = None
     parallel_run_until: date | None = None
@@ -189,15 +199,17 @@ class PeopleDirectory(BaseModel):
     doc_id_prefixes: list[str]
     uri_schemes: list[str]
     max_age_hours: int  # older department maps are not used (§8.4)
+    map_uri: str  # gs:// URI of the map the associates indexer writes; {project} = the job's own project
 
 
 class Environment(BaseModel):
-    """Values that differ between local runs and production, read from CA_* variables."""
+    """What a job's deployment sets (CA_* variables): its own project, endpoints, tokens, backends."""
 
-    bq_project: str
+    project: str  # the GCP project the job runs in and writes to (stage and prod are two projects)
+    vertex_project: str  # the judge's project; the job's own project unless CA_VERTEX_PROJECT says otherwise
+    run_gate_uri: str | None  # gs://<bucket>/<object> holding {"open_until": ...}; unset = always open
     bq_endpoint: str | None
     gcs_endpoint: str | None
-    department_map_uri: str
     slack_api: str
     slack_token: str
     github_api: str
@@ -214,7 +226,8 @@ class Environment(BaseModel):
 
 
 class Settings(BaseModel):
-    project: str
+    log_project: str  # Gemini Enterprise's log export (analytics), read by stage and prod alike
+    evals_project: str  # the evaluator's aiel_evals
     secrets: Secrets
     datasets: Datasets
     log_table: str
@@ -239,11 +252,25 @@ class Settings(BaseModel):
     content_bucket: str
     data_stores: list[DataStore]
     people_directory: PeopleDirectory
+    stage2: Switch = Field(default_factory=Switch)
+    evidence_check: Switch = Field(default_factory=Switch)
+    leak_audit: LeakAudit
     env: Environment
 
+    def dataset_id(self, dataset: str) -> str:
+        """`project.dataset` of a key of Settings.datasets; the emulator holds every dataset in its one project."""
+        name = getattr(self.datasets, dataset)
+        if dataset in OWN_DATASETS or self.env.emulator:
+            return f"{self.env.project}.{name}"
+        return f"{self.log_project if dataset == 'log' else self.evals_project}.{name}"
+
+    @property
+    def department_map_uri(self) -> str:
+        return self.people_directory.map_uri.format(project=self.env.project)
+
     def table(self, dataset: str, table: str) -> str:
-        """Fully qualified table name in the project this environment writes to."""
-        return f"{self.env.bq_project}.{getattr(self.datasets, dataset)}.{table}"
+        """Fully qualified table name."""
+        return f"{self.dataset_id(dataset)}.{table}"
 
     def data_store(self, data_store_id: str) -> DataStore | None:
         for ds in self.data_stores:
@@ -258,13 +285,15 @@ class Settings(BaseModel):
 
 def _environment() -> Environment:
     e = os.environ.get
+    project = e("CA_PROJECT")
+    if not project:
+        raise RuntimeError("CA_PROJECT must name the project the job runs in")
     return Environment(
-        bq_project=e("CA_BQ_PROJECT", "rtbhouse-agentspace"),
+        project=project,
+        vertex_project=e("CA_VERTEX_PROJECT") or project,
+        run_gate_uri=e("CA_RUN_GATE_URI") or None,
         bq_endpoint=e("CA_BQ_ENDPOINT") or None,
         gcs_endpoint=e("CA_GCS_ENDPOINT") or None,
-        department_map_uri=e(
-            "CA_DEPARTMENT_MAP_URI", "gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json"
-        ),
         slack_api=e("CA_SLACK_API", "https://slack.com/api"),
         slack_token=e("CA_SLACK_TOKEN", ""),
         github_api=e("CA_GITHUB_API", "https://api.github.com"),

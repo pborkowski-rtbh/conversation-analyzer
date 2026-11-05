@@ -19,7 +19,7 @@ def secret(name: str, project: str | None = None) -> bytes:
     from google.cloud import secretmanager
 
     client = secretmanager.SecretManagerServiceClient()
-    path = f"projects/{project or settings.secrets.project}/secrets/{name}/versions/latest"
+    path = f"projects/{project or settings.env.project}/secrets/{name}/versions/latest"
     return client.access_secret_version(name=path).payload.data
 
 

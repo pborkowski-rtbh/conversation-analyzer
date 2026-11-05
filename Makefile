@@ -16,6 +16,8 @@ JUDGE_VERSION ?=
 SUITE_ARGS = --part $(PART) --limit $(LIMIT) $(if $(JUDGE_VERSION),--judge-version $(JUDGE_VERSION))
 REPORTS ?=
 DATA_STORE ?=
+SINCE ?=
+CODE_VERSION ?= $(shell git rev-parse HEAD 2>/dev/null || echo dev)
 
 .DEFAULT_GOAL := help
 
@@ -48,6 +50,14 @@ db-reset: ## Empty the emulator (restart; dropping tables corrupts it) and creat
 	$(COMPOSE) restart bigquery gcs
 	@for i in $$(seq 1 30); do nc -z localhost 9050 && break; sleep 1; done
 	$(MAKE) db-init
+
+.PHONY: db-check
+db-check: ## Compare the emulator's tables, columns, partitioning and views with bq/schema.py
+	$(CA) db-init --check
+
+.PHONY: leak-audit
+leak-audit: ## Read stored rows back through the leak guard: make leak-audit SINCE=YYYY-MM-DD (default 7 days ago)
+	$(CA) leak-audit --since $(or $(SINCE),$$(date -u -v-7d +%F 2>/dev/null || date -u -d '7 days ago' +%F))
 
 .PHONY: seed
 seed: ## Write the synthetic scenario (log rows, documents, chunks) into the emulator
@@ -132,5 +142,5 @@ fmt: ## ruff fix + format
 	$(UV) run ruff format src tests
 
 .PHONY: build
-build: ## Build the job image
-	docker build -t $(IMAGE) .
+build: ## Build the job image; run records name the git SHA it was built from (CA_CODE_VERSION)
+	docker build --build-arg CODE_VERSION=$(CODE_VERSION) -t $(IMAGE) .

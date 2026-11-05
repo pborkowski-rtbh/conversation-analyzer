@@ -31,7 +31,7 @@ PLANTED = "Jan Kowalski from Warsaw, phone +48 601 234 567, asked about salary"
 
 def test_settings_and_env():
     s = get_settings()
-    assert s.env.emulator and s.env.bq_project == "local-project"
+    assert s.env.emulator and s.env.project == "local-project"
     assert s.table("turns", "quality_turns") == "local-project.bolek_quality_turns.quality_turns"
     assert s.data_store("rtb-crj-confluence").topic == "CONFLUENCE"
     assert s.data_store("nope") is None

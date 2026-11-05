@@ -12,12 +12,31 @@ from conversation_analyzer import safe_log
 from conversation_analyzer.errors import init_sentry, report
 from conversation_analyzer.vocab import ChangeKind
 
+IGNORE_GATE = click.option("--ignore-gate", is_flag=True, help="Run even while stage's run gate is closed.")
 
-def _job(name: str, fn: Callable[[], object]) -> None:
+
+def _gate_open() -> bool:
+    from conversation_analyzer.run_gate import is_open
+
+    return is_open()
+
+
+def _job(
+    name: str,
+    fn: Callable[[], object],
+    gated: bool = False,
+    ignore_gate: bool = False,
+    when_closed: Callable[[], object] | None = None,
+) -> None:
     init_sentry(name)
     safe_log.log("job_start", job=name)
     try:
-        fn()
+        if gated and not ignore_gate and not _gate_open():
+            if when_closed is not None:
+                when_closed()
+            safe_log.log("gate_closed", job=name)
+        else:
+            fn()
     except Exception as exc:  # every failure leaves as an error class only
         error_class = report(exc)
         safe_log.log("job_failed", severity="ERROR", job=name, error_class=error_class.value)
@@ -31,37 +50,48 @@ def main() -> None:
 
 
 @main.command("quality-assessor")
-def quality_assessor() -> None:
+@click.option("--dry-run", is_flag=True, help="Read the window and plan the work; write only the run record, no judge.")
+@IGNORE_GATE
+def quality_assessor(dry_run: bool, ignore_gate: bool) -> None:
     """Assess the turns in the window (every 10 minutes)."""
-    from conversation_analyzer.assessor.run import run
+    from conversation_analyzer.assessor.run import paused, run
 
-    _job("quality-assessor", run)
+    _job(
+        "quality-assessor",
+        (lambda: run(dry_run=True)) if dry_run else run,
+        gated=True,
+        ignore_gate=ignore_gate,
+        when_closed=paused,
+    )
 
 
 @main.command("quality-monitor")
-def quality_monitor() -> None:
+@IGNORE_GATE
+def quality_monitor(ignore_gate: bool) -> None:
     """Pipeline health, HIGH cluster alerts, acknowledgements (every 10 minutes, 5 after the assessor)."""
     from conversation_analyzer.reporting.monitor import run
 
-    _job("quality-monitor", run)
+    _job("quality-monitor", run, gated=True, ignore_gate=ignore_gate)
 
 
 @main.command("quality-daily")
 @click.option("--day", default=None, help="Day to compute (YYYY-MM-DD); default yesterday (UTC).")
-def quality_daily(day: str | None) -> None:
+@IGNORE_GATE
+def quality_daily(day: str | None, ignore_gate: bool) -> None:
     """Change events, daily metrics, anomalies, release impact (05:00 UTC)."""
     from conversation_analyzer.reporting.daily import run
 
-    _job("quality-daily", lambda: run(day))
+    _job("quality-daily", lambda: run(day), gated=True, ignore_gate=ignore_gate)
 
 
 @main.command("quality-weekly")
 @click.option("--week", default=None, help="Monday of the week to build (YYYY-MM-DD); default last week.")
-def quality_weekly(week: str | None) -> None:
+@IGNORE_GATE
+def quality_weekly(week: str | None, ignore_gate: bool) -> None:
     """Problem clusters, document stats, eval documents, digest (Mondays 06:00 UTC)."""
     from conversation_analyzer.reporting.weekly import run
 
-    _job("quality-weekly", lambda: run(week))
+    _job("quality-weekly", lambda: run(week), gated=True, ignore_gate=ignore_gate)
 
 
 @main.command("quality-judge-suite")
@@ -127,12 +157,77 @@ def quality_alert_lookup(alert_id: str) -> None:
 
 
 @main.command("db-init")
-def db_init() -> None:
+@click.option("--check", is_flag=True, help="Only compare the live schema with bq/schema.py; exit 1 on a difference.")
+def db_init(check: bool) -> None:
     """Create all datasets, tables and views."""
+    if check:
+        from conversation_analyzer.bq.check import differences
+
+        found = differences()
+        for d in found:
+            click.echo(d)
+        safe_log.log("db_check", differences=len(found))
+        if found:
+            sys.exit(1)
+        return
     from conversation_analyzer.bq.init import create_all
 
     created = create_all()
     safe_log.log("db_init", tables=len(created))
+
+
+@main.command("leak-audit")
+@click.option("--since", required=True, help="First day (YYYY-MM-DD) of the partitions to read back.")
+def leak_audit(since: str) -> None:
+    """Read stored rows back through the leak guard and a string-length check; print counts only, exit 1 on any."""
+    from datetime import date
+
+    from conversation_analyzer.bq.audit import audit
+
+    counts = audit(date.fromisoformat(since))
+    click.echo(f"{'table':34} {'rows':>8} {'rejected':>9} {'dropped':>8} {'too_long':>9}")
+    for c in counts:
+        click.echo(f"{c.table:34} {c.rows:8} {c.rejected:9} {c.dropped:8} {c.too_long:9}")
+    findings = sum(c.findings for c in counts)
+    safe_log.log("leak_audit", tables=len(counts), rows=sum(c.rows for c in counts), findings=findings)
+    if findings:
+        sys.exit(1)
+
+
+@main.group("run-gate")
+def run_gate() -> None:
+    """Stage's run gate: scheduled jobs run only while it is open (deployment-plan.md §3)."""
+
+
+@run_gate.command("resume")
+@click.option("--hours", required=True, type=click.IntRange(1, 24), help="Hours to stay open (1-24).")
+def run_gate_resume(hours: int) -> None:
+    """Open the gate for HOURS from now."""
+    from conversation_analyzer import run_gate as gate
+
+    click.echo(f"open until {gate.resume(hours).isoformat()}")
+
+
+@run_gate.command("pause")
+def run_gate_pause() -> None:
+    """Close the gate now."""
+    from conversation_analyzer import run_gate as gate
+
+    gate.pause()
+    click.echo("closed")
+
+
+@run_gate.command("status")
+def run_gate_status() -> None:
+    """Show whether the gate is open and until when."""
+    from conversation_analyzer import run_gate as gate
+    from conversation_analyzer.settings import get_settings
+
+    if not get_settings().env.run_gate_uri:
+        click.echo("no run gate (CA_RUN_GATE_URI unset): always open")
+        return
+    until = gate.open_until()
+    click.echo(f"{'open' if gate.is_open() else 'closed'} (open_until {until.isoformat() if until else 'unset'})")
 
 
 @main.command("dev-seed")

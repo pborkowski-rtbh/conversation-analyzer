@@ -69,6 +69,7 @@ class Monitor:
         self.alerts: list[dict[str, Any]] = []
         self.alert_sessions: list[dict[str, Any]] = []
         self.acks: list[dict[str, Any]] = []
+        self.paused_at: list[datetime] = []  # start times of PAUSED run records since yesterday
         since = self.today - timedelta(days=2)
         self.sent = {r["alert_id"] for r in query(f"SELECT alert_id FROM {tbl(ALERTS)} WHERE day >= @d", d=since)}
 
@@ -97,16 +98,22 @@ class Monitor:
 
     # ------------------------------------------------------------------ per run
 
+    def no_run_expected(self, at: datetime) -> bool:
+        """Stage was paused at `at` or within the 3h30 before it, so turns were left unassessed on purpose."""
+        hard = timedelta(minutes=self.s.timing.hard_limit_minutes)
+        return any(at - hard <= p <= at for p in self.paused_at)
+
     def check_runs(self) -> int:
         """One health row per assessment run, and an alert for each check it fails (§9.2, §12.12)."""
         since = self.today - timedelta(days=1)
         runs = query(
             f"""
 SELECT run_id, run_day, started_at, status, error_class, eligible, covered, assessed, too_large, missed, failed,
-       oldest_waiting_minutes, window_margin_minutes, directory_unavailable
+       oldest_waiting_minutes, window_margin_minutes, directory_unavailable, dry_run
 FROM {tbl(RUNS)} WHERE run_day >= @d""",
             d=since,
         )
+        self.paused_at = sorted(r["started_at"] for r in runs if r["status"] == RunStatus.PAUSED)
         tokens = {
             r["run_id"]: r["n"] or 0
             for r in query(
@@ -132,7 +139,12 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
             coverage = (r["covered"] or 0) / eligible if eligible else 1.0
             checks: list[HealthCheck] = []
             hour = r["started_at"].hour
-            if coverage < self.s.metrics.coverage_target:
+            expected = not self.no_run_expected(r["started_at"])
+            if r["status"] == RunStatus.PAUSED:
+                self.health.append(self._run_row(r, hour, coverage, eligible, checks, expected=False))
+                continue
+            assessing = expected and not r["dry_run"]  # a dry run judges nothing, so it covers nothing
+            if assessing and coverage < self.s.metrics.coverage_target:
                 checks.append(HealthCheck.COVERAGE)
                 self.send_health(
                     alert_id("COVERAGE", r["run_day"], hour),
@@ -141,7 +153,7 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
                     run_id=r["run_id"],
                     target=self.s.metrics.coverage_target,
                 )
-            if (r["oldest_waiting_minutes"] or 0) > t.assessment_target_minutes:
+            if assessing and (r["oldest_waiting_minutes"] or 0) > t.assessment_target_minutes:
                 checks.append(HealthCheck.WAITING_TOO_LONG)
                 self.send_health(
                     alert_id("WAITING", r["run_day"], hour),
@@ -177,28 +189,10 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
                     float(used[r["run_day"]]),
                     limit=self.s.judge.daily_token_limit,
                 )
-            self.health.append(
-                {
-                    "day": r["run_day"],
-                    "kind": HealthKind.RUN.value,
-                    "run_id": r["run_id"],
-                    "hour": hour,
-                    "channel": None,
-                    "run_status": r["status"],
-                    "coverage": coverage,
-                    "eligible": eligible,
-                    "assessed": r["assessed"],
-                    "too_large": r["too_large"],
-                    "missed": r["missed"],
-                    "failed": r["failed"],
-                    "oldest_waiting_minutes": r["oldest_waiting_minutes"],
-                    "window_margin_minutes": margin,
-                    "checks_fired": [c.value for c in checks],
-                }
-            )
+            self.health.append(self._run_row(r, hour, coverage, eligible, checks, expected))
         last = max((r["started_at"] for r in runs), default=None)
         silent = (self.now - last).total_seconds() / 60 if last else None
-        if silent is None or silent > t.no_run_alert_minutes:
+        if (silent is None or silent > t.no_run_alert_minutes) and not self.no_run_expected(self.now):
             minutes = silent if silent is not None else float(24 * 60)
             self.send_health(
                 alert_id("NO_RUN", self.today, self.hour), HealthCheck.NO_RUN, minutes, limit=t.no_run_alert_minutes
@@ -216,6 +210,29 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
             )
         return len(runs)
 
+    @staticmethod
+    def _run_row(
+        r: dict[str, Any], hour: int, coverage: float, eligible: int, checks: list[HealthCheck], expected: bool
+    ) -> dict[str, Any]:
+        return {
+            "day": r["run_day"],
+            "kind": HealthKind.RUN.value,
+            "run_id": r["run_id"],
+            "hour": hour,
+            "channel": None,
+            "run_status": r["status"],
+            "coverage": coverage,
+            "eligible": eligible,
+            "assessed": r["assessed"],
+            "too_large": r["too_large"],
+            "missed": r["missed"],
+            "failed": r["failed"],
+            "oldest_waiting_minutes": r["oldest_waiting_minutes"],
+            "window_margin_minutes": r["window_margin_minutes"],
+            "checks_fired": [c.value for c in checks],
+            "no_run_expected": not expected,
+        }
+
     # ------------------------------------------------------------------ the log
 
     def check_log_hour(self) -> datetime | None:
@@ -228,8 +245,10 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
         )
         if checked and checked[0]["n"]:
             return None
+        paused = self.no_run_expected(self.now)
         for c in check_hours([hour]):
-            if c.gap:
+            alert = c.gap and not paused
+            if alert:
                 self.send_health(
                     alert_id("LOG_GAP", hour.isoformat(), c.channel),
                     HealthCheck.LOG_GAP,
@@ -248,7 +267,8 @@ FROM {tbl(RUNS)} r, UNNEST(r.tokens) t WHERE r.run_day >= @d GROUP BY r.run_id""
                     "log_records": c.records,
                     "log_expected": c.expected,
                     "log_gap": c.gap,
-                    "checks_fired": [HealthCheck.LOG_GAP.value] if c.gap else [],
+                    "checks_fired": [HealthCheck.LOG_GAP.value] if alert else [],
+                    "no_run_expected": paused,
                 }
             )
         return hour

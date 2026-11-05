@@ -46,11 +46,11 @@ def storage_client():
         from google.auth.credentials import AnonymousCredentials
 
         return storage.Client(
-            project=env.bq_project,
+            project=get_settings().env.project,
             credentials=AnonymousCredentials(),
             client_options={"api_endpoint": env.gcs_endpoint},
         )
-    return storage.Client(project=get_settings().project)
+    return storage.Client(project=get_settings().env.project)
 
 
 class ContentReader:

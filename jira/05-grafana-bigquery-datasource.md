@@ -19,7 +19,7 @@ Dashboards live in `RTBHouse-Platform-Engineering/infra-grafana-dashboards` (Cen
 ### Acceptance criteria
 
 * The `grafana-bigquery-datasource` plugin is available on the test and prod instances
-* Service account `grafana-bolek-quality` exists in both projects (Terraform in `RTBHouse-OEET/infrastructure`) with only `bigquery.dataViewer` on `stage_bolek_quality_metrics` / `bolek_quality_metrics` and `bigquery.jobUser`
+* Service account `grafana-bolek-quality` exists in both projects (Terraform in `RTBHouse-OEET/infrastructure`) with only `bigquery.dataViewer` on `bolek_quality_metrics` (in each project) and `bigquery.jobUser`
 * One BigQuery datasource per instance authenticates as that account; datasource UIDs are recorded in `deployment-plan.md`
 * Folder `AI-Engineering-Lab/Conversation-Analyzer/` with `_folder.json` and `README.md` exists in `test/` and `prod/`
 * `SELECT 1` runs from Explore on both instances through the new datasource

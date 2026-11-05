@@ -28,11 +28,11 @@ def client() -> bigquery.Client:
         from google.auth.credentials import AnonymousCredentials
 
         return bigquery.Client(
-            project=env.bq_project,
+            project=get_settings().env.project,
             credentials=AnonymousCredentials(),
             client_options=ClientOptions(api_endpoint=env.bq_endpoint),
         )
-    return bigquery.Client(project=env.bq_project, location="EU")
+    return bigquery.Client(project=get_settings().env.project, location="EU")
 
 
 def fq(dataset: str, table: str) -> str:
@@ -164,7 +164,7 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
     if s.env.emulator:
         # The emulator corrupts its catalog when tables are dropped, so its staging tables (made by create_all) are
         # reused, never dropped, and left empty; MERGE and emptying run as one script (every job slows it down).
-        stg_id = f"{s.env.bq_project}.{getattr(s.datasets, table.dataset)}._stg_{table.name}"
+        stg_id = s.table(table.dataset, f"_stg_{table.name}")
         empty = f"DELETE FROM `{stg_id}` WHERE TRUE"
         with _emulator_lock:
             try:
@@ -176,7 +176,7 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
                 raise
         return len(checked)
     stg_name = f"_stg_{table.name}_{uuid.uuid4().hex[:12]}"
-    stg_id = f"{s.env.bq_project}.{getattr(s.datasets, table.dataset)}.{stg_name}"
+    stg_id = s.table(table.dataset, stg_name)
     execute(ddl(table, emulator=False, name_override=stg_name))
     try:
         job_config = bigquery.LoadJobConfig(

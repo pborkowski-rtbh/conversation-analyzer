@@ -27,7 +27,7 @@ def fake_module(monkeypatch, name: str, **attrs) -> None:
 
 def test_assessor_job_runs_and_logs(monkeypatch):
     calls = []
-    fake_module(monkeypatch, "conversation_analyzer.assessor.run", run=lambda: calls.append(1))
+    fake_module(monkeypatch, "conversation_analyzer.assessor.run", run=lambda: calls.append(1), paused=None)
     result = CliRunner().invoke(cli.main, ["quality-assessor"])
     assert result.exit_code == 0 and calls == [1]
     assert [e["event"] for e in events(result.output)] == ["job_start", "job_done"]
@@ -37,7 +37,7 @@ def test_failed_job_exits_with_error_class_only(monkeypatch):
     def boom():
         raise JudgeApiError()
 
-    fake_module(monkeypatch, "conversation_analyzer.assessor.run", run=boom)
+    fake_module(monkeypatch, "conversation_analyzer.assessor.run", run=boom, paused=None)
     result = CliRunner().invoke(cli.main, ["quality-assessor"])
     assert result.exit_code == 1
     failed = events(result.output)[-1]

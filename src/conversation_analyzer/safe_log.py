@@ -20,6 +20,9 @@ _JOBS = frozenset(
         "quality-weekly",
         "quality-judge-suite",
         "quality-record",
+        "db-init",
+        "leak-audit",
+        "run-gate",
     }
 )
 _MODELS = re.compile(r"^(gemini|fake)[a-z0-9.-]{0,40}$")

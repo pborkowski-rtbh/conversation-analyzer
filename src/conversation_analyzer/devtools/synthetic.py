@@ -175,7 +175,7 @@ def change_row(method: str, minutes_ago: float, now: datetime, data_store: str |
 
 def insert_log(rows: list[dict[str, Any]]) -> None:
     s = get_settings()
-    table = f"{s.env.bq_project}.{s.datasets.log}.{s.log_table}"
+    table = s.table("log", s.log_table)
     for i in range(0, len(rows), 200):
         errors = client().insert_rows_json(table, rows[i : i + 200])
         if errors:
@@ -202,7 +202,7 @@ def store_department_map(departments: dict[str, str], generated_at: datetime) ->
     """What the associates indexer writes each hour: `email -> base_function` as one JSON object (§8.4)."""
     from conversation_analyzer.people.directory import split_uri
 
-    bucket, path = split_uri(get_settings().env.department_map_uri)
+    bucket, path = split_uri(get_settings().department_map_uri)
     ensure_bucket(bucket)
     payload = {"generated_at": generated_at.isoformat(), "count": len(departments), "departments": departments}
     storage_client().bucket(bucket).blob(path).upload_from_string(json.dumps(payload), content_type="application/json")
