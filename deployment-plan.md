@@ -9,8 +9,9 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-05)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). A7 done (AIENGLAB-855): local Grafana with the proposed dashboard on mocked data, and `make dashboard-check`. All code is in the private repo (M0–M7 done, 253 tests, 98.12 % coverage).
-- Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). A7 done (AIENGLAB-855): local Grafana with the proposed dashboard on mocked data, and `make dashboard-check`. A8 done: re-runs replace rows instead of adding, judge calls stop in time for the writes, staging tables expire and
+  `MERGE` reads only the partitions it writes. All code is in the private repo (M0–M7 done).
+- Paid Vertex spend of the build so far: 34.71 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
 
@@ -112,7 +113,7 @@ steps that need them. Each ends with `make coverage` green.
   `KNOWLEDGE_GAP` miss rate), §12.1–§12.4 and §12.7 (no document index, no indexer change), §12.10 (no
   `bolek_quality_doc_index`), §12.14 (environments, run gate, official repo), §12.16 (this plan replaces the build
   plan for deployment).
-- [ ] `plan.md`: a pointer to this file; deviations table rows for the decisions of §1.
+- [x] (2026-11-05) `plan.md`: a pointer to this file; deviations table rows for the decisions of §1.
 
 ### A2. Drop the document index
 
@@ -273,6 +274,32 @@ stage and prod run the same code and settings in two projects, with no environme
   a local proxy (no real GCP), 8 weeks of mocked metrics (`ca dev-seed-dashboard`), the proposed dashboard
   `docker/grafana/dashboards/bolek-quality.json` (v1beta1, rows 1–7 of §8.8) and its team guide (`README.md` there).
 
+### A8. Re-runs and write time on real BigQuery
+
+Done 2026-11-05, on the emulator. Found in the pre-migration review: the paths below were safe on the emulator but
+not on real BigQuery or after a run that dies half-way.
+
+- [x] **Re-runs replace, never add.** `quality_judge_checks` and `quality_retrieval_counts` were the two tables whose
+  `MERGE` added to the stored numbers; written before the run record that moves the search cutoff, a run that died in
+  between (or a manual re-run with the same `CA_NOW`, as step 3 does) counted twice. Now: second-model checks are one
+  row per turn and field (key `day, turn_key, field`), written before the turns (a stored turn is never checked
+  again); search counts are per whole hour (key `day, hour, doc_id, data_store`), and a run reads only the whole hours
+  that ended at least 15 minutes ago, from the last cutoff, so a repeated run recounts the same hours and replaces
+  them. Additive columns are gone from `bq/client.py`. Schema change: `make db-reset` locally.
+- [x] **Write time.** The run stops starting judge calls at 6 minutes (`stop_new_calls_after_seconds: 360`) and cuts off
+  calls still running at 9 − 2 = 7 minutes (`write_reserve_seconds: 120`): the request timeout and the retry backoff
+  are capped by the deadline, a cut-off call fails with `TIMEOUT` and its turn waits for the next run. Settings refuse
+  a stop time past the deadline. The run record stores `write_seconds` (checked in step 3).
+- [x] **Staging tables** get `expiration_timestamp` one day ahead, so a job killed mid-write leaves nothing for long
+  (`db-init --check` ignores `_stg_*`).
+- [x] **`MERGE` cost.** The `ON` clause gets `T.<partition> IN (<days of the staged rows>)` where the key fixes the
+  partition (`Table.prunable`: the partition column is in the key, or `stable_partition`: turns, stage 1 and 2
+  results, segments, canary results, runs). Session grades and alerts move day with the run, so they are still read
+  whole (small tables).
+- [ ] **Open: overlapping runs.** Nothing stops a manual `--ignore-gate` run during a scheduled one; both would judge
+  the same turns (rows are keyed, so only the tokens are paid twice). A lock object next to the run gate would cover
+  it; decide before step 4.
+
 ---
 
 ## 6. External gates
@@ -300,7 +327,7 @@ Module map: which private-repo code moves in which step.
 | 1 | `settings`, `vocab`, `safe_log`, `errors`, `secrets`, `keys`, `leak_guard`, `bq/` (schema, client, init, check), `cli` (only `db-init`, with `--check`), `config/`, Dockerfile, Makefile, docker-compose, tests of these | CI/CD workflows |
 | 2 | — (infra only) | |
 | 3 | `log/`, `assessor/sessions.py`, `assessor/state.py`, `assessor/run.py` (dry run path), `bq/external.py`, `bq/audit.py` (`leak-audit`), `run_gate.py`, `devtools/` | `stage-gate.yml`, `make stage-resume`/`stage-pause` |
-| 4 | `judge/` (forms, version, case, client, fake, stage1), `judge_versions/v3`, assessor phase 1 | |
+| 4 | `judge/` (forms, version, case, client, fake, stage1), `judge_versions/v4` (v1–v3 stay in the private repo), assessor phase 1 | |
 | 5 | department (`people/directory.py`, stratum code) | |
 | 6 | `judge/evidence.py`, `judge/stage2.py`, `judge/session.py`, `docs/content.py`, assessor phases 2–3, late triggers | |
 | 7 | `reporting/monitor.py`, `reporting/completeness.py`, `reporting/messages.py` (health only), `reporting/slack.py` (posting off) | |
@@ -315,8 +342,11 @@ Module map: which private-repo code moves in which step.
 
 Goal: the official repo builds and tests the foundations and pushes an image. Nothing runs in GCP.
 
-- [ ] G6 done; repo created from the step-1 module set; `README.md`, `CLAUDE.md`, `design-doc.md` (A1 version),
-  `deployment-plan.md` (this file moves with it and is kept there from now on).
+- [ ] G6 done; repo created from the step-1 module set; `README.md` (new: the private repo has none), `CLAUDE.md`,
+  `design-doc.md` (A1 version), `deployment-plan.md` (this file moves with it and is kept there from now on). The
+  untracked `aiel-content-indexers/` checkout left in the private repo's working tree is not copied.
+- [ ] `docker-compose.yml`: the BigQuery emulator and fake GCS images pinned to a version (they are `:latest` here), so
+  CI does not change under us.
 - [ ] `CLAUDE.md` hard rule: real BigQuery only through deployed jobs, CI and Terraform; checks on stage or prod by an
   engineer in the console, read only.
 - [ ] `ci.yml`: ruff, unit tests, emulator tests (docker compose as a service in the job), coverage ≥ 90 %.
@@ -368,7 +398,10 @@ Goal: the window read, keys, sessions and the run record work on the real log. N
   - [ ] Cross-check: turns read per hour vs an engineer's count from `analytics.audit_logs_public` for the same hour
     (within the eligible rules); difference explained or zero.
   - [ ] Real-BigQuery paths: the `MERGE` via load job wrote exactly one run record per run (no duplicate after a manual
-    re-run of the same `CA_NOW`); bytes billed per run (from `INFORMATION_SCHEMA.JOBS`) noted for the §12.15 estimate.
+    re-run of the same `CA_NOW`); bytes billed per run (from `INFORMATION_SCHEMA.JOBS`) noted for the §12.15 estimate,
+    and the `MERGE` jobs read only the partitions they write (A8).
+  - [ ] `write_seconds` in the run records (A8) stays well under `timing.write_reserve_seconds` (120); if not, raise
+    the reserve before step 4. No `_stg_*` table older than a day in the turns dataset (they expire after one).
   - [ ] Cloud Logging of the job: only `safe_log` events; search the job's logs for `@rtbhouse.com`, a question
     fragment, `"text"` → no hit.
   - [ ] Sentry: force one failure (`--ignore-gate` with a bad setting) → the event carries the error class only.

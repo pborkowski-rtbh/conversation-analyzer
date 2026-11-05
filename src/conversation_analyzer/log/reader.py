@@ -47,7 +47,7 @@ WHERE {partition_filter(1)} AND methodName = 'WriteUserEvent' AND timestamp > @s
         f"""
 SELECT timestamp, userIamPrincipal, TO_JSON_STRING(response) AS response
 FROM {log}
-WHERE {partition_filter(1)} AND methodName = 'Search' AND timestamp > @since AND timestamp <= @until
+WHERE {partition_filter(1)} AND methodName = 'Search' AND timestamp >= @since AND timestamp < @until
   AND response IS NOT NULL""",
         since=search_since,
         until=search_until,

@@ -10,6 +10,7 @@ import pytest
 
 from conversation_analyzer import keys
 from conversation_analyzer.assessor.run import run
+from conversation_analyzer.bq.client import execute, tbl
 from conversation_analyzer.bq.schema import (
     CANARY_RESULTS,
     JUDGE_CHECKS,
@@ -175,13 +176,22 @@ def test_canary_and_planted(first_run):
 
 
 def test_second_model_retrieval_versions(first_run):
-    checks = {r["field"]: r for r in rows(JUDGE_CHECKS)}
-    assert checks["INTENT"]["n_compared"] > 0
-    counts = rows(RETRIEVAL_COUNTS)
-    assert counts == [
-        {"day": NOW.date(), "doc_id": scenario.LEAVE.doc_id, "data_store": "rtb-crj-hr-house", "n_returned": 2}
-    ]
+    checks = rows(JUDGE_CHECKS)
+    assert {r["n_compared"] for r in checks} == {1} and len({r["turn_key"] for r in checks}) > 1
+    assert sum(r["field"] == "INTENT" for r in checks) == len({r["turn_key"] for r in checks})
+    # Whole hours ending 15 minutes ago: at 12:00 only the 10 o'clock search; 11 o'clock waits for a later run.
+    assert rows(RETRIEVAL_COUNTS) == [leave_count(10, 1)]
     assert len(rows(JUDGE_VERSIONS)) == 1
+
+
+def leave_count(hour: int, n: int) -> dict:
+    return {
+        "day": NOW.date(),
+        "hour": hour,
+        "doc_id": scenario.LEAVE.doc_id,
+        "data_store": "rtb-crj-hr-house",
+        "n_returned": n,
+    }
 
 
 def test_no_text_is_stored(first_run):
@@ -209,3 +219,15 @@ def test_second_run_is_idempotent(first_run):
     assert len(new_calls) == 2  # the new turn, and its second-model check
     assert len(rows(QUALITY_TURNS, "status = 'ASSESSED'")) == len(by_status()["ASSESSED"])
     assert len(rows(RUNS)) == 2
+
+
+def test_search_hours_are_counted_once_even_after_a_lost_run_record(first_run):
+    _, judge = first_run
+    record = run(now=NOW + timedelta(minutes=20), judge=judge, docs=RunDocuments())
+    assert record["search_cutoff"] == NOW
+    counts = sorted(rows(RETRIEVAL_COUNTS), key=lambda r: r["hour"])
+    assert counts == [leave_count(10, 1), leave_count(11, 1)]
+    # The run dies after storing its rows but before its record: the next run reads the same hours again.
+    execute(f"DELETE FROM {tbl(RUNS)} WHERE run_id = @r", r=record["run_id"])
+    run(now=NOW + timedelta(minutes=25), judge=judge, docs=RunDocuments())
+    assert sorted(rows(RETRIEVAL_COUNTS), key=lambda r: r["hour"]) == counts

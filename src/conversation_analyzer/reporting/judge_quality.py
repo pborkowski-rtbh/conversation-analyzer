@@ -76,7 +76,11 @@ WHERE run_kind = 'CANARY' AND DATE(created_at) = @d AND question_sha256 IN UNNES
 
 def real_traffic(day: date, version: str) -> list[dict[str, Any] | None]:
     out = []
-    for r in query(f"SELECT field, n_compared, n_disagreements FROM {tbl(JUDGE_CHECKS)} WHERE day = @d", d=day):
+    for r in query(
+        f"SELECT field, SUM(n_compared) AS n_compared, SUM(n_disagreements) AS n_disagreements "
+        f"FROM {tbl(JUDGE_CHECKS)} WHERE day = @d GROUP BY field ORDER BY field",
+        d=day,
+    ):
         out.append(
             _measure(day, JudgeMeasure.SECOND_MODEL_DISAGREEMENT, r["field"], r["n_disagreements"], r["n_compared"])
         )

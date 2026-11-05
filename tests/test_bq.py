@@ -6,7 +6,7 @@ import pytest
 
 from conversation_analyzer.bq import client as bqc
 from conversation_analyzer.bq.client import fq, merge_sql, query, tbl, write
-from conversation_analyzer.bq.schema import JUDGE_CHECKS, QUALITY_TURNS, RUNS
+from conversation_analyzer.bq.schema import JUDGE_CHECKS, QUALITY_TURNS, RUNS, SESSION_GRADES, ddl
 from conversation_analyzer.errors import LeakGuardError
 from conversation_analyzer.settings import get_settings
 from tests.conftest import wipe
@@ -32,20 +32,35 @@ def test_write_merges_by_key(emulator):
     assert write(QUALITY_TURNS, []) == 0
 
 
-def test_write_additive_and_null_keys(emulator):
+def test_rewrite_replaces_rows(emulator):
+    """No table adds up on MERGE: writing the same rows again leaves them as they were."""
     wipe(JUDGE_CHECKS)
     day = date(2026, 10, 28)
-    write(
-        JUDGE_CHECKS,
-        [
-            {"day": day, "field": "INTENT", "n_compared": 2, "n_disagreements": 1},
-            {"day": day, "field": "INTENT", "n_compared": 1, "n_disagreements": 0},
-        ],
-    )
-    write(JUDGE_CHECKS, [{"day": day, "field": "INTENT", "n_compared": 4, "n_disagreements": 2}])
-    rows = query(f"SELECT n_compared, n_disagreements FROM {tbl(JUDGE_CHECKS)}")
-    assert rows == [{"n_compared": 7, "n_disagreements": 3}]
-    assert "COALESCE(T.n_compared, 0) + COALESCE(S.n_compared, 0)" in merge_sql(JUDGE_CHECKS, "`s`")
+    rows_ = [{"day": day, "turn_key": "b" * 32, "field": "INTENT", "n_compared": 1, "n_disagreements": 1}]
+    write(JUDGE_CHECKS, rows_)
+    write(JUDGE_CHECKS, rows_)
+    assert query(f"SELECT n_compared, n_disagreements FROM {tbl(JUDGE_CHECKS)}") == [
+        {"n_compared": 1, "n_disagreements": 1}
+    ]
+
+
+def test_merge_prunes_partitions_only_where_the_key_fixes_them():
+    day = date(2026, 10, 28)
+    sql = merge_sql(QUALITY_TURNS, "`s`", [{"day": day.isoformat()}, {"day": "2026-10-27"}])
+    assert "ON T.day IN (DATE '2026-10-27', DATE '2026-10-28') AND (T.turn_key = S.turn_key" in sql
+    assert "T.day IN" in merge_sql(JUDGE_CHECKS, "`s`", [{"day": day}])
+    assert "IN (" not in merge_sql(SESSION_GRADES, "`s`", [{"day": day}])  # a grade's day moves with the run
+    assert "IN (" not in merge_sql(QUALITY_TURNS, "`s`", [{"day": None}])
+    assert "IN (" not in merge_sql(QUALITY_TURNS, "`s`")
+    assert "COALESCE" not in merge_sql(JUDGE_CHECKS, "`s`", [{"day": day}])
+
+
+def test_staging_tables_expire_on_real_bigquery():
+    real = ddl(RUNS, emulator=False, name_override="_stg_quality_runs_ab")
+    assert "expiration_timestamp = TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)" in real
+    assert "PARTITION BY" not in real
+    assert "OPTIONS" not in ddl(RUNS, emulator=True, name_override="_stg_quality_runs")
+    assert "partition_expiration_days" in ddl(RUNS, emulator=False)
 
 
 def test_write_runs_leak_guard_first(emulator):

@@ -36,6 +36,9 @@ def test_settings_and_env():
     assert s.data_store("rtb-crj-confluence").topic == "CONFLUENCE"
     assert s.data_store("nope") is None
     assert s.bucket_for("rtb-crj-confluence") == s.content_bucket
+    timing = s.timing.model_dump()
+    with pytest.raises(ValueError):  # no judge call may start after the deadline that keeps time for writes
+        type(s.timing).model_validate({**timing, "stop_new_calls_after_seconds": 420})
 
 
 def test_now_pinned(monkeypatch):

@@ -59,8 +59,15 @@ class Timing(BaseModel):
     window_alert_minutes: int
     stop_new_calls_after_seconds: int
     run_time_limit_seconds: int
+    write_reserve_seconds: int
     no_run_alert_minutes: int
     feedback_after_window_fallback: bool
+
+    @model_validator(mode="after")
+    def _calls_stop_before_deadline(self) -> Timing:
+        if self.stop_new_calls_after_seconds >= self.run_time_limit_seconds - self.write_reserve_seconds:
+            raise ValueError("stop_new_calls_after_seconds must leave time before the judge deadline")
+        return self
 
 
 class Sizes(BaseModel):

@@ -515,7 +515,13 @@ def test_judge_quality_measures(clean):
             },
         ],
     )
-    write(JUDGE_CHECKS, [{"day": DAY, "field": "RELEVANCE", "n_compared": 20, "n_disagreements": 3}])
+    write(
+        JUDGE_CHECKS,
+        [
+            {"day": DAY, "turn_key": f"{k:032x}", "field": "RELEVANCE", "n_compared": 1, "n_disagreements": int(k < 3)}
+            for k in range(20)
+        ],
+    )
     t = stored.turn
     stored.store(
         [

@@ -39,5 +39,5 @@ and dependencies come from `deployment-plan.md`.
 
 - **Order:** 01–06 come first because they wait on other people, so they should be raised right away. Plan step 10
   (judge suite job) comes before step 9 (Slack), because HIGH alerts need a suite run in the environment first.
-- **Open input:** ticket 03 still has to deliver the `base_function` list. Until it does, ticket 10 can only use
-  placeholder department groups.
+- **Department input:** the `base_function` list was read from the stage associates indexer's map on 2026-11-04 (A5),
+  so ticket 10 is done; what remains of ticket 03 is the G2 approval.

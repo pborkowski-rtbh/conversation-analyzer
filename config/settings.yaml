@@ -40,8 +40,9 @@ timing:
   segment_idle_close_minutes: 30
   window_read_minutes: 270             # read the last 4h30 of the log
   window_alert_minutes: 225            # alert when the oldest answer still in the log is younger than 3h45
-  stop_new_calls_after_seconds: 420    # 7 minutes
-  run_time_limit_seconds: 540          # 9 minutes
+  stop_new_calls_after_seconds: 360    # 6 minutes: no judge call starts later
+  run_time_limit_seconds: 540          # 9 minutes, the Cloud Run task timeout
+  write_reserve_seconds: 120           # judge calls are cut off at 540 - 120 = 7 minutes, so the writes fit
   no_run_alert_minutes: 25
   feedback_after_window_fallback: false  # §12.5: switched on only after the numbering check (§12.17)
 

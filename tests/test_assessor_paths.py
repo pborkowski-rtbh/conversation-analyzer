@@ -10,7 +10,14 @@ from conversation_analyzer import keys
 from conversation_analyzer.assessor import run as run_mod
 from conversation_analyzer.assessor.run import run
 from conversation_analyzer.bq.external import AUDIT_LOGS
-from conversation_analyzer.bq.schema import QUALITY_TURNS, RUNS, SEGMENTS, SESSION_GRADES, STAGE1_RESULTS
+from conversation_analyzer.bq.schema import (
+    JUDGE_CHECKS,
+    QUALITY_TURNS,
+    RUNS,
+    SEGMENTS,
+    SESSION_GRADES,
+    STAGE1_RESULTS,
+)
 from conversation_analyzer.devtools import scenario
 from conversation_analyzer.devtools.synthetic import SynthTurn, insert_log, store_department_map, turn_rows
 from conversation_analyzer.docs.content import storage_client
@@ -243,3 +250,27 @@ def test_department_map_missing_then_found_then_stale(clean):
     record = assess(NOW + timedelta(hours=get_settings().people_directory.max_age_hours, minutes=1))
     assert record["directory_unavailable"] is True
     assert [(t["department"], t["base_function"]) for t in statuses().values()] == [("COMMERCIAL", "Sales")]
+
+
+def test_second_model_rows_survive_a_run_that_dies_before_the_turns(clean, monkeypatch):
+    """Written before the turns and keyed per turn: the re-run replaces them instead of adding."""
+    get_settings().judge.second_model_share = 1.0
+    seed([SynthTurn("X1", 20, "How many leave days?", "Four.")])
+    real_write = run_mod.write
+    calls = {"turns": 0}
+
+    def flaky(table, rows_):
+        if table is QUALITY_TURNS and rows_ and calls["turns"] == 0:
+            calls["turns"] += 1
+            raise RuntimeError("killed")
+        return real_write(table, rows_)
+
+    monkeypatch.setattr(run_mod, "write", flaky)
+    with pytest.raises(RuntimeError):
+        assess()
+    first = rows(JUDGE_CHECKS)
+    assert first and not rows(QUALITY_TURNS)
+    record = assess(now=NOW + timedelta(minutes=10))
+    assert record["second_model_checks"] == 1 and record["write_seconds"] >= 0
+    key = lambda r: (r["turn_key"], r["field"])  # noqa: E731
+    assert sorted(rows(JUDGE_CHECKS), key=key) == sorted(first, key=key)
