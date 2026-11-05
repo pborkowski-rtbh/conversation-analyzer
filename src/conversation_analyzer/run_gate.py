@@ -15,9 +15,9 @@ MAX_HOURS = 24  # forgetting to pause costs at most this many hours
 
 
 def _blob():
-    uri = get_settings().run_gate.uri
+    uri = get_settings().env.run_gate_uri
     if not uri:
-        raise RuntimeError("this environment has no run gate")
+        raise RuntimeError("no run gate: CA_RUN_GATE_URI is unset")
     bucket, path = split_uri(uri)
     return storage_client().bucket(bucket).blob(path)
 
@@ -33,8 +33,8 @@ def open_until() -> datetime | None:
 
 
 def is_open(at: datetime | None = None) -> bool:
-    """Always open without a gate (prod, local); otherwise open until `open_until`."""
-    if not get_settings().run_gate.uri:
+    """Always open without a gate (prod, local: CA_RUN_GATE_URI unset); otherwise open until `open_until`."""
+    if not get_settings().env.run_gate_uri:
         return True
     until = open_until()
     return until is not None and (at or now()) < until

@@ -28,11 +28,11 @@ def client() -> bigquery.Client:
         from google.auth.credentials import AnonymousCredentials
 
         return bigquery.Client(
-            project=get_settings().projects.write,
+            project=get_settings().env.project,
             credentials=AnonymousCredentials(),
             client_options=ClientOptions(api_endpoint=env.bq_endpoint),
         )
-    return bigquery.Client(project=get_settings().projects.write, location="EU")
+    return bigquery.Client(project=get_settings().env.project, location="EU")
 
 
 def fq(dataset: str, table: str) -> str:

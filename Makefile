@@ -1,6 +1,5 @@
 # Local development and tests. Everything runs against the docker compose stack (BigQuery emulator, fake GCS,
-# stubs for Slack, GitHub and Cloud Run); the only paid target is suite-live. The stage-* targets write stage's run
-# gate object in real GCS (and nothing else).
+# stubs for Slack, GitHub and Cloud Run); the only paid target is suite-live.
 SHELL := /bin/bash
 COMPOSE ?= $(if $(shell command -v docker-compose),docker-compose,docker compose)
 UV ?= uv
@@ -17,11 +16,8 @@ JUDGE_VERSION ?=
 SUITE_ARGS = --part $(PART) --limit $(LIMIT) $(if $(JUDGE_VERSION),--judge-version $(JUDGE_VERSION))
 REPORTS ?=
 DATA_STORE ?=
-HOURS ?=
 SINCE ?=
 CODE_VERSION ?= $(shell git rev-parse HEAD 2>/dev/null || echo dev)
-# Stage's gate commands: CA_ENV=stage, no local endpoints, the caller's gcloud application-default credentials.
-STAGE := env -u CA_BQ_ENDPOINT -u CA_GCS_ENDPOINT CA_ENV=stage $(UV) run ca
 
 .DEFAULT_GOAL := help
 
@@ -148,19 +144,3 @@ fmt: ## ruff fix + format
 .PHONY: build
 build: ## Build the job image; run records name the git SHA it was built from (CA_CODE_VERSION)
 	docker build --build-arg CODE_VERSION=$(CODE_VERSION) -t $(IMAGE) .
-
-# --- stage run gate (real GCS: gs://rtb-aiel-core-stage-quality-control; the workflow stage-gate.yml is the official
-# path, these are for an engineer with write access to the bucket) ---------------------------------------------------
-
-.PHONY: stage-resume
-stage-resume: ## Open stage for HOURS (1-24): make stage-resume HOURS=2
-	@[[ "$(HOURS)" =~ ^[0-9]+$$ ]] && (( $(HOURS) >= 1 && $(HOURS) <= 24 )) || { echo "HOURS must be 1-24"; exit 1; }
-	$(STAGE) run-gate resume --hours $(HOURS)
-
-.PHONY: stage-pause
-stage-pause: ## Close stage now
-	$(STAGE) run-gate pause
-
-.PHONY: stage-status
-stage-status: ## Show whether stage's gate is open
-	$(STAGE) run-gate status

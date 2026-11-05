@@ -1,4 +1,4 @@
-"""Settings: config/settings.yaml plus the overlay config/env/<CA_ENV>.yaml (§12.14); endpoints and tokens from CA_*."""
+"""Settings: tunables from config/settings.yaml (§12.14), the same in every project; the job's own project from CA_*."""
 
 from __future__ import annotations
 
@@ -14,8 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Secrets(BaseModel):
-    project: str
-    hash_key: str
+    hash_key: str  # in the job's own project, so stage and prod keys differ
     content_project: str
     content_key: str
     content_salt: str
@@ -29,17 +28,7 @@ class Datasets(BaseModel):
     evals: str
 
 
-OWN_DATASETS = ("turns", "metrics", "log_views")  # written by us, so they carry the environment's prefix
-
-
-class Projects(BaseModel):
-    write: str  # where the jobs run and our datasets live
-    log: str  # the Gemini Enterprise log export (analytics)
-    evals: str  # the evaluator's aiel_evals
-
-
-class RunGate(BaseModel):
-    uri: str | None = None  # gs://<bucket>/<object> holding {"open_until": ...}; None = always open (prod, local)
+OWN_DATASETS = ("turns", "metrics", "log_views")  # in the job's own project; the others are read from prod's
 
 
 class Switch(BaseModel):
@@ -91,7 +80,6 @@ class Pace(BaseModel):
 class Judge(BaseModel):
     location: str
     allowed_locations: list[str]
-    vertex_project: str
     current_version: str
     previous_version: str | None = None
     parallel_run_until: date | None = None
@@ -211,12 +199,15 @@ class PeopleDirectory(BaseModel):
     doc_id_prefixes: list[str]
     uri_schemes: list[str]
     max_age_hours: int  # older department maps are not used (§8.4)
-    map_uri: str  # gs:// URI of the map the associates indexer writes
+    map_uri: str  # gs:// URI of the map the associates indexer writes; {project} = the job's own project
 
 
 class Environment(BaseModel):
-    """Values that differ between local runs and production, read from CA_* variables."""
+    """What a job's deployment sets (CA_* variables): its own project, endpoints, tokens, backends."""
 
+    project: str  # the GCP project the job runs in and writes to (stage and prod are two projects)
+    vertex_project: str  # the judge's project; the job's own project unless CA_VERTEX_PROJECT says otherwise
+    run_gate_uri: str | None  # gs://<bucket>/<object> holding {"open_until": ...}; unset = always open
     bq_endpoint: str | None
     gcs_endpoint: str | None
     slack_api: str
@@ -235,10 +226,8 @@ class Environment(BaseModel):
 
 
 class Settings(BaseModel):
-    environment: str
-    projects: Projects
-    dataset_prefix: str = ""
-    run_gate: RunGate = Field(default_factory=RunGate)
+    log_project: str  # Gemini Enterprise's log export (analytics), read by stage and prod alike
+    evals_project: str  # the evaluator's aiel_evals
     secrets: Secrets
     datasets: Datasets
     log_table: str
@@ -269,11 +258,15 @@ class Settings(BaseModel):
     env: Environment
 
     def dataset_id(self, dataset: str) -> str:
-        """`project.dataset` of a key of Settings.datasets; our own datasets carry the environment's prefix."""
+        """`project.dataset` of a key of Settings.datasets; the emulator holds every dataset in its one project."""
         name = getattr(self.datasets, dataset)
-        if dataset in OWN_DATASETS:
-            return f"{self.projects.write}.{self.dataset_prefix}{name}"
-        return f"{self.projects.log if dataset == 'log' else self.projects.evals}.{name}"
+        if dataset in OWN_DATASETS or self.env.emulator:
+            return f"{self.env.project}.{name}"
+        return f"{self.log_project if dataset == 'log' else self.evals_project}.{name}"
+
+    @property
+    def department_map_uri(self) -> str:
+        return self.people_directory.map_uri.format(project=self.env.project)
 
     def table(self, dataset: str, table: str) -> str:
         """Fully qualified table name."""
@@ -292,7 +285,13 @@ class Settings(BaseModel):
 
 def _environment() -> Environment:
     e = os.environ.get
+    project = e("CA_PROJECT")
+    if not project:
+        raise RuntimeError("CA_PROJECT must name the project the job runs in")
     return Environment(
+        project=project,
+        vertex_project=e("CA_VERTEX_PROJECT") or project,
+        run_gate_uri=e("CA_RUN_GATE_URI") or None,
         bq_endpoint=e("CA_BQ_ENDPOINT") or None,
         gcs_endpoint=e("CA_GCS_ENDPOINT") or None,
         slack_api=e("CA_SLACK_API", "https://slack.com/api"),
@@ -307,23 +306,10 @@ def _environment() -> Environment:
     )
 
 
-def _merge(base: dict, overlay: dict) -> dict:
-    """Overlay wins; nested mappings are merged key by key, lists are replaced."""
-    out = dict(base)
-    for k, v in overlay.items():
-        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
-    return out
-
-
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     path = Path(os.environ.get("CA_SETTINGS", REPO_ROOT / "config" / "settings.yaml"))
-    name = os.environ.get("CA_ENV", "")
-    overlay = path.parent / "env" / f"{name}.yaml"
-    if not name or not overlay.is_file():
-        raise RuntimeError("CA_ENV must name a file in config/env/ (local, stage or prod)")
-    raw = _merge(yaml.safe_load(path.read_text()), yaml.safe_load(overlay.read_text()) or {})
-    raw["environment"] = name
+    raw = yaml.safe_load(path.read_text())
     raw["env"] = _environment()
     return Settings.model_validate(raw)
 

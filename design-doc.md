@@ -1296,7 +1296,7 @@ Each job has its own service account, with only the access it needs:
 - The assessor gets access to the `audit_logs` table only, not to the whole `analytics` dataset. That dataset also has tables with e-mail addresses, such as hourly activity per user.
 - The reporting jobs never read the log directly. They need three things from it: turn counts per hour, feedback counts and engine changes. They get them through **authorized views** in `bolek_quality_log_views`. The views return only counts and change records, and whoever reads them doesn't need access to the log table itself.
 - Only the assessor has the hashing key used for session and turn keys (§12.5).
-- In stage, every account exists again with a `stage-` prefix and the same access, on the `stage_` datasets. The stage assessor reads the same prod log table and content bucket as the prod one (§12.14); its department map is the one the stage associates indexer writes to `rtb-aiel-core-stage-indexers-state`, from the same HR table.
+- In stage, every account exists again with a `stage-` prefix and the same access, on its own datasets. The stage assessor reads the same prod log table and content bucket as the prod one (§12.14); its department map is the one the stage associates indexer writes to `rtb-aiel-core-stage-indexers-state`, from the same HR table.
 
 ### 12.5 Turn and session keys
 
@@ -1548,7 +1548,7 @@ erDiagram
     }
 ```
 
-In stage, the same three datasets exist in `rtb-aiel-core-stage`, named with a `stage_` prefix (§12.14).
+In stage, the same three datasets, with the same names, exist in `rtb-aiel-core-stage` (§12.14).
 
 Each table is written by exactly one job. Two jobs never change the same table at the same time, so BigQuery's limits on concurrent changes to a table don't apply. And when a table looks wrong, there is only one job to check.
 
@@ -1597,7 +1597,7 @@ The leak guard (§6.10) protects what we store. Logs, error reports and outside 
 
 - One repository, `RTBHouse-OEET/aiel-conversation-analyzer`, holds the code, the rubrics, the prompts, the closed lists, the judge test suite, the table schema and the settings. The settings include the 30-minute segment close, the size cap, the minimum slice size, the alert bar and the ranking weights. GitHub Actions tests every change, builds the image on every merge and stores it in the Artifact Registry of both projects.
 - Terraform in `infrastructure/terraform/rtbhouse-agentspace` (prod) and `infrastructure/terraform/rtb-aiel-core-stage` (stage) defines the datasets, service accounts, permissions, secrets, jobs and schedules. The tables and views are created by `quality-db-init` from the schema in the code, so the two can't drift apart. Jobs name their image by digest, so a deploy and a rollback are each a one-line change.
-- **Two environments.** Prod runs in `rtbhouse-agentspace` and writes `bolek_quality_*`. Stage runs in `rtb-aiel-core-stage` with its own service accounts, its own hashing key (so stage and prod rows can never be joined), its own Slack channel and the test instance of Grafana, and writes `stage_bolek_quality_*` there. It reads the prod log and content bucket, and the department map of the stage associates indexer, so every change is tried on real traffic before prod. A change goes to stage first, then the same image to prod; the steps are in `deployment-plan.md`.
+- **Two environments.** Prod runs in `rtbhouse-agentspace` and writes `bolek_quality_*`. Stage runs in `rtb-aiel-core-stage` with its own service accounts, its own hashing key (so stage and prod rows can never be joined), its own Slack channel and the test instance of Grafana, and writes `bolek_quality_*` in its own project. Both run the same image with the same settings; a job learns its own project from its deployment (`CA_PROJECT`), and nothing in the code tells stage from prod. It reads the prod log and content bucket, and the department map of the stage associates indexer, so every change is tried on real traffic before prod. A change goes to stage first, then the same image to prod; the steps are in `deployment-plan.md`.
 - **Stage runs only when switched on.** Stage assesses full traffic, which costs as much as prod. Every scheduled stage job first reads a control object in a stage bucket that holds an end time; after that time, the job records a paused run and exits at once, with no judge call and no message. Opening stage for some hours sets the end time, so stage closes by itself. Paused periods raise no pipeline health alerts and are marked on the stage dashboard. Prod has no such switch.
 - A judge version is identified by a hash of its rubric, prompt, model and form. The settings name the current version. During the 5 weekdays of a parallel run, they also name the previous one, and the assessor assesses every new turn with both (§6.11). The parallel run ends with a change to the settings.
 

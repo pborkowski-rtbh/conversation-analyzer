@@ -1,15 +1,17 @@
-# All settings of the Conversation Analyzer, kept in one place (design-doc.md §12.14).
-# What differs between environments (projects, dataset prefix, Vertex project, Slack channels, token limit, run gate,
-# department map) is in config/env/<CA_ENV>.yaml, merged over this file; endpoints and tokens come from CA_* variables.
+# All settings of the Conversation Analyzer, kept in one place (design-doc.md §12.14). Stage and prod run this same
+# file in two projects; a job's own project comes from CA_PROJECT (endpoints, tokens, the run gate: CA_*, settings.py).
 
-# --- Secret Manager (§12.2, §12.4): only the assessor reads these; the hash key's project is per environment ---
+log_project: rtbhouse-agentspace        # Google's activity log export, read by every deployment
+evals_project: rtbhouse-agentspace      # the evaluator's aiel_evals
+
+# --- Secret Manager (§12.2, §12.4): only the assessor reads these. The hash key is in the job's own project. ---
 secrets:
   hash_key: quality-hash-key
-  content_project: rtbhouse-agentspace   # the indexers' content key; stage reads the prod content bucket too
+  content_project: rtbhouse-agentspace   # the indexers' content key
   content_key: mcp-content-encryption-key
   content_salt: mcp-content-encryption-salt
 
-# --- Datasets (§12.10); the environment's dataset_prefix goes before turns, metrics and log_views ---
+# --- Datasets (§12.10): turns, metrics and log_views in the job's own project, the others in the projects above ---
 datasets:
   log: analytics                       # Google's activity log export (read only)
   turns: bolek_quality_turns
@@ -61,6 +63,7 @@ pace:
 judge:
   location: eu                          # EU multi-region, never global
   allowed_locations: [eu, europe-west1, europe-west3, europe-west4, europe-central2, europe-north1, europe-southwest1, europe-west8, europe-west9]
+  # Vertex project: the job's own one (CA_VERTEX_PROJECT overrides it, e.g. for the local paid suite)
   current_version: v4                   # no search; kept by suite run suite-006ae9c5dbc7572ac5b (ticket 09)
   previous_version: null                # set during a parallel run
   parallel_run_until: null              # last day (UTC) of the parallel run, 5 weekdays after the change
@@ -68,6 +71,7 @@ judge:
   max_retries: 6
   retry_base_seconds: 2.0
   second_model_share: 0.05
+  daily_token_limit: 60000000
 
 # --- Metrics (§8) ---
 metrics:
@@ -160,6 +164,8 @@ strata:
 # --- Alerts, clusters, digest (§9) ---
 alerts:
   high_alert_bar: 1                     # HIGH failures in a cluster after a run that make an alert (§9.4)
+  quality_channel: "#bolek-quality"
+  alerts_channel: "#aiel-alerts"
   ack_emoji: white_check_mark
 clusters:
   severity_weights: {HIGH: 3, MEDIUM: 2, LOW: 1}
@@ -219,7 +225,8 @@ people_directory:
   data_store_prefixes: [people-connections_]
   doc_id_prefixes: [associate-]
   uri_schemes: [mailto]
-  # The user's department comes from the map the associates indexer writes (map_uri, per environment).
+  # The user's department comes from the map the associates indexer of the job's own project writes.
+  map_uri: gs://{project}-indexers-state/directory/associates-departments.json
   max_age_hours: 7                      # stage's associates job runs every 6 hours, prod's every hour
 
 # --- Kill switches: off keeps stage 1 running without the later calls (deployment-plan.md A6) ---

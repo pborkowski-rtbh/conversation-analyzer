@@ -10,7 +10,6 @@ from click.testing import CliRunner
 from google.cloud import bigquery
 
 from conversation_analyzer import cli, run_gate
-from conversation_analyzer import settings as settings_mod
 from conversation_analyzer.assessor.run import run as assess
 from conversation_analyzer.bq import audit, check
 from conversation_analyzer.bq.client import client, fq, schema_fields, write
@@ -48,68 +47,55 @@ def events(output: str) -> list[dict]:
 
 
 @pytest.fixture
-def env(monkeypatch):
-    """Load the settings of another environment for one test (string building only, no client is made)."""
+def deployed(monkeypatch):
+    """Settings as a job in a real project sees them (string building only, no client is made)."""
 
-    def load(name: str):
-        monkeypatch.setenv("CA_ENV", name)
+    def load(project: str):
+        monkeypatch.setenv("CA_PROJECT", project)
+        monkeypatch.delenv("CA_VERTEX_PROJECT")
+        for key in ("CA_BQ_ENDPOINT", "CA_GCS_ENDPOINT"):
+            monkeypatch.delenv(key)
         get_settings.cache_clear()
         return get_settings()
 
     yield load
-    monkeypatch.setenv("CA_ENV", "local")
+    monkeypatch.undo()
     get_settings.cache_clear()
 
 
-# ---------------------------------------------------------------------- environments (no emulator)
+# ---------------------------------------------------------------------- one code, two projects (no emulator)
 
 
-def test_stage_prefixes_our_datasets_and_reads_prod(env):
-    s = env("stage")
-    assert s.environment == "stage"
-    assert s.dataset_id("turns") == "rtb-aiel-core-stage.stage_bolek_quality_turns"
-    assert s.dataset_id("metrics") == "rtb-aiel-core-stage.stage_bolek_quality_metrics"
-    assert s.dataset_id("log_views") == "rtb-aiel-core-stage.stage_bolek_quality_log_views"
-    assert s.dataset_id("log") == "rtbhouse-agentspace.analytics"  # the prod log, not prefixed
+@pytest.mark.parametrize("project", ["rtb-aiel-core-stage", "rtbhouse-agentspace"])
+def test_a_job_writes_its_own_project_and_reads_the_prod_log(deployed, project):
+    s = deployed(project)
+    assert s.dataset_id("turns") == f"{project}.bolek_quality_turns"
+    assert s.dataset_id("metrics") == f"{project}.bolek_quality_metrics"
+    assert s.dataset_id("log_views") == f"{project}.bolek_quality_log_views"
+    assert s.dataset_id("log") == "rtbhouse-agentspace.analytics"
     assert s.dataset_id("evals") == "rtbhouse-agentspace.aiel_evals"
-    assert fq("turns", "quality_runs") == "`rtb-aiel-core-stage.stage_bolek_quality_turns.quality_runs`"
-    assert "`rtb-aiel-core-stage.stage_bolek_quality_turns.quality_runs`" in ddl(RUNS, emulator=False)
+    assert fq("turns", "quality_runs") == f"`{project}.bolek_quality_turns.quality_runs`"
+    assert f"`{project}.bolek_quality_turns.quality_runs`" in ddl(RUNS, emulator=False)
     assert "partition_expiration_days = 365" in ddl(RUNS, emulator=False)
     assert "`rtbhouse-agentspace.analytics.audit_logs`" in views()["quality_turn_counts_hourly"]
-    assert "rtbhouse-agentspace.analytics.audit_logs" in ddl(AUDIT_LOGS, emulator=True)
-    assert s.run_gate.uri == "gs://rtb-aiel-core-stage-quality-control/run-gate.json"
-    assert s.secrets.project == "rtb-aiel-core-stage" and s.secrets.content_project == "rtbhouse-agentspace"
-    assert s.judge.vertex_project == "rtb-aiel-core-stage" and s.judge.location == "eu"
-    assert s.judge.daily_token_limit == 6_000_000
-    assert s.alerts.quality_channel == s.alerts.alerts_channel == "#bolek-quality-stage"
-    assert s.people_directory.map_uri.startswith("gs://rtb-aiel-core-stage-indexers-state/")
+    assert s.env.vertex_project == project and s.judge.location == "eu"
+    assert s.department_map_uri == f"gs://{project}-indexers-state/directory/associates-departments.json"
+    assert s.env.run_gate_uri is None and run_gate.is_open()  # no gate unless the job is given one
 
 
-def test_prod_has_no_prefix_and_no_gate(env):
-    s = env("prod")
-    assert s.dataset_id("turns") == "rtbhouse-agentspace.bolek_quality_turns"
-    assert s.run_gate.uri is None and run_gate.is_open()
-    assert s.judge.vertex_project == "rtbhouse-agentspace"
-    assert (s.alerts.quality_channel, s.alerts.alerts_channel) == ("#bolek-quality", "#aiel-alerts")
-    assert s.stage2.enabled and s.evidence_check.enabled
-    # Common values come through the merge untouched.
-    assert s.judge.current_version == env("local").judge.current_version
+def test_the_emulator_holds_every_dataset_in_its_one_project():
+    s = get_settings()
+    assert s.dataset_id("turns") == "local-project.bolek_quality_turns"
+    assert s.dataset_id("log") == "local-project.analytics" and s.dataset_id("evals") == "local-project.aiel_evals"
+    assert "local-project.analytics.audit_logs" in ddl(AUDIT_LOGS, emulator=True)
+    assert s.env.vertex_project == "rtb-ai-engineering-indexers"  # local.env: the paid suite's project
 
 
-def test_ca_env_is_required(env, monkeypatch):
-    monkeypatch.delenv("CA_ENV")
+def test_ca_project_is_required(deployed, monkeypatch):
+    monkeypatch.setenv("CA_PROJECT", "")
     get_settings.cache_clear()
-    with pytest.raises(RuntimeError, match="CA_ENV"):
+    with pytest.raises(RuntimeError, match="CA_PROJECT"):
         get_settings()
-    with pytest.raises(RuntimeError):
-        env("staging")
-
-
-def test_overlay_merges_nested_keys():
-    base = {"judge": {"location": "eu", "concurrency": 8}, "list": [1, 2]}
-    merged = settings_mod._merge(base, {"judge": {"concurrency": 2}, "list": [3]})
-    assert merged == {"judge": {"location": "eu", "concurrency": 2}, "list": [3]}
-    assert base["judge"]["concurrency"] == 8
 
 
 # ---------------------------------------------------------------------- CLI (no emulator)
@@ -176,11 +162,11 @@ def test_db_check_and_leak_audit_exit_codes(monkeypatch):
 def test_run_gate_commands(monkeypatch):
     assert CliRunner().invoke(cli.main, ["run-gate", "resume", "--hours", "25"]).exit_code == 2
     result = CliRunner().invoke(cli.main, ["run-gate", "status"])
-    assert result.exit_code == 0 and "no gate" in result.output
+    assert result.exit_code == 0 and "no run gate" in result.output
     with pytest.raises(ValueError):
         run_gate.resume(0)
     with pytest.raises(RuntimeError):
-        run_gate.pause()  # no gate in this environment
+        run_gate.pause()  # CA_RUN_GATE_URI is unset
 
 
 # ---------------------------------------------------------------------- schema check and audit helpers
@@ -236,7 +222,7 @@ def test_audit_reads_json_values_back():
 
 @pytest.fixture
 def gate(monkeypatch):
-    monkeypatch.setattr(get_settings().run_gate, "uri", GATE)
+    monkeypatch.setattr(get_settings().env, "run_gate_uri", GATE)
     bucket, path = split_uri(GATE)
     ensure_bucket(bucket)
     blob = storage_client().bucket(bucket).blob(path)

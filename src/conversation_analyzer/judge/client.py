@@ -130,7 +130,7 @@ class VertexJudge:
         s = get_settings().judge
         check_location(s.location)
         self.location = s.location
-        self.project = s.vertex_project
+        self.project = get_settings().env.vertex_project
         self.http = httpx.Client(timeout=httpx.Timeout(300.0), transport=transport)
         self.sleep = sleep
         self._token = token or BearerToken()

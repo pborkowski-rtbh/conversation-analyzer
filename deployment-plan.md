@@ -22,7 +22,7 @@ To resume: read **Status**, then the first unchecked step.
 | PII scrubbing | **Dropped.** Questions, answers, earlier turns, references and documents reach the judge as they are, on EU endpoints only, never stored. `pii/`, Presidio and the spaCy models are removed (A3). |
 | Department in strata | The user's department comes from `base_function` in `rtb-house-hr-reporting-data.IT.bolek_associates_active`, read from the `email → base_function` map the associates indexer writes each hour to its state bucket (AIENGLAB-853), mapped to a closed list of department families. Stratum = intent family × data-store family × department family. |
 | Official repository | A new repository `RTBHouse-OEET/aiel-conversation-analyzer`, CI/CD like `aiel-content-indexers` (GitHub Actions, Workload Identity, Artifact Registry). Code arrives by one reviewed PR per step, not by pushing this repo's history. |
-| Environments | **Stage** = project `rtb-aiel-core-stage`, its own infrastructure, its own BigQuery datasets (`stage_bolek_quality_*`), reading the **prod** audit log. **Prod** = project `rtbhouse-agentspace`, datasets `bolek_quality_*` (§12.10). Every step goes to stage first, then the same image digest to prod. |
+| Environments | **Stage** = project `rtb-aiel-core-stage`, its own infrastructure, its own BigQuery datasets (`bolek_quality_*`, the same names as prod's), reading the **prod** audit log. **Prod** = project `rtbhouse-agentspace`, datasets `bolek_quality_*` (§12.10). Same image, same settings: no environment switch; each job's deployment sets its own project (`CA_PROJECT`) and, on stage only, the run gate (`CA_RUN_GATE_URI`) (2026-11-05). Every step goes to stage first, then the same image digest to prod. |
 | Stage volume | Stage assesses full traffic, but only while it is switched on. It is paused by default and resumed for a fixed number of hours (§3, the run gate). |
 | Grafana | Dashboards live in `RTBHouse-Platform-Engineering/infra-grafana-dashboards` (Central Grafana, Git Sync), folder `AI-Engineering-Lab/Conversation-Analyzer/`: `test/` reads stage, `prod/` reads prod. |
 | Infrastructure as code | Terraform in `RTBHouse-OEET/infrastructure`: `terraform/rtb-aiel-core-stage/` and `terraform/rtbhouse-agentspace/`, one file `conversation_analyzer.tf` per project, mirroring how `cloud_run_indexers.tf` is kept in both. |
@@ -33,7 +33,7 @@ To resume: read **Status**, then the first unchecked step.
 |---|---|---|---|
 | Where | docker compose (emulator, fake GCS, stubs) | `rtb-aiel-core-stage`, `europe-west4` | `rtbhouse-agentspace`, `europe-west4` |
 | Reads the log | synthetic rows | prod `rtbhouse-agentspace.analytics.audit_logs` (table-level grant) | same |
-| Writes | emulator | `stage_bolek_quality_turns`, `stage_bolek_quality_metrics`, `stage_bolek_quality_log_views` (EU) | `bolek_quality_turns`, `bolek_quality_metrics`, `bolek_quality_log_views` (EU) |
+| Writes | emulator | `bolek_quality_turns`, `bolek_quality_metrics`, `bolek_quality_log_views` in `rtb-aiel-core-stage` (EU) | `bolek_quality_turns`, `bolek_quality_metrics`, `bolek_quality_log_views` (EU) |
 | Hash key (§12.5) | `local-hash-key` | own secret in stage | own secret in prod |
 | Judge (Vertex, `eu`) | fake | project `rtb-aiel-core-stage` | project `rtbhouse-agentspace` |
 | Content bucket | fake GCS | prod bucket, read only | prod bucket, read only |
@@ -210,23 +210,23 @@ stored; the leak guard and `safe_log` are unchanged.
 
 ### A6. Ready for real GCP
 
-Done 2026-11-05 (AIENGLAB-854), all on the emulator and fake GCS; nothing was deployed or run against GCP.
+Done 2026-11-05 (AIENGLAB-854), all on the emulator and fake GCS; nothing was deployed or run against GCP. Two rules
+(2026-11-05): this repo holds only what a local run with the emulator and mocks can verify (the `stage-gate.yml`
+workflow, `make stage-resume`/`stage-pause` and the `CLAUDE.md` rule for real BigQuery moved to steps 1 and 3); and
+stage and prod run the same code and settings in two projects, with no environment switch and no dataset prefix.
 
-- [x] **Per-environment settings:** `config/settings.yaml` (common) + `config/env/{local,stage,prod}.yaml` overlays
-  selected by `CA_ENV` (required; a missing or unknown name stops the job): projects (`write`, `log`, `evals`),
-  dataset prefix (`stage_`), hash-key secret project, Vertex project, Slack channels, token limit (stage 6M/day),
-  run gate, department map URI. The environment keys have no default in the common file, so an overlay that forgets
-  one fails validation instead of falling back to prod. `local.env` sets `CA_ENV=local`; `CA_BQ_PROJECT` and
-  `CA_DEPARTMENT_MAP_URI` are gone (now `projects.write` and `people_directory.map_uri`).
-- [x] **Dataset prefix** applied everywhere a dataset name is built: `Settings.dataset_id()` is the only place
-  (tables, staging tables, DDL, views, external tables, devtools). Our datasets get the prefix and `projects.write`;
-  `analytics` and `aiel_evals` keep their name and are read from `projects.log` / `projects.evals` (prod on stage).
-- [x] **Run gate** (§3): `run_gate.uri` (stage only), `run_gate.py`; the assessor, monitor, daily and weekly jobs
-  read it first; closed (or object missing or unreadable) → the assessor writes a `PAUSED` run record, the others
-  nothing, `gate_closed` is logged, exit 0. `--ignore-gate` on those four. `ca run-gate resume --hours N|pause|status`;
-  `make stage-resume HOURS=n` (1–24), `make stage-pause`, `make stage-status` (real GCS, the caller's credentials);
-  `.github/workflows/stage-gate.yml` (`workflow_dispatch`, `action`, `hours` ≤ 24; WIF provider and SA from repo
-  variables, set in the official repo). Monitor: `PAUSED` records fire no check; coverage, waiting, no-run and
+- [x] **One code, two projects:** `CA_PROJECT` (required, no default) is the job's own project: our datasets, the
+  hash-key secret, the Vertex project (`CA_VERTEX_PROJECT` overrides it; local.env names the paid suite's project)
+  and the department map (`gs://{project}-indexers-state/...`) follow from it. `log_project` and `evals_project`
+  (prod, read by both) are in `settings.yaml`; the emulator holds every dataset in its one project. `CA_BQ_PROJECT`
+  and `CA_DEPARTMENT_MAP_URI` are gone. Stage's lower token limit and its own Slack channel are not built: they come
+  with steps 4 and 9 (as job variables, the same way), if still wanted then.
+- [x] **Dataset names** are built in one place, `Settings.dataset_id()` (tables, staging tables, DDL, views, external
+  tables, devtools); the same names in both projects.
+- [x] **Run gate** (§3): `CA_RUN_GATE_URI` (set on stage's jobs only; unset = always open), `run_gate.py`; the assessor, monitor, daily and weekly
+  jobs read it first; closed (or object missing or unreadable) → the assessor writes a `PAUSED` run record, the
+  others nothing, `gate_closed` is logged, exit 0. `--ignore-gate` on those four. `ca run-gate resume --hours N`
+  (1–24) `|pause|status` writes and reads the control object. Monitor: `PAUSED` records fire no check; coverage, waiting, no-run and
   log-gap alerts are off while a `PAUSED` record lies within the last 3h30 (`timing.hard_limit_minutes`), and
   `quality_pipeline_health.no_run_expected` marks those rows for the dashboard. Tested on fake GCS.
 - [x] **Dry run:** `ca quality-assessor --dry-run`: reads the window and the department map, builds sessions and the
@@ -257,7 +257,8 @@ Done 2026-11-05 (AIENGLAB-854), all on the emulator and fake GCS; nothing was de
   | Secret Manager (hash key; content key and salt) | `secrets.py` | step 3 (hash key), step 6 (content) |
 
 - [x] Dockerfile: `ARG CODE_VERSION` → `CA_CODE_VERSION`; `make build` passes `git rev-parse HEAD`, CI passes the SHA.
-- [x] `CLAUDE.md`: hard rules updated for environments (real BigQuery only through deployed jobs, CI and Terraform).
+- [x] `CLAUDE.md`: the emulator-only rule stays, plus "only what runs locally lives here". The rule for real
+  BigQuery (only through deployed jobs, CI and Terraform) is written in the official repo's `CLAUDE.md` (step 1).
 
 ### A7. Dashboard queries testable locally
 
@@ -290,9 +291,9 @@ Module map: which private-repo code moves in which step.
 
 | Step | Moves | New in official repo |
 |---|---|---|
-| 1 | `settings`, `vocab`, `safe_log`, `errors`, `secrets`, `keys`, `leak_guard`, `bq/` (schema, client, init), `cli` (only `db-init`), `config/`, Dockerfile, Makefile, docker-compose, tests of these | CI/CD workflows, `config/env/*` |
+| 1 | `settings`, `vocab`, `safe_log`, `errors`, `secrets`, `keys`, `leak_guard`, `bq/` (schema, client, init, check), `cli` (only `db-init`, with `--check`), `config/`, Dockerfile, Makefile, docker-compose, tests of these | CI/CD workflows |
 | 2 | — (infra only) | |
-| 3 | `log/`, `assessor/sessions.py`, `assessor/state.py`, `assessor/run.py` (dry run path), `bq/external.py`, `devtools/` | `--dry-run`, run gate, `leak-audit` |
+| 3 | `log/`, `assessor/sessions.py`, `assessor/state.py`, `assessor/run.py` (dry run path), `bq/external.py`, `bq/audit.py` (`leak-audit`), `run_gate.py`, `devtools/` | `stage-gate.yml`, `make stage-resume`/`stage-pause` |
 | 4 | `judge/` (forms, version, case, client, fake, stage1), `judge_versions/v3`, assessor phase 1 | |
 | 5 | department (`people/directory.py`, stratum code) | |
 | 6 | `judge/evidence.py`, `judge/stage2.py`, `judge/session.py`, `docs/content.py`, assessor phases 2–3, late triggers | |
@@ -310,6 +311,8 @@ Goal: the official repo builds and tests the foundations and pushes an image. No
 
 - [ ] G6 done; repo created from the step-1 module set; `README.md`, `CLAUDE.md`, `design-doc.md` (A1 version),
   `deployment-plan.md` (this file moves with it and is kept there from now on).
+- [ ] `CLAUDE.md` hard rule: real BigQuery only through deployed jobs, CI and Terraform; checks on stage or prod by an
+  engineer in the console, read only.
 - [ ] `ci.yml`: ruff, unit tests, emulator tests (docker compose as a service in the job), coverage ≥ 90 %.
 - [ ] `cd-stage.yml` / `cd-prod.yml`: on merge to `main`, build once, push to both Artifact Registry repos with the
   git SHA tag; print the digest.
@@ -325,8 +328,8 @@ Goal: the official repo builds and tests the foundations and pushes an image. No
 
 Goal: every dataset and table exists, empty, with the right access.
 
-- [ ] Infra PR stage: datasets `stage_bolek_quality_turns`, `stage_bolek_quality_metrics`,
-  `stage_bolek_quality_log_views` (location `EU`, labels, default partition expiry 365 days on the turns dataset);
+- [ ] Infra PR stage: datasets `bolek_quality_turns`, `bolek_quality_metrics`, `bolek_quality_log_views` in
+  `rtb-aiel-core-stage` (location `EU`, labels, default partition expiry 365 days on the turns dataset);
   SAs `stage-quality-assessor`, `stage-quality-reporter`, `stage-quality-judge-suite`, `stage-quality-schema`; dataset
   IAM per §12.4; Cloud Run job `quality-db-init` (SA `stage-quality-schema`, no schedule); hash-key secret (value set by
   hand, never in Terraform state).
@@ -348,7 +351,10 @@ Goal: the window read, keys, sessions and the run record work on the real log. N
   scheduler every 10 min (UTC), run-gate bucket and object (closed), table-level `roles/bigquery.dataViewer` on
   `rtbhouse-agentspace.analytics.audit_logs` for `stage-quality-assessor` (not the dataset: §12.4), `jobUser` in stage,
   Sentry DSN secret.
-- [ ] `make stage-resume HOURS=2`.
+- [ ] Official repo: `.github/workflows/stage-gate.yml` (`workflow_dispatch`, `action=resume|pause`, `hours` ≤ 24,
+  writes `{"open_until": ...}` to the control object; WIF, SA with write on that object only) and
+  `make stage-resume HOURS=n` / `stage-pause` (`ca run-gate` with `CA_PROJECT=rtb-aiel-core-stage` and stage's `CA_RUN_GATE_URI`).
+- [ ] `make stage-resume HOURS=2` (or the workflow).
 - Verify (stage):
   - [ ] 12 run records with status `OK`, `turns_read` > 0 on weekday hours; one more after closing the gate with
     status `PAUSED`.
@@ -393,7 +399,7 @@ baseline, and the strata, department included, freeze with it.
 - [ ] G2 done; A5 merged.
 - [ ] Infra PR: `roles/storage.objectViewer` on the indexers' state bucket, conditioned on
   `resource.name.startsWith("projects/_/buckets/<project>-indexers-state/objects/directory/")`, for `stage-quality-assessor`
-  (stage bucket) and `quality-assessor` (prod bucket); the map URI is `people_directory.map_uri` in `config/env/stage.yaml`.
+  (stage bucket) and `quality-assessor` (prod bucket); the map URI follows from the job's project (`gs://{project}-indexers-state/...`).
 - Verify (stage, 2 open hours):
   - [ ] `department` distribution per day: `UNKNOWN` share < 5 % of non-canary turns (else check principals format).
   - [ ] No family below the privacy floor appears; no email in any row (`leak-audit` + schema).
@@ -423,7 +429,7 @@ Goal: flagged turns get a diagnosis from cited and linked documents, without sea
 Goal: pipeline health per run and per log hour is computed and stored; alerts are stored but not posted.
 
 - [ ] Infra PR: job `quality-monitor` (SA reporter, every 10 min at +5 min), `slack.enabled: false`.
-- [ ] Authorized views (`stage_bolek_quality_log_views` over prod `analytics.audit_logs`): the views are created by
+- [ ] Authorized views (stage's `bolek_quality_log_views` over prod `analytics.audit_logs`): the views are created by
   `db-init`; the infra PR adds them as authorized views on prod `analytics` (`google_bigquery_dataset_access`).
 - Verify:
   - [ ] `quality_pipeline_health` has a row per run and per log hour; stage marks paused periods as such.

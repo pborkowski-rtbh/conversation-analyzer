@@ -223,8 +223,8 @@ def run_gate_status() -> None:
     from conversation_analyzer import run_gate as gate
     from conversation_analyzer.settings import get_settings
 
-    if not get_settings().run_gate.uri:
-        click.echo("no gate in this environment: always open")
+    if not get_settings().env.run_gate_uri:
+        click.echo("no run gate (CA_RUN_GATE_URI unset): always open")
         return
     until = gate.open_until()
     click.echo(f"{'open' if gate.is_open() else 'closed'} (open_until {until.isoformat() if until else 'unset'})")

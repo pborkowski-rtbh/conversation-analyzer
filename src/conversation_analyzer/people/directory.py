@@ -70,7 +70,7 @@ def split_uri(uri: str) -> tuple[str, str]:
 def load_directory(at: datetime | None = None) -> Directory | None:
     """The current map; None when it is missing, malformed or stale, and the run then counts every user UNKNOWN."""
     s = get_settings()
-    bucket, path = split_uri(s.people_directory.map_uri)
+    bucket, path = split_uri(s.department_map_uri)
     try:
         data = json.loads(storage_client().bucket(bucket).blob(path).download_as_bytes())
     except (GoogleAPIError, GoogleAuthError, OSError, ValueError):  # OSError covers the transport's errors

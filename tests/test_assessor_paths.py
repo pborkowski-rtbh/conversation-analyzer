@@ -218,7 +218,7 @@ def test_feedback_after_the_window_reaches_its_turn_when_switched_on(clean, monk
 
 
 def _drop_department_map() -> None:
-    bucket, path = split_uri(get_settings().people_directory.map_uri)
+    bucket, path = split_uri(get_settings().department_map_uri)
     blob = storage_client().bucket(bucket).blob(path)
     if blob.exists():
         blob.delete()

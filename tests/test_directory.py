@@ -23,7 +23,7 @@ def pinned(monkeypatch):
 
 
 def _blob():
-    bucket, path = split_uri(get_settings().people_directory.map_uri)
+    bucket, path = split_uri(get_settings().department_map_uri)
     ensure_bucket(bucket)
     return storage_client().bucket(bucket).blob(path)
 
