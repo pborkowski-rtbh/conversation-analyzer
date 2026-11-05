@@ -1,4 +1,4 @@
-"""Settings: tunables from config/settings.yaml (§12.14), environment-specific values from CA_* variables."""
+"""Settings: config/settings.yaml plus the overlay config/env/<CA_ENV>.yaml (§12.14); endpoints and tokens from CA_*."""
 
 from __future__ import annotations
 
@@ -27,6 +27,28 @@ class Datasets(BaseModel):
     metrics: str
     log_views: str
     evals: str
+
+
+OWN_DATASETS = ("turns", "metrics", "log_views")  # written by us, so they carry the environment's prefix
+
+
+class Projects(BaseModel):
+    write: str  # where the jobs run and our datasets live
+    log: str  # the Gemini Enterprise log export (analytics)
+    evals: str  # the evaluator's aiel_evals
+
+
+class RunGate(BaseModel):
+    uri: str | None = None  # gs://<bucket>/<object> holding {"open_until": ...}; None = always open (prod, local)
+
+
+class Switch(BaseModel):
+    enabled: bool = True
+
+
+class LeakAudit(BaseModel):
+    max_string_chars: int
+    max_link_chars: int
 
 
 class Evaluator(BaseModel):
@@ -189,15 +211,14 @@ class PeopleDirectory(BaseModel):
     doc_id_prefixes: list[str]
     uri_schemes: list[str]
     max_age_hours: int  # older department maps are not used (§8.4)
+    map_uri: str  # gs:// URI of the map the associates indexer writes
 
 
 class Environment(BaseModel):
     """Values that differ between local runs and production, read from CA_* variables."""
 
-    bq_project: str
     bq_endpoint: str | None
     gcs_endpoint: str | None
-    department_map_uri: str
     slack_api: str
     slack_token: str
     github_api: str
@@ -214,7 +235,10 @@ class Environment(BaseModel):
 
 
 class Settings(BaseModel):
-    project: str
+    environment: str
+    projects: Projects
+    dataset_prefix: str = ""
+    run_gate: RunGate = Field(default_factory=RunGate)
     secrets: Secrets
     datasets: Datasets
     log_table: str
@@ -239,11 +263,21 @@ class Settings(BaseModel):
     content_bucket: str
     data_stores: list[DataStore]
     people_directory: PeopleDirectory
+    stage2: Switch = Field(default_factory=Switch)
+    evidence_check: Switch = Field(default_factory=Switch)
+    leak_audit: LeakAudit
     env: Environment
 
+    def dataset_id(self, dataset: str) -> str:
+        """`project.dataset` of a key of Settings.datasets; our own datasets carry the environment's prefix."""
+        name = getattr(self.datasets, dataset)
+        if dataset in OWN_DATASETS:
+            return f"{self.projects.write}.{self.dataset_prefix}{name}"
+        return f"{self.projects.log if dataset == 'log' else self.projects.evals}.{name}"
+
     def table(self, dataset: str, table: str) -> str:
-        """Fully qualified table name in the project this environment writes to."""
-        return f"{self.env.bq_project}.{getattr(self.datasets, dataset)}.{table}"
+        """Fully qualified table name."""
+        return f"{self.dataset_id(dataset)}.{table}"
 
     def data_store(self, data_store_id: str) -> DataStore | None:
         for ds in self.data_stores:
@@ -259,12 +293,8 @@ class Settings(BaseModel):
 def _environment() -> Environment:
     e = os.environ.get
     return Environment(
-        bq_project=e("CA_BQ_PROJECT", "rtbhouse-agentspace"),
         bq_endpoint=e("CA_BQ_ENDPOINT") or None,
         gcs_endpoint=e("CA_GCS_ENDPOINT") or None,
-        department_map_uri=e(
-            "CA_DEPARTMENT_MAP_URI", "gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json"
-        ),
         slack_api=e("CA_SLACK_API", "https://slack.com/api"),
         slack_token=e("CA_SLACK_TOKEN", ""),
         github_api=e("CA_GITHUB_API", "https://api.github.com"),
@@ -277,10 +307,23 @@ def _environment() -> Environment:
     )
 
 
+def _merge(base: dict, overlay: dict) -> dict:
+    """Overlay wins; nested mappings are merged key by key, lists are replaced."""
+    out = dict(base)
+    for k, v in overlay.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     path = Path(os.environ.get("CA_SETTINGS", REPO_ROOT / "config" / "settings.yaml"))
-    raw = yaml.safe_load(path.read_text())
+    name = os.environ.get("CA_ENV", "")
+    overlay = path.parent / "env" / f"{name}.yaml"
+    if not name or not overlay.is_file():
+        raise RuntimeError("CA_ENV must name a file in config/env/ (local, stage or prod)")
+    raw = _merge(yaml.safe_load(path.read_text()), yaml.safe_load(overlay.read_text()) or {})
+    raw["environment"] = name
     raw["env"] = _environment()
     return Settings.model_validate(raw)
 

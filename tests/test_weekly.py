@@ -155,7 +155,7 @@ def test_weekly_clusters_documents_eval_sets_and_digest(clean, monkeypatch):
     )
     s = get_settings()
     client().insert_rows_json(
-        f"{s.env.bq_project}.{s.datasets.evals}.{EVAL_GATE_RESULTS.name}",
+        s.table("evals", EVAL_GATE_RESULTS.name),
         [
             {"change_id": "evt-0123456789abcdef", "verdict": "PASS", "created_at": f"{WEEK}T08:00:00Z"},
             {"change_id": "free text, not an id", "verdict": "FAIL", "created_at": f"{WEEK}T09:00:00Z"},

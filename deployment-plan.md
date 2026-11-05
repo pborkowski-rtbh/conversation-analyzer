@@ -7,9 +7,9 @@ passed, and write what was observed next to it.
 
 To resume: read **Status**, then the first unchecked step.
 
-## Status (2026-11-04)
+## Status (2026-11-05)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). All code is in the private repo (M0–M7 done, 233 tests, 98.35 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). All code is in the private repo (M0–M7 done, 253 tests, 98.12 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -210,25 +210,54 @@ stored; the leak guard and `safe_log` are unchanged.
 
 ### A6. Ready for real GCP
 
-- [ ] **Per-environment settings:** `config/settings.yaml` (common) + `config/env/{local,stage,prod}.yaml` overlays
-  selected by `CA_ENV`: projects, dataset prefix (`stage_`), Vertex project, Slack channels, token limit, run gate.
-  `local.env` sets `CA_ENV=local`.
-- [ ] **Dataset prefix** applied everywhere a dataset name is built (tables, views, external tables).
-- [ ] **Run gate** (§3): `run_gate.uri` setting, read at job start, `--ignore-gate`, `PAUSED` run status (closed
-  list), monitor rules for paused periods; fake GCS test.
-- [ ] **Dry run:** `ca quality-assessor --dry-run`: reads the window, builds sessions and the work list, writes only
-  the run record (no Vertex). The first thing run against real data.
-- [ ] **Schema check:** `ca db-init --check`: compares live datasets, tables, columns, partitioning and views with
-  `bq/schema.py`; exits non-zero on a difference. Used after every deploy.
-- [ ] **Kill switches:** `stage2.enabled` and `evidence_check.enabled` settings (default true), so stage 1 can keep
-  running when stage 2 misbehaves.
-- [ ] **Leak audit:** `ca leak-audit --since <day>`: reads stored rows of every table back and runs `leak_guard`
-  on them again, plus a length check on every string column; prints counts only. Run after every step that writes.
-- [ ] **Real-BigQuery paths** that the emulator never exercised are listed and covered by the first stage steps:
-  load job + `MERGE` in `bq/client.write`, partition expiry, authorized views across projects, `INFORMATION_SCHEMA`
-  reads, query cost. Each gets a check in step 3.
-- [ ] Dockerfile: `CA_CODE_VERSION` from the git SHA (build arg), so every run record names its code.
-- [ ] `CLAUDE.md`: hard rules updated for environments (real BigQuery only through deployed jobs).
+Done 2026-11-05 (AIENGLAB-854), all on the emulator and fake GCS; nothing was deployed or run against GCP.
+
+- [x] **Per-environment settings:** `config/settings.yaml` (common) + `config/env/{local,stage,prod}.yaml` overlays
+  selected by `CA_ENV` (required; a missing or unknown name stops the job): projects (`write`, `log`, `evals`),
+  dataset prefix (`stage_`), hash-key secret project, Vertex project, Slack channels, token limit (stage 6M/day),
+  run gate, department map URI. The environment keys have no default in the common file, so an overlay that forgets
+  one fails validation instead of falling back to prod. `local.env` sets `CA_ENV=local`; `CA_BQ_PROJECT` and
+  `CA_DEPARTMENT_MAP_URI` are gone (now `projects.write` and `people_directory.map_uri`).
+- [x] **Dataset prefix** applied everywhere a dataset name is built: `Settings.dataset_id()` is the only place
+  (tables, staging tables, DDL, views, external tables, devtools). Our datasets get the prefix and `projects.write`;
+  `analytics` and `aiel_evals` keep their name and are read from `projects.log` / `projects.evals` (prod on stage).
+- [x] **Run gate** (§3): `run_gate.uri` (stage only), `run_gate.py`; the assessor, monitor, daily and weekly jobs
+  read it first; closed (or object missing or unreadable) → the assessor writes a `PAUSED` run record, the others
+  nothing, `gate_closed` is logged, exit 0. `--ignore-gate` on those four. `ca run-gate resume --hours N|pause|status`;
+  `make stage-resume HOURS=n` (1–24), `make stage-pause`, `make stage-status` (real GCS, the caller's credentials);
+  `.github/workflows/stage-gate.yml` (`workflow_dispatch`, `action`, `hours` ≤ 24; WIF provider and SA from repo
+  variables, set in the official repo). Monitor: `PAUSED` records fire no check; coverage, waiting, no-run and
+  log-gap alerts are off while a `PAUSED` record lies within the last 3h30 (`timing.hard_limit_minutes`), and
+  `quality_pipeline_health.no_run_expected` marks those rows for the dashboard. Tested on fake GCS.
+- [x] **Dry run:** `ca quality-assessor --dry-run`: reads the window and the department map, builds sessions and the
+  work list, writes only the run record (`dry_run = true`, no cutoffs, so the first real run reads everything again);
+  no judge is created. The monitor runs no coverage or waiting check on dry-run records.
+- [x] **Schema check:** `ca db-init --check` (`make db-check` locally): datasets, tables (no unknown ones; `_stg_*`
+  ignored), columns with type, mode and nested fields (legacy type names mapped), partition column and expiry, views
+  (and their SQL) against `bq/schema.py` / `bq/views.py`; prints each difference, exit 1. The emulator keeps no
+  partitioning and returns view SQL rewritten, so those two are checked only on real BigQuery (partitioning is
+  unit-tested with built tables).
+- [x] **Kill switches:** `stage2.enabled` (stage 2 and session grades; flagged turns stay `PENDING`, then `GAVE_UP`)
+  and `evidence_check.enabled` (also for planted canary copies), default true; both logged in `assessment_run`.
+- [x] **Leak audit:** `ca leak-audit --since <day>` (`make leak-audit SINCE=..`): every table we write (partitioned
+  ones from that day, the rest whole) read back with `TO_JSON_STRING`, run through `leak_guard.check_row` again, and
+  every string checked against `leak_audit.max_string_chars` (200; links `max_link_chars` 2048). Per table: rows,
+  `rejected` (the guard refuses the row), `dropped` (the guard would store it differently: a link or document it
+  removes), `too_long`; exit 1 on any. `make demo` data: 0 findings on all 23 tables.
+- [x] **Real-BigQuery paths** the emulator never ran, and where each is checked:
+
+  | Path | Code | Checked in |
+  |---|---|---|
+  | `CREATE TABLE IF NOT EXISTS` with `PARTITION BY` + `partition_expiration_days`, `CREATE OR REPLACE VIEW` | `bq/init.py`, `schema.ddl` | step 2: `db-init`, then `db-init --check` = 0, twice |
+  | Load job into a per-write staging table `_stg_<table>_<hex>` + `MERGE` + delete | `bq/client.write` | step 3: one run record per run, none duplicated after a re-run with the same `CA_NOW`; no `_stg_*` table left (console) |
+  | Native typed query parameters (the emulator gets strings) | `bq/client._param` | step 3: the window read and state queries of every run |
+  | Query cost of the window read | `log/reader.py` | step 3: bytes billed per run from `INFORMATION_SCHEMA.JOBS` (engineer, console) |
+  | Authorized views across projects | `bq/views.py` | step 7: reporter SA reads the views, gets *access denied* on `analytics.audit_logs` |
+  | Storage with ADC: run gate, department map, content bucket | `run_gate.py`, `people/directory.py`, `docs/content.py` | step 3 (gate), step 5 (map), step 6 (content) |
+  | Secret Manager (hash key; content key and salt) | `secrets.py` | step 3 (hash key), step 6 (content) |
+
+- [x] Dockerfile: `ARG CODE_VERSION` → `CA_CODE_VERSION`; `make build` passes `git rev-parse HEAD`, CI passes the SHA.
+- [x] `CLAUDE.md`: hard rules updated for environments (real BigQuery only through deployed jobs, CI and Terraform).
 
 ### A7. Dashboard queries testable locally
 
@@ -364,7 +393,7 @@ baseline, and the strata, department included, freeze with it.
 - [ ] G2 done; A5 merged.
 - [ ] Infra PR: `roles/storage.objectViewer` on the indexers' state bucket, conditioned on
   `resource.name.startsWith("projects/_/buckets/<project>-indexers-state/objects/directory/")`, for `stage-quality-assessor`
-  (stage bucket) and `quality-assessor` (prod bucket); `CA_DEPARTMENT_MAP_URI` on the stage job.
+  (stage bucket) and `quality-assessor` (prod bucket); the map URI is `people_directory.map_uri` in `config/env/stage.yaml`.
 - Verify (stage, 2 open hours):
   - [ ] `department` distribution per day: `UNKNOWN` share < 5 % of non-canary turns (else check principals format).
   - [ ] No family below the privacy floor appears; no email in any row (`leak-audit` + schema).

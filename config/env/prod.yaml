@@ -1,0 +1,18 @@
+# Prod (deployment-plan.md §2): runs in rtbhouse-agentspace and writes bolek_quality_*. No run gate. CA_ENV=prod.
+projects:
+  write: rtbhouse-agentspace
+  log: rtbhouse-agentspace
+  evals: rtbhouse-agentspace
+dataset_prefix: ""
+secrets:
+  project: rtbhouse-agentspace
+judge:
+  vertex_project: rtbhouse-agentspace
+  daily_token_limit: 60000000
+alerts:
+  quality_channel: "#bolek-quality"
+  alerts_channel: "#aiel-alerts"
+people_directory:
+  map_uri: gs://rtbhouse-agentspace-indexers-state/directory/associates-departments.json
+run_gate:
+  uri: null                             # prod has no gate, so no setting can pause it by mistake

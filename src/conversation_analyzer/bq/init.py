@@ -25,7 +25,7 @@ def create_all() -> list[str]:
     if s.env.emulator:
         datasets += ["log", "evals"]
     for key in datasets:
-        ds_id = f"{s.env.bq_project}.{getattr(s.datasets, key)}"
+        ds_id = s.dataset_id(key)
         try:
             client().get_dataset(ds_id, retry=retry())
         except NotFound:  # the emulator answers an existing dataset with 500, so exists_ok can't be used
@@ -36,12 +36,10 @@ def create_all() -> list[str]:
     if s.env.emulator:
         tables += list(EXTERNAL_TABLES)
     existing = {
-        (t.dataset_id, t.table_id)
-        for key in datasets
-        for t in client().list_tables(f"{s.env.bq_project}.{getattr(s.datasets, key)}", retry=retry())
+        (t.dataset_id, t.table_id) for key in datasets for t in client().list_tables(s.dataset_id(key), retry=retry())
     }
     for table in tables:
-        dataset = getattr(s.datasets, table.dataset)
+        dataset = s.dataset_id(table.dataset).split(".", 1)[1]
         names = [table.name] + ([staging_name(table)] if s.env.emulator and table in TABLES else [])
         for name in names:
             if (dataset, name) not in existing:

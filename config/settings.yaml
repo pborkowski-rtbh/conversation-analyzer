@@ -1,17 +1,15 @@
 # All settings of the Conversation Analyzer, kept in one place (design-doc.md §12.14).
-# Environment-specific values (endpoints, projects, tokens) come from environment variables, see settings.py.
+# What differs between environments (projects, dataset prefix, Vertex project, Slack channels, token limit, run gate,
+# department map) is in config/env/<CA_ENV>.yaml, merged over this file; endpoints and tokens come from CA_* variables.
 
-project: rtbhouse-agentspace
-
-# --- Secret Manager (§12.2, §12.4): only the assessor reads these ---
+# --- Secret Manager (§12.2, §12.4): only the assessor reads these; the hash key's project is per environment ---
 secrets:
-  project: rtbhouse-agentspace
   hash_key: quality-hash-key
-  content_project: rtbhouse-agentspace
+  content_project: rtbhouse-agentspace   # the indexers' content key; stage reads the prod content bucket too
   content_key: mcp-content-encryption-key
   content_salt: mcp-content-encryption-salt
 
-# --- Datasets (§12.10) ---
+# --- Datasets (§12.10); the environment's dataset_prefix goes before turns, metrics and log_views ---
 datasets:
   log: analytics                       # Google's activity log export (read only)
   turns: bolek_quality_turns
@@ -63,7 +61,6 @@ pace:
 judge:
   location: eu                          # EU multi-region, never global
   allowed_locations: [eu, europe-west1, europe-west3, europe-west4, europe-central2, europe-north1, europe-southwest1, europe-west8, europe-west9]
-  vertex_project: rtb-ai-engineering-indexers
   current_version: v4                   # no search; kept by suite run suite-006ae9c5dbc7572ac5b (ticket 09)
   previous_version: null                # set during a parallel run
   parallel_run_until: null              # last day (UTC) of the parallel run, 5 weekdays after the change
@@ -71,7 +68,6 @@ judge:
   max_retries: 6
   retry_base_seconds: 2.0
   second_model_share: 0.05
-  daily_token_limit: 60000000
 
 # --- Metrics (§8) ---
 metrics:
@@ -164,8 +160,6 @@ strata:
 # --- Alerts, clusters, digest (§9) ---
 alerts:
   high_alert_bar: 1                     # HIGH failures in a cluster after a run that make an alert (§9.4)
-  quality_channel: "#bolek-quality"
-  alerts_channel: "#aiel-alerts"
   ack_emoji: white_check_mark
 clusters:
   severity_weights: {HIGH: 3, MEDIUM: 2, LOW: 1}
@@ -225,5 +219,16 @@ people_directory:
   data_store_prefixes: [people-connections_]
   doc_id_prefixes: [associate-]
   uri_schemes: [mailto]
-  # The user's department comes from the map the associates indexer writes (CA_DEPARTMENT_MAP_URI).
+  # The user's department comes from the map the associates indexer writes (map_uri, per environment).
   max_age_hours: 7                      # stage's associates job runs every 6 hours, prod's every hour
+
+# --- Kill switches: off keeps stage 1 running without the later calls (deployment-plan.md A6) ---
+stage2:
+  enabled: true                         # stage 2 and session grades; flagged turns stay PENDING, then GAVE_UP
+evidence_check:
+  enabled: true                         # the evidence check, for assessed and planted canary turns
+
+# --- ca leak-audit: a stored string longer than this is a finding (no text column exists, §6.10) ---
+leak_audit:
+  max_string_chars: 200
+  max_link_chars: 2048

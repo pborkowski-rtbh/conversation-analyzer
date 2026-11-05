@@ -129,9 +129,10 @@ def _fingerprint(*parts: Any) -> str:
 
 
 class AssessmentRun:
-    def __init__(self, now: datetime, judge: Judge, docs: RunDocuments) -> None:
+    def __init__(self, now: datetime, judge: Judge | None, docs: RunDocuments, dry_run: bool = False) -> None:
         s = get_settings()
         self.s = s
+        self.dry_run = dry_run  # read the window and plan the work, write only the run record (no judge call)
         self.now = now
         self.today = now.date()
         self.judge = judge
@@ -364,6 +365,8 @@ class AssessmentRun:
 
     def phase2(self, states: list[TurnState]) -> None:
         """The evidence check: one judge call for each turn whose answer links documents we can read (§6.9, §12.6)."""
+        if not self.s.evidence_check.enabled:
+            return
         todo = [
             (ts, v)
             for ts in states
@@ -428,6 +431,8 @@ class AssessmentRun:
 
     def phase3(self, states: list[TurnState], stored: state_mod.Stored) -> None:
         """Stage 2 and session grades for flagged turns, pending ones first, while time remains (§12.6)."""
+        if not self.s.stage2.enabled:
+            return
         pending = [ts for ts in states if ts.stage2_state == Stage2State.PENDING and ts.s1]
         pending.sort(key=lambda x: (x.stored is None, x.turn.timestamp))
         graded: set[tuple[str, int]] = set()
@@ -529,7 +534,7 @@ class AssessmentRun:
                 pr = self._call(lambda pcase=pcase: stage1.assess(pcase, self.cur, self.judge, self.usage))
                 if pr is None:
                     continue
-                if evidence.needed(pr):
+                if self.s.evidence_check.enabled and evidence.needed(pr):
                     self._call(
                         lambda pr=pr, pcase=pcase: evidence.check(
                             pcase,
@@ -825,6 +830,7 @@ class AssessmentRun:
             "finished_at": self.now + timedelta(seconds=time.monotonic() - self.started),
             "status": status.value,
             "error_class": error_class,
+            "dry_run": self.dry_run,
             "turns_read": len(self.window.turns) if self.window else 0,
             "eligible": len(eligible),
             "covered": len(covered),
@@ -910,6 +916,17 @@ class AssessmentRun:
             stored.versions = run_info.versions
             states = self.plan(stored)
             late_feedback = self.feedback_counts(states, feedback_since)
+            if self.dry_run:  # no cutoffs: the first real run reads the searches and feedback again
+                record = self.run_record(states, RunStatus.OK, None, None, None)
+                write(RUNS, [record])
+                safe_log.log(
+                    "assessment_dry_run",
+                    run_id=self.run_id,
+                    turns_read=record["turns_read"],
+                    eligible=record["eligible"],
+                    directory_unavailable=record["directory_unavailable"],
+                )
+                return record
             self.phase1(states, stored)
             self.phase2(states)
             self.flags(states, stored)
@@ -935,9 +952,24 @@ class AssessmentRun:
             directory_unavailable=record["directory_unavailable"],
             stage2_done=record["stage2_done"],
             tokens=self.usage.total(),
+            stage2_enabled=self.s.stage2.enabled,
+            evidence_check_enabled=self.s.evidence_check.enabled,
         )
         return record
 
+    def paused(self) -> dict[str, Any]:
+        """The record of a run the closed gate stopped: nothing read, nothing judged."""
+        record = self.run_record([], RunStatus.PAUSED, None, None, None)
+        write(RUNS, [record])
+        return record
 
-def run(now: datetime | None = None, judge: Judge | None = None, docs: RunDocuments | None = None) -> dict[str, Any]:
-    return AssessmentRun(now or utc_now(), judge or default_judge(), docs or RunDocuments()).execute()
+
+def run(
+    now: datetime | None = None, judge: Judge | None = None, docs: RunDocuments | None = None, dry_run: bool = False
+) -> dict[str, Any]:
+    judge = None if dry_run else judge or default_judge()
+    return AssessmentRun(now or utc_now(), judge, docs or RunDocuments(), dry_run).execute()
+
+
+def paused(now: datetime | None = None) -> dict[str, Any]:
+    return AssessmentRun(now or utc_now(), None, RunDocuments()).paused()

@@ -1,0 +1,19 @@
+# Stage (deployment-plan.md §2): runs in rtb-aiel-core-stage, writes stage_bolek_quality_*, reads the prod log and
+# content bucket. Paused unless the run gate is open (§3). CA_ENV=stage.
+projects:
+  write: rtb-aiel-core-stage
+  log: rtbhouse-agentspace
+  evals: rtbhouse-agentspace
+dataset_prefix: stage_
+secrets:
+  project: rtb-aiel-core-stage          # stage's own hash key, so stage and prod rows can never be joined
+judge:
+  vertex_project: rtb-aiel-core-stage
+  daily_token_limit: 6000000            # about a tenth of prod's: the second guard after the run gate
+alerts:
+  quality_channel: "#bolek-quality-stage"   # one channel for every stage message
+  alerts_channel: "#bolek-quality-stage"
+people_directory:
+  map_uri: gs://rtb-aiel-core-stage-indexers-state/directory/associates-departments.json
+run_gate:
+  uri: gs://rtb-aiel-core-stage-quality-control/run-gate.json

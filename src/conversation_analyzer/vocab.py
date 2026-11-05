@@ -403,6 +403,7 @@ class RunStatus(StrEnum):
     OK = "OK"
     FAILED = "FAILED"
     TIMED_OUT = "TIMED_OUT"
+    PAUSED = "PAUSED"  # stage's run gate was closed: no window read, no judge call (deployment-plan.md §3)
 
 
 class HealthKind(StrEnum):

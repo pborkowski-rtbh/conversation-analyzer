@@ -222,7 +222,7 @@ def seed(now: datetime) -> None:
     write(SUITE_RUNS, [suite_run(now.date())])
     s = get_settings()
     client().insert_rows_json(
-        f"{s.env.bq_project}.{s.datasets.evals}.results",
+        s.table("evals", "results"),
         [
             {
                 "run_id": "eval-1",

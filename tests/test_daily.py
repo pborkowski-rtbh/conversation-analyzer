@@ -405,7 +405,7 @@ def test_release_impact_verdicts(clean):
     eid = record("PROMPT", str(change), 10, None, None, [])
     s = get_settings()
     client().insert_rows_json(  # the gate's latest verdict on the change is shown with it; other values never
-        f"{s.env.bq_project}.{s.datasets.evals}.{EVAL_GATE_RESULTS.name}",
+        s.table("evals", EVAL_GATE_RESULTS.name),
         [
             {"change_id": eid, "verdict": "FAIL", "created_at": f"{change}T08:00:00Z"},
             {"change_id": eid, "verdict": "PASS", "created_at": f"{change}T09:00:00Z"},
@@ -490,7 +490,7 @@ def test_judge_quality_measures(clean):
     )
     s = get_settings()
     client().insert_rows_json(
-        f"{s.env.bq_project}.{s.datasets.evals}.{EVAL_RESULTS.name}",
+        s.table("evals", EVAL_RESULTS.name),
         [
             {
                 "run_kind": "CANARY",
