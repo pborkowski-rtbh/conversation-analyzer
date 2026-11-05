@@ -49,6 +49,8 @@ src/conversation_analyzer/
   suite/               judge test suite runner and keep rule
   devtools/            synthetic log rows and the demo scenario (emulator only)
 docker/stubs/server.py Slack, GitHub and Cloud Run stubs for local runs
+docker/grafana/        local Grafana (BigQuery plugin -> local TLS proxy with a query cache -> emulator), dashboard
+                       `dashboards/bolek-quality.json` (dashboard.grafana.app/v1beta1)
 ```
 
 ## Running
@@ -65,6 +67,8 @@ make suite LIMIT=20   # the suite runner with the fake judge (free)
 make suite-restore    # load the stored suite runs (suite_reports/) back into a reset emulator
 make db-check         # live emulator schema vs bq/schema.py (`ca db-init --check`)
 make leak-audit SINCE=2026-10-01   # stored rows back through the leak guard; counts only
+make grafana          # Grafana on :3000 over the emulator: db-reset, 8 weeks of mocked metrics, dashboard loaded
+make grafana-save     # write the dashboard edited in the Grafana UI back into its file (grafana-load: the reverse)
 make help             # every target
 ```
 

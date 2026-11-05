@@ -98,6 +98,35 @@ demo: db-reset seed run-assessor run-monitor ## Whole pipeline on the synthetic 
 	@curl -s localhost:8088/_test/state | python3 -c 'import json,sys; [print(m["channel"], m["text"], sep="\n", end="\n\n") for m in json.load(sys.stdin)["messages"]]'
 
 
+# --- local Grafana (proposed dashboard, §8.8) -----------------------------------------------------------------------
+
+DASHBOARD ?= docker/grafana/dashboards/bolek-quality.json
+
+.PHONY: grafana
+grafana: ## Local Grafana on :3000 over the emulator, with mocked metrics and the dashboard (resets the emulator)
+	$(COMPOSE) --profile grafana up -d --build
+	@for i in $$(seq 1 30); do nc -z localhost 9050 && break; sleep 1; done
+	$(MAKE) db-reset grafana-seed
+	@for i in $$(seq 1 60); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+	$(MAKE) grafana-load
+
+.PHONY: grafana-seed
+grafana-seed: ## Write eight weeks of mocked metrics rows (the metrics tables must be empty: make db-reset first)
+	$(CA) dev-seed-dashboard
+	-$(COMPOSE) --profile grafana restart gcp-proxy  # empties the proxy's query cache
+
+.PHONY: grafana-load
+grafana-load: ## Load the dashboard file into the local Grafana and warm the query cache (DASHBOARD=path)
+	$(UV) run python docker/grafana/sync.py load $(DASHBOARD)
+
+.PHONY: grafana-save
+grafana-save: ## Write the local Grafana's version of the dashboard (edited in the UI) back into the file
+	$(UV) run python docker/grafana/sync.py save $(DASHBOARD)
+
+.PHONY: grafana-down
+grafana-down: ## Stop the local Grafana and its proxy
+	$(COMPOSE) --profile grafana stop grafana gcp-proxy
+
 # --- judge test suite ----------------------------------------------------------------------------------------------
 
 .PHONY: suite-coverage

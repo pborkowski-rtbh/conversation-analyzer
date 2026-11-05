@@ -1,0 +1,17 @@
+# The BigQuery datasource of Central Grafana, pointed at the emulator through the local proxy (docker/grafana/proxy).
+# The JWT is signed with the proxy's throwaway key; the proxy answers the token request itself.
+apiVersion: 1
+datasources:
+  - name: BigQuery
+    uid: bolek-quality-bq
+    type: grafana-bigquery-datasource
+    isDefault: true
+    editable: true
+    jsonData:
+      authenticationType: jwt
+      clientEmail: grafana-bolek-quality@local-project.iam.gserviceaccount.com
+      defaultProject: local-project
+      tokenUri: https://oauth2.googleapis.com/token
+      processingLocation: ""
+    secureJsonData:
+      privateKey: $__file{/certs/key.pem}

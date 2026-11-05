@@ -20,3 +20,41 @@ services:
       dockerfile: docker/stubs.Dockerfile
     ports:
       - "8088:8088"
+
+  # Local Grafana with the proposed quality dashboard (http://localhost:3000, no login); `make grafana`.
+  gcp-proxy:
+    build:
+      context: .
+      dockerfile: docker/grafana/proxy/Dockerfile
+    profiles: ["grafana"]
+    volumes:
+      - grafana-certs:/certs
+    networks:
+      default:
+        aliases: [bigquery.googleapis.com, oauth2.googleapis.com, www.googleapis.com]
+
+  grafana:
+    build:
+      context: .
+      dockerfile: docker/grafana/Dockerfile
+    profiles: ["grafana"]
+    depends_on: [gcp-proxy, bigquery]
+    ports:
+      - "3000:3000"
+    environment:
+      SSL_CERT_FILE: /certs/ca.pem          # trusts only the local proxy: nothing reaches real Google
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/bolek-quality.json
+    volumes:
+      - grafana-certs:/certs:ro
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+
+volumes:
+  grafana-certs:

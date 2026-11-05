@@ -246,6 +246,22 @@ def dev_seed(now: str | None) -> None:
     safe_log.log("dev_seed", turns=len(scenario.turns()))
 
 
+@main.command("dev-seed-dashboard")
+@click.option("--today", default=None, help="Day after the last mocked day (YYYY-MM-DD); default today (or CA_NOW).")
+def dev_seed_dashboard(today: str | None) -> None:
+    """Local only: write eight weeks of mocked metrics rows for the local Grafana dashboard."""
+    from datetime import date
+
+    from conversation_analyzer.devtools import dashboard_mock
+    from conversation_analyzer.settings import get_settings
+    from conversation_analyzer.settings import now as current
+
+    if not get_settings().env.emulator:
+        raise click.UsageError("dev-seed-dashboard writes mocked rows and runs only against the emulator")
+    counts = dashboard_mock.seed(date.fromisoformat(today) if today else current().date())
+    safe_log.log("dev_seed_dashboard", **counts)
+
+
 @main.command("dev-load-suite-runs")
 @click.argument("reports", nargs=-1, type=click.Path(exists=True, dir_okay=False, path_type=Path))
 def dev_load_suite_runs(reports: tuple[Path, ...]) -> None:

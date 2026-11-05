@@ -9,7 +9,7 @@ To resume: read **Status**, then the first unchecked step.
 
 ## Status (2026-11-05)
 
-- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). All code is in the private repo (M0–M7 done, 253 tests, 98.12 % coverage).
+- Plan written and its open questions answered (§9); nothing deployed. A2 done (ticket 07). PII scrubbing dropped (A3, ticket 08). A5 done (department, AIENGLAB-853). A6 done (environments, run gate, dry run, schema check, leak audit; AIENGLAB-854). A7 started (AIENGLAB-855): local Grafana with the proposed dashboard on mocked data; `make dashboard-check` still to do. All code is in the private repo (M0–M7 done, 253 tests, 98.12 % coverage).
 - Paid Vertex spend of the build so far: 14.51 of 50 USD (see `plan.md`). Deployment spend is logged below, separately.
 
 ---
@@ -266,6 +266,9 @@ stage and prod run the same code and settings in two projects, with no environme
   dashboard file, replaces the Grafana macros (`$__timeFilter`, variables) with fixed values, and runs it on the
   emulator after `make demo`. Fails on any error or empty required panel. The dashboard's source stays in
   `infra-grafana-dashboards`; this repo only tests it.
+- [x] Local Grafana to iterate on the dashboard (`make grafana`): the real BigQuery plugin over the emulator through
+  a local proxy (no real GCP), 8 weeks of mocked metrics (`ca dev-seed-dashboard`), the proposed dashboard
+  `docker/grafana/dashboards/bolek-quality.json` (v1beta1, rows 1–7 of §8.8) and its team guide (`README.md` there).
 
 ---
 

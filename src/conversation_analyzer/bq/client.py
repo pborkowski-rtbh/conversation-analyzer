@@ -189,4 +189,16 @@ def write(table: Table, rows: list[dict[str, Any]]) -> int:
     return len(checked)
 
 
+def insert_fresh(table: Table, rows: list[dict[str, Any]]) -> int:
+    """Emulator only: leak guard on every row, then a plain insert (no MERGE) of rows whose keys are not stored yet."""
+    if not get_settings().env.emulator:
+        raise RuntimeError("insert_fresh runs only against the emulator")
+    checked = _dedupe(table, check_rows(table, rows))
+    stored = get_settings().table(table.dataset, table.name)
+    for i in range(0, len(checked), 2000):
+        if client().insert_rows_json(stored, [_jsonable(r) for r in checked[i : i + 2000]], retry=retry()):
+            raise RuntimeError("insert failed")
+    return len(checked)
+
+
 _emulator_lock = threading.Lock()

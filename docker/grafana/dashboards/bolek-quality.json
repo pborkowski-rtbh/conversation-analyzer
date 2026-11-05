@@ -1,0 +1,1902 @@
+{
+  "apiVersion": "dashboard.grafana.app/v1beta1",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "bolek-quality"
+  },
+  "spec": {
+    "uid": "bolek-quality",
+    "title": "Bolek quality",
+    "description": "Conversation Analyzer (\u00a78.8): aggregates only, read every morning.",
+    "tags": [
+      "conversation-analyzer",
+      "bolek"
+    ],
+    "timezone": "utc",
+    "editable": true,
+    "graphTooltip": 1,
+    "schemaVersion": 41,
+    "time": {
+      "from": "now-56d",
+      "to": "now"
+    },
+    "refresh": "",
+    "templating": {
+      "list": [
+        {
+          "type": "datasource",
+          "name": "datasource",
+          "label": "Data source",
+          "query": "grafana-bigquery-datasource",
+          "current": {
+            "text": "BigQuery",
+            "value": "bolek-quality-bq"
+          },
+          "hide": 0
+        },
+        {
+          "type": "custom",
+          "name": "channel",
+          "label": "Channel",
+          "query": "ALL,WEB_UI,SLACK_MCP",
+          "multi": false,
+          "includeAll": false,
+          "current": {
+            "text": "ALL",
+            "value": "ALL"
+          },
+          "options": [
+            {
+              "text": "ALL",
+              "value": "ALL",
+              "selected": true
+            },
+            {
+              "text": "WEB_UI",
+              "value": "WEB_UI",
+              "selected": false
+            },
+            {
+              "text": "SLACK_MCP",
+              "value": "SLACK_MCP",
+              "selected": false
+            }
+          ]
+        },
+        {
+          "type": "custom",
+          "name": "department",
+          "label": "Department",
+          "query": "ALL,ENGINEERING,CAMPAIGNS,COMMERCIAL,CORPORATE,UNKNOWN,MERGED_OTHER",
+          "multi": false,
+          "includeAll": false,
+          "current": {
+            "text": "ALL",
+            "value": "ALL"
+          },
+          "options": [
+            {
+              "text": "ALL",
+              "value": "ALL",
+              "selected": true
+            },
+            {
+              "text": "ENGINEERING",
+              "value": "ENGINEERING",
+              "selected": false
+            },
+            {
+              "text": "CAMPAIGNS",
+              "value": "CAMPAIGNS",
+              "selected": false
+            },
+            {
+              "text": "COMMERCIAL",
+              "value": "COMMERCIAL",
+              "selected": false
+            },
+            {
+              "text": "CORPORATE",
+              "value": "CORPORATE",
+              "selected": false
+            },
+            {
+              "text": "UNKNOWN",
+              "value": "UNKNOWN",
+              "selected": false
+            },
+            {
+              "text": "MERGED_OTHER",
+              "value": "MERGED_OTHER",
+              "selected": false
+            }
+          ]
+        },
+        {
+          "type": "custom",
+          "name": "day_kind",
+          "label": "Days",
+          "query": "ALL,WEEKDAY,WEEKEND",
+          "multi": false,
+          "includeAll": false,
+          "current": {
+            "text": "ALL",
+            "value": "ALL"
+          },
+          "options": [
+            {
+              "text": "ALL",
+              "value": "ALL",
+              "selected": true
+            },
+            {
+              "text": "WEEKDAY",
+              "value": "WEEKDAY",
+              "selected": false
+            },
+            {
+              "text": "WEEKEND",
+              "value": "WEEKEND",
+              "selected": false
+            }
+          ]
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Changes and judges",
+          "enable": true,
+          "iconColor": "purple",
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${datasource}"
+          },
+          "target": {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP_ADD(TIMESTAMP(day), INTERVAL IFNULL(hour, 0) HOUR) AS time,\n       IF(kind IN ('JUDGE', 'PARALLEL_RUN_END'), CONCAT('judge ', IFNULL(judge_version, '')), CONCAT(source, ' \u00b7 ', kind))\n         AS text,\n       IF(kind IN ('JUDGE', 'PARALLEL_RUN_END'), 'judge', 'change') AS tags\nFROM `bolek_quality_metrics.quality_change_events` WHERE $__timeFilter(TIMESTAMP(day))"
+          }
+        },
+        {
+          "name": "Incomplete days",
+          "enable": true,
+          "iconColor": "red",
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${datasource}"
+          },
+          "target": {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT DISTINCT TIMESTAMP(day) AS time, TIMESTAMP(DATE_ADD(day, INTERVAL 1 DAY)) AS timeEnd, 'log incomplete' AS text\nFROM `bolek_quality_metrics.quality_metrics_daily` WHERE incomplete AND metric = 'VOLUME' AND channel = 'ALL' AND $__timeFilter(TIMESTAMP(day))"
+          }
+        },
+        {
+          "name": "Weekends",
+          "enable": true,
+          "iconColor": "rgba(128, 128, 128, 0.15)",
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${datasource}"
+          },
+          "target": {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT DISTINCT TIMESTAMP(day) AS time, TIMESTAMP(DATE_ADD(day, INTERVAL 1 DAY)) AS timeEnd, 'weekend' AS text\nFROM `bolek_quality_metrics.quality_metrics_daily` WHERE day_kind = 'WEEKEND' AND metric = 'VOLUME' AND channel = 'ALL' AND $__timeFilter(TIMESTAMP(day))"
+          }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "type": "row",
+        "id": 1,
+        "title": "1. Is the pipeline healthy?  (last complete day, all departments; per run below)",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "panels": []
+      },
+      {
+        "type": "stat",
+        "id": 2,
+        "title": "Last complete day, all departments (Resumed: all channels)",
+        "description": "Coverage: assessed or too large over the log's eligible turns. Resumed and continued: segments resumed after an idle close whose first turn continues the conversation; if high, keep segments open longer (\u00a75).",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "WITH last AS (SELECT MAX(day) AS day FROM `bolek_quality_metrics.quality_metrics_daily` WHERE metric = 'VOLUME'),\nd AS (SELECT metric, channel, value, incomplete FROM `bolek_quality_metrics.quality_metrics_daily`, last\n      WHERE `bolek_quality_metrics.quality_metrics_daily`.day = last.day AND slice_kind = 'ALL' AND channel IN ('${channel}', 'ALL'))\nSELECT\n  100 * MAX(IF(metric = 'COVERAGE' AND channel = '${channel}', value, NULL)) AS `Coverage`,\n  MAX(IF(metric = 'MISSED_COUNT' AND channel = '${channel}', value, NULL)) AS `Missed`,\n  MAX(IF(metric = 'OLDEST_WAITING_MINUTES', value, NULL)) AS `Oldest waiting`,\n  100 * MAX(IF(metric = 'TOO_LARGE_SHARE' AND channel = '${channel}', value, NULL)) AS `Too large`,\n  IF(LOGICAL_OR(incomplete) OR SUM(IF(metric = 'LOG_GAP_HOURS' AND channel = 'ALL', value, 0)) > 0, 0, 1)\n    AS `Log complete`,\n  100 * MAX(IF(metric = 'RESUMED_WITHOUT_TEXT', value, NULL)) AS `Resumed without text`,\n  100 * MAX(IF(metric = 'RESUMED_AND_CONTINUED', value, NULL)) AS `Resumed and continued`\nFROM d"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "value_and_name",
+          "justifyMode": "center",
+          "orientation": "vertical",
+          "wideLayout": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 1,
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "blue",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Coverage"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "decimals",
+                  "value": 1
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 98
+                      },
+                      {
+                        "color": "green",
+                        "value": 99.5
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Missed"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "short"
+                },
+                {
+                  "id": "decimals",
+                  "value": 0
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 1
+                      },
+                      {
+                        "color": "red",
+                        "value": 25
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Oldest waiting"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "m"
+                },
+                {
+                  "id": "decimals",
+                  "value": 0
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 60
+                      },
+                      {
+                        "color": "red",
+                        "value": 120
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Too large"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "decimals",
+                  "value": 2
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 1
+                      },
+                      {
+                        "color": "red",
+                        "value": 3
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Log complete"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "none"
+                },
+                {
+                  "id": "decimals",
+                  "value": 0
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 1
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "0": {
+                          "text": "no"
+                        },
+                        "1": {
+                          "text": "yes"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Resumed without text"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "decimals",
+                  "value": 1
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 5
+                      },
+                      {
+                        "color": "red",
+                        "value": 10
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Resumed and continued"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "decimals",
+                  "value": 1
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "blue"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 24,
+          "x": 0,
+          "y": 1
+        }
+      },
+      {
+        "type": "timeseries",
+        "id": 3,
+        "title": "Coverage per run (assessor, hourly)",
+        "description": "Per run; a failed run drops to the floor of the axis.",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 0,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP_ADD(TIMESTAMP(day), INTERVAL hour HOUR) AS time, coverage AS `coverage`\nFROM `bolek_quality_metrics.quality_pipeline_health` WHERE kind = 'RUN' AND channel = 'ALL' AND $__timeFilter(TIMESTAMP(day)) ORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "min": 0.9,
+            "max": 1
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 16,
+          "x": 0,
+          "y": 5
+        }
+      },
+      {
+        "type": "table",
+        "id": 4,
+        "title": "Runs with a check fired",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP_ADD(TIMESTAMP(day), INTERVAL hour HOUR) AS run, run_status AS status, eligible, missed,\n       ROUND(oldest_waiting_minutes) AS oldest_waiting_min, ARRAY_TO_STRING(checks_fired, ', ') AS checks\nFROM `bolek_quality_metrics.quality_pipeline_health` WHERE kind = 'RUN' AND ARRAY_LENGTH(checks_fired) > 0 AND $__timeFilter(TIMESTAMP(day))\nORDER BY run DESC LIMIT 20"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "cellHeight": "sm"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              }
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 16,
+          "y": 5
+        }
+      },
+      {
+        "type": "row",
+        "id": 5,
+        "title": "2. Anything unusual?",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 11
+        },
+        "panels": []
+      },
+      {
+        "type": "table",
+        "id": 6,
+        "title": "Open anomalies (and acknowledged in the last 14 days)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT REPLACE(a.metric, 'FAILURE_RATE_', 'failure rate \u00b7 ') AS metric, a.channel, a.kind, a.opened_day AS since, ROUND(a.value * 100, 1) AS value_pct,\n       ROUND(a.reference_value * 100, 1) AS reference_pct,\n       CONCAT(ROUND(a.band_low * 100, 1), ' \u2013 ', ROUND(a.band_high * 100, 1)) AS band_pct,\n       IF(a.explained, (SELECT STRING_AGG(CONCAT(e.kind, ' ', CAST(e.day AS STRING)), ', ')\n                        FROM `bolek_quality_metrics.quality_change_events` e WHERE e.event_id IN UNNEST(a.change_events)), 'unexplained')\n         AS change_events_before,\n       a.state, a.acknowledged_day\nFROM `bolek_quality_metrics.quality_anomalies` a\nWHERE a.state = 'OPEN' OR a.acknowledged_day >= DATE_SUB(CURRENT_DATE(), INTERVAL 14 DAY)\nORDER BY a.state DESC, a.opened_day DESC"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "cellHeight": "sm"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "state"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-background"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "OPEN": {
+                          "color": "red"
+                        },
+                        "ACKNOWLEDGED": {
+                          "color": "green"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 12
+        }
+      },
+      {
+        "type": "row",
+        "id": 7,
+        "title": "3. Is quality moving?",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 18
+        },
+        "panels": []
+      },
+      {
+        "type": "timeseries",
+        "id": 8,
+        "title": "AQR per day, with 7-day average and reference band",
+        "description": "If raw and standardized move apart, the question mix changed, not quality. The band is the 28 days before \u00b1 3 standard deviations (\u00a78.7).",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "WITH d AS (\n  SELECT day, MAX(IF(metric = 'AQR_STANDARDIZED', value, NULL)) AS std, MAX(IF(metric = 'AQR_RAW', value, NULL)) AS raw\n  FROM `bolek_quality_metrics.quality_metrics_daily` WHERE metric IN ('AQR_STANDARDIZED', 'AQR_RAW') AND channel = '${channel}' AND slice_kind = IF('${department}' = 'ALL', 'ALL', 'DEPARTMENT') AND slice_value = '${department}' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND (n_turns IS NULL OR n_turns >= 20)\n  GROUP BY day)\nSELECT TIMESTAMP(day) AS time, std AS `AQR standardized`, raw AS `AQR raw`,\n       AVG(std) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS `7-day average`,\n       AVG(std) OVER w - 3 * STDDEV(std) OVER w AS `reference low`,\n       AVG(std) OVER w + 3 * STDDEV(std) OVER w AS `reference high`\nFROM d WINDOW w AS (ORDER BY day ROWS BETWEEN 28 PRECEDING AND 1 PRECEDING)\nORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": 0.6,
+              "axisSoftMax": 0.9,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "reference low"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#8ab8ff"
+                  }
+                },
+                {
+                  "id": "custom.lineWidth",
+                  "value": 0
+                },
+                {
+                  "id": "custom.hideFrom",
+                  "value": {
+                    "legend": true,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "reference high"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "#8ab8ff"
+                  }
+                },
+                {
+                  "id": "custom.fillBelowTo",
+                  "value": "reference low"
+                },
+                {
+                  "id": "custom.fillOpacity",
+                  "value": 20
+                },
+                {
+                  "id": "custom.lineWidth",
+                  "value": 0
+                },
+                {
+                  "id": "custom.hideFrom",
+                  "value": {
+                    "legend": true,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "AQR raw"
+              },
+              "properties": [
+                {
+                  "id": "custom.lineStyle",
+                  "value": {
+                    "fill": "dash",
+                    "dash": [
+                      6,
+                      4
+                    ]
+                  }
+                },
+                {
+                  "id": "custom.lineWidth",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "7-day average"
+              },
+              "properties": [
+                {
+                  "id": "custom.lineWidth",
+                  "value": 3
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "orange"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 18,
+          "x": 0,
+          "y": 19
+        }
+      },
+      {
+        "type": "stat",
+        "id": 9,
+        "title": "Last complete day",
+        "description": "Contradicted: turns with a HIGH contradicted claim on the last complete day.",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "WITH d AS (SELECT day, metric, value FROM `bolek_quality_metrics.quality_metrics_daily`\n           WHERE metric IN ('AQR_STANDARDIZED', 'CONTRADICTED_COUNT') AND channel = '${channel}' AND slice_kind = IF('${department}' = 'ALL', 'ALL', 'DEPARTMENT') AND slice_value = '${department}' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}')),\nlast AS (SELECT MAX(day) AS day FROM d)\nSELECT ROUND(100 * MAX(IF(d.day = last.day AND metric = 'AQR_STANDARDIZED', value, NULL)), 1) AS `AQR`,\n       ROUND(100 * (MAX(IF(d.day = last.day AND metric = 'AQR_STANDARDIZED', value, NULL))\n             - AVG(IF(d.day < last.day AND d.day >= DATE_SUB(last.day, INTERVAL 28 DAY)\n                      AND metric = 'AQR_STANDARDIZED', value, NULL))), 1) AS `vs 28-day ref. (pt)`,\n       MAX(IF(d.day = last.day AND metric = 'CONTRADICTED_COUNT', value, NULL)) AS `Contradicted`\nFROM d, last"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "colorMode": "value",
+          "graphMode": "none",
+          "textMode": "value_and_name",
+          "justifyMode": "center",
+          "orientation": "horizontal"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 1,
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "blue",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "AQR"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "decimals",
+                  "value": 1
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "text"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "vs 28-day ref. (pt)"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "none"
+                },
+                {
+                  "id": "decimals",
+                  "value": 1
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": -2
+                      },
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Contradicted"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "short"
+                },
+                {
+                  "id": "decimals",
+                  "value": 0
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "yellow",
+                        "value": 3
+                      },
+                      {
+                        "color": "red",
+                        "value": 8
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 19
+        }
+      },
+      {
+        "type": "timeseries",
+        "id": 10,
+        "title": "Not verifiable share and evidence mix (knowledge questions)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time,\n       MAX(IF(metric = 'EVIDENCE_OWN_SHARE', value, NULL)) AS `own references`,\n       MAX(IF(metric = 'EVIDENCE_EARLIER_SHARE', value, NULL)) AS `earlier references`,\n       MAX(IF(metric = 'EVIDENCE_NONE_SHARE', value, NULL)) AS `no evidence`,\n       MAX(IF(metric = 'NOT_VERIFIABLE_SHARE', value, NULL)) AS `not verifiable`\nFROM `bolek_quality_metrics.quality_metrics_daily`\nWHERE metric IN ('EVIDENCE_OWN_SHARE', 'EVIDENCE_EARLIER_SHARE', 'EVIDENCE_NONE_SHARE', 'NOT_VERIFIABLE_SHARE') AND channel = '${channel}' AND slice_kind = IF('${department}' = 'ALL', 'ALL', 'DEPARTMENT') AND slice_value = '${department}' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND $__timeFilter(TIMESTAMP(day)) AND (n_turns IS NULL OR n_turns >= 20)\nGROUP BY day ORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "none"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "not verifiable"
+              },
+              "properties": [
+                {
+                  "id": "custom.lineWidth",
+                  "value": 3
+                },
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "red"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 27
+        }
+      },
+      {
+        "type": "row",
+        "id": 11,
+        "title": "4. What goes wrong?",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 33
+        },
+        "panels": []
+      },
+      {
+        "type": "timeseries",
+        "id": 12,
+        "title": "Failure rates by primary failure (share of assessed turns)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 0,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time, REPLACE(metric, 'FAILURE_RATE_', '') AS metric, value\nFROM `bolek_quality_metrics.quality_metrics_daily` WHERE STARTS_WITH(metric, 'FAILURE_RATE_') AND channel = '${channel}' AND slice_kind = IF('${department}' = 'ALL', 'ALL', 'DEPARTMENT') AND slice_value = '${department}' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND $__timeFilter(TIMESTAMP(day)) AND n_turns >= 20\nORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "calcs": [
+              "lastNotNull"
+            ]
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "drawStyle": "bars",
+              "lineWidth": 2,
+              "fillOpacity": 70,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "normal",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "displayName": "${__field.labels.metric}"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 14,
+          "x": 0,
+          "y": 34
+        }
+      },
+      {
+        "type": "timeseries",
+        "id": 13,
+        "title": "Contradicted and unsupported claims",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time,\n       MAX(IF(metric = 'CONTRADICTED_SHARE', value, NULL)) AS `contradicted (of knowledge turns)`,\n       MAX(IF(metric = 'UNSUPPORTED_SHARE', value, NULL)) AS `unsupported (of claim spans)`,\n       MAX(IF(metric = 'CONTRADICTED_COUNT', value, NULL)) AS `contradicted turns`\nFROM `bolek_quality_metrics.quality_metrics_daily`\nWHERE metric IN ('CONTRADICTED_SHARE', 'UNSUPPORTED_SHARE', 'CONTRADICTED_COUNT') AND channel = '${channel}' AND slice_kind = IF('${department}' = 'ALL', 'ALL', 'DEPARTMENT') AND slice_value = '${department}' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND $__timeFilter(TIMESTAMP(day)) AND (n_turns IS NULL OR n_turns >= 20)\nGROUP BY day ORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "contradicted turns"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "short"
+                },
+                {
+                  "id": "custom.drawStyle",
+                  "value": "bars"
+                },
+                {
+                  "id": "custom.fillOpacity",
+                  "value": 40
+                },
+                {
+                  "id": "custom.axisPlacement",
+                  "value": "right"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 9,
+          "w": 10,
+          "x": 14,
+          "y": 34
+        }
+      },
+      {
+        "type": "row",
+        "id": 14,
+        "title": "5. Where?",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 43
+        },
+        "panels": []
+      },
+      {
+        "type": "status-history",
+        "id": 15,
+        "title": "AQR by topic \u00d7 week",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "description": "Weekly AQR (raw) per topic; slices under 20 turns are merged by the daily job.",
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 0,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(DATE_TRUNC(day, WEEK(MONDAY))) AS time, slice_value AS metric,\n       SUM(numerator) / SUM(denominator) AS value\nFROM `bolek_quality_metrics.quality_metrics_daily` WHERE metric = 'AQR_RAW' AND slice_kind = 'TOPIC' AND channel = '${channel}' AND $__timeFilter(TIMESTAMP(day))\n  AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}')\nGROUP BY time, metric HAVING SUM(n_turns) >= 20 ORDER BY time"
+          }
+        ],
+        "options": {
+          "showValue": "always",
+          "rowHeight": 0.9,
+          "colWidth": 0.95,
+          "legend": {
+            "showLegend": false
+          },
+          "tooltip": {
+            "mode": "single"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "decimals": 0,
+            "color": {
+              "mode": "continuous-RdYlGr"
+            },
+            "min": 0.6,
+            "max": 0.9,
+            "custom": {
+              "fillOpacity": 80,
+              "lineWidth": 1
+            },
+            "displayName": "${__field.labels.metric}"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 10,
+          "w": 14,
+          "x": 0,
+          "y": 44
+        }
+      },
+      {
+        "type": "timeseries",
+        "id": 16,
+        "title": "Question mix by intent",
+        "description": "Share of assessed turns per intent, per day.",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 0,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time, slice_value AS metric, n_turns AS value\nFROM `bolek_quality_metrics.quality_metrics_daily` WHERE metric = 'AQR_RAW' AND slice_kind = 'INTENT' AND channel = '${channel}' AND $__timeFilter(TIMESTAMP(day))\n  AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}')\nORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "right",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 60,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "percent",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "displayName": "${__field.labels.metric}"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 10,
+          "w": 10,
+          "x": 14,
+          "y": 44
+        }
+      },
+      {
+        "type": "bargauge",
+        "id": 17,
+        "title": "AQR by department family and data store family (selected period)",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT CONCAT(IF(slice_kind = 'DEPARTMENT', 'department \u00b7 ', 'data store \u00b7 '), slice_value) AS family,\n       SUM(numerator) / SUM(denominator) AS AQR\nFROM `bolek_quality_metrics.quality_metrics_daily` WHERE metric = 'AQR_RAW' AND slice_kind IN ('DEPARTMENT', 'DATA_STORE_FAMILY') AND channel = '${channel}' AND $__timeFilter(TIMESTAMP(day))\n  AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}')\nGROUP BY slice_kind, slice_value HAVING SUM(n_turns) >= 20 ORDER BY slice_kind DESC, AQR DESC"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "basic",
+          "showUnfilled": true,
+          "valueMode": "color",
+          "reduceOptions": {
+            "calcs": [],
+            "fields": "",
+            "values": true
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "decimals": 1,
+            "min": 0.55,
+            "max": 0.8,
+            "color": {
+              "mode": "continuous-RdYlGr"
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 24,
+          "x": 0,
+          "y": 54
+        }
+      },
+      {
+        "type": "row",
+        "id": 18,
+        "title": "6. How do users respond?",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 61
+        },
+        "panels": []
+      },
+      {
+        "type": "timeseries",
+        "id": 19,
+        "title": "Negative reaction rate (rephrase, correction, frustration)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time, value AS `negative reactions`\nFROM `bolek_quality_metrics.quality_metrics_daily`\nWHERE metric = 'NEGATIVE_REACTION_RATE' AND channel = '${channel}' AND slice_kind = IF('${department}' = 'ALL', 'ALL', 'DEPARTMENT') AND slice_value = '${department}' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND $__timeFilter(TIMESTAMP(day)) AND (n_turns IS NULL OR n_turns >= 20) \nORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "drawStyle": "line",
+              "lineWidth": 2,
+              "fillOpacity": 0,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 8,
+          "x": 0,
+          "y": 62
+        }
+      },
+      {
+        "type": "timeseries",
+        "id": 20,
+        "title": "Dislikes (web UI)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time,\n       MAX(IF(metric = 'DISLIKE_COUNT', value, NULL)) AS `dislikes`,\n       MAX(IF(metric = 'DISLIKE_RATE', value, NULL)) AS `dislike rate`\nFROM `bolek_quality_metrics.quality_metrics_daily`\nWHERE metric IN ('DISLIKE_COUNT', 'DISLIKE_RATE') AND channel = '${channel}' AND slice_kind = 'ALL' AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND $__timeFilter(TIMESTAMP(day)) AND (n_turns IS NULL OR n_turns >= 20)\nGROUP BY day ORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "drawStyle": "bars",
+              "lineWidth": 2,
+              "fillOpacity": 70,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "dislike rate"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percentunit"
+                },
+                {
+                  "id": "custom.drawStyle",
+                  "value": "line"
+                },
+                {
+                  "id": "custom.axisPlacement",
+                  "value": "right"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 8,
+          "x": 8,
+          "y": 62
+        }
+      },
+      {
+        "type": "timeseries",
+        "id": 21,
+        "title": "Volume and active users",
+        "description": "Active users come from Google's engine metrics, about 3 days late, for all channels together.",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT TIMESTAMP(day) AS time,\n       MAX(IF(metric = 'VOLUME', value, NULL)) AS `turns`,\n       MAX(IF(metric = 'ACTIVE_USERS', value, NULL)) AS `active users`\nFROM `bolek_quality_metrics.quality_metrics_daily`\nWHERE metric IN ('VOLUME', 'ACTIVE_USERS') AND slice_kind = 'ALL' AND ((metric = 'VOLUME' AND channel = '${channel}') OR (metric = 'ACTIVE_USERS' AND channel = 'ALL')) AND ('${day_kind}' = 'ALL' OR day_kind = '${day_kind}') AND $__timeFilter(TIMESTAMP(day)) AND (n_turns IS NULL OR n_turns >= 20)\nGROUP BY day ORDER BY time"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom",
+            "calcs": []
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "desc"
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {
+              "drawStyle": "bars",
+              "lineWidth": 2,
+              "fillOpacity": 70,
+              "showPoints": "never",
+              "spanNulls": false,
+              "axisSoftMin": null,
+              "axisSoftMax": null,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "active users"
+              },
+              "properties": [
+                {
+                  "id": "custom.drawStyle",
+                  "value": "line"
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 8,
+          "x": 16,
+          "y": 62
+        }
+      },
+      {
+        "type": "row",
+        "id": 22,
+        "title": "7. What to fix, and did it help?",
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 69
+        },
+        "panels": []
+      },
+      {
+        "type": "table",
+        "id": 23,
+        "title": "Top problem clusters (latest week)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT `rank`, primary_failure, owner, topic, doc_id, n_turns, n_high, weighted, ROUND(trend * 100) AS trend_pct\nFROM `bolek_quality_metrics.quality_problem_clusters` WHERE week = (SELECT MAX(week) FROM `bolek_quality_metrics.quality_problem_clusters`)\nORDER BY `rank` LIMIT 10"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "cellHeight": "sm"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "trend_pct"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 20
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 70
+        }
+      },
+      {
+        "type": "table",
+        "id": 24,
+        "title": "Change events with release impact (AQR standardized)",
+        "description": "",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${datasource}"
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "grafana-bigquery-datasource",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "format": 1,
+            "rawQuery": true,
+            "rawSql": "SELECT e.day, e.kind, e.source, r.verdict, ROUND(r.diff * 100, 1) AS diff_pt, ROUND(r.se * 100, 1) AS se_pt,\n       r.gate_verdict\nFROM `bolek_quality_metrics.quality_change_events` e\nLEFT JOIN `bolek_quality_metrics.quality_release_impact` r ON r.event_id = e.event_id AND r.metric = 'AQR_STANDARDIZED' AND r.channel = 'ALL'\nWHERE $__timeFilter(TIMESTAMP(e.day)) ORDER BY e.day DESC"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "cellHeight": "sm"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "cellOptions": {
+                "type": "auto"
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "verdict"
+              },
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-text"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "IMPROVED": {
+                          "color": "green"
+                        },
+                        "REGRESSED": {
+                          "color": "red"
+                        },
+                        "CONFOUNDED": {
+                          "color": "orange"
+                        },
+                        "WAITING": {
+                          "color": "blue"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 70
+        }
+      }
+    ]
+  }
+}
