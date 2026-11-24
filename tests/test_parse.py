@@ -127,3 +127,15 @@ def test_linked_urls():
     text = "See https://a.example/x. Then (https://b.example/y), https://a.example/x and `https://c.example/z`"
     assert parse.linked_urls(text) == ["https://a.example/x", "https://b.example/y", "https://c.example/z"]
     assert parse.linked_urls("http://insecure.example only") == []
+
+
+def test_a_knowledge_store_reference_counts_under_its_source_data_store():
+    knowledge = DOC.format(ds="rtb-knowledge", doc="hr-house__sites_hr_leave")
+    row = turn_row()
+    response = json.loads(row["response"])
+    refs = response["answer"]["replies"][1]["groundedContent"]["textGroundingMetadata"]["references"]
+    refs[0]["documentMetadata"]["document"] = knowledge
+    row["response"] = json.dumps(response)
+
+    [ref] = parse.parse_turn(row).references
+    assert (ref.data_store, ref.doc_id) == ("rtb-crj-hr-house", "sites_hr_leave")

@@ -207,19 +207,23 @@ engine_change_methods: [UpdateEngine, UpdateAssistant, UpdateDataStore, CreateDa
 # --- Data stores (§2.1, §6.10, §12.7). Topic = one per data store, plus OTHER. ---
 content_bucket: rtbhouse-agentspace-mcp-document-content   # written by the Cloud Run indexers (infrastructure/terraform/rtbhouse-agentspace)
 # The production engine's data stores (aiel-infrastructure/modules/agentspace-engines, prod engine).
+# RTB Knowledge (AIENGLAB-1004): every content source also indexed into one shared store, each document carrying
+# its `source` as an ID prefix ("<source>__"). Its documents count under their source's data store below, and their
+# text is read from <store>/sources/<source>/ first.
+knowledge_data_store: rtb-knowledge
 data_stores:
-  - {id: rtb-crj-confluence, topic: CONFLUENCE, hosts: [rtbhouseproduct.atlassian.net], has_content: true}
-  - {id: rtb-crj-knowhow, topic: KNOWHOW, hosts: [knowhow.rtbhouse.com], has_content: true}
-  - {id: rtb-crj-biztech, topic: BIZTECH, hosts: [biztech.rtbhouse.com], has_content: true}
-  - {id: rtb-crj-traffic-wiki, topic: TRAFFIC_WIKI, hosts: [traffic-wiki.rtbhouse.biz], has_content: true}
-  - {id: rtb-crj-inhouse, topic: INHOUSE, hosts: [inhouse.rtbhouse.net], has_content: true}
-  - {id: rtb-crj-helpdesk-qa, topic: HELPDESK_QA, hosts: [sites.google.com], path_prefix: /rtbhouse.com/hdqa, has_content: true}
-  - {id: rtb-crj-hr-house, topic: HR_HOUSE, hosts: [sites.google.com], path_prefix: /rtbhouse.com/hr-house, has_content: true}
-  - {id: rtb-crj-app-hints, topic: APP_HINTS, hosts: [api.apps-tools.rtbhouse.biz], has_content: true}
-  - {id: rtb-crj-about-bolek, topic: ABOUT_BOLEK, hosts: [about.bolek.rtbhouse.net], has_content: true}
-  - {id: rtb-crj-api-docs, topic: API_DOCS, hosts: [api.rtbhouse.com, panel.rtbhouse.com], has_content: true}
-  - {id: rtb-crj-doc-repo, topic: DOC_REPO, hosts: [docrepo.rtbhouse.biz], has_content: true}
-  - {id: rtb-crj-bq-documentation, topic: BQ_DOCS, hosts: [console.cloud.google.com], has_content: true}
+  - {id: rtb-crj-confluence, topic: CONFLUENCE, hosts: [rtbhouseproduct.atlassian.net], has_content: true, source: confluence}
+  - {id: rtb-crj-knowhow, topic: KNOWHOW, hosts: [knowhow.rtbhouse.com], has_content: true, source: knowhow}
+  - {id: rtb-crj-biztech, topic: BIZTECH, hosts: [biztech.rtbhouse.com], has_content: true, source: biztech}
+  - {id: rtb-crj-traffic-wiki, topic: TRAFFIC_WIKI, hosts: [traffic-wiki.rtbhouse.biz], has_content: true, source: traffic-wiki}
+  - {id: rtb-crj-inhouse, topic: INHOUSE, hosts: [inhouse.rtbhouse.net], has_content: true, source: inhouse}
+  - {id: rtb-crj-helpdesk-qa, topic: HELPDESK_QA, hosts: [sites.google.com], path_prefix: /rtbhouse.com/hdqa, has_content: true, source: helpdesk-qa}
+  - {id: rtb-crj-hr-house, topic: HR_HOUSE, hosts: [sites.google.com], path_prefix: /rtbhouse.com/hr-house, has_content: true, source: hr-house}
+  - {id: rtb-crj-app-hints, topic: APP_HINTS, hosts: [api.apps-tools.rtbhouse.biz], has_content: true, source: app-hints}
+  - {id: rtb-crj-about-bolek, topic: ABOUT_BOLEK, hosts: [about.bolek.rtbhouse.net], has_content: true, source: about-bolek}
+  - {id: rtb-crj-api-docs, topic: API_DOCS, hosts: [api.rtbhouse.com, panel.rtbhouse.com], has_content: true, source: api-docs}
+  - {id: rtb-crj-doc-repo, topic: DOC_REPO, hosts: [docrepo.rtbhouse.biz], has_content: true, source: doc-repo}
+  - {id: rtb-crj-bq-documentation, topic: BQ_DOCS, hosts: [console.cloud.google.com], has_content: true, source: bq-documentation}
   - {id: gdrive_collection_22062025_google_drive, topic: GOOGLE_DRIVE, hosts: [drive.google.com, docs.google.com], has_content: false}
 people_directory:
   data_store_ids: [rtb-crj-associates]

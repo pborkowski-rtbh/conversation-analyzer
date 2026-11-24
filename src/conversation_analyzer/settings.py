@@ -198,6 +198,8 @@ class DataStore(BaseModel):
     path_prefix: str | None = None
     has_content: bool
     bucket: str | None = None
+    # Its documents' struct_data.source and ID prefix ("<source>__") in the shared RTB Knowledge store.
+    source: str | None = None
 
 
 class PeopleDirectory(BaseModel):
@@ -258,6 +260,8 @@ class Settings(BaseModel):
     engine_change_methods: list[str]
     content_bucket: str
     data_stores: list[DataStore]
+    # The shared RTB Knowledge store (AIENGLAB-1004); its documents count under their source's own data store.
+    knowledge_data_store: str | None = None
     people_directory: PeopleDirectory
     stage2: Switch = Field(default_factory=Switch)
     evidence_check: Switch = Field(default_factory=Switch)
@@ -284,6 +288,16 @@ class Settings(BaseModel):
             if ds.id == data_store_id:
                 return ds
         return None
+
+    def attribute(self, data_store_id: str, doc_id: str) -> tuple[str, str]:
+        """A knowledge-store document as (its source's data store, its ID there); any other as it is."""
+        if not self.knowledge_data_store or data_store_id != self.knowledge_data_store:
+            return data_store_id, doc_id
+        source, separator, rest = doc_id.partition("__")
+        for ds in self.data_stores:
+            if separator and ds.source == source:
+                return ds.id, rest
+        return data_store_id, doc_id
 
     def bucket_for(self, data_store_id: str) -> str:
         ds = self.data_store(data_store_id)

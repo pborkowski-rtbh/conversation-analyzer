@@ -20,8 +20,20 @@ from conversation_analyzer.settings import get_settings
 KDF_ITERATIONS = 1_200_000  # must match the indexers' sink
 
 
-def content_path(data_store_id: str, uri: str) -> str:
-    return f"{data_store_id}/{hashlib.sha256(uri.encode()).hexdigest()}.enc"
+def content_path(data_store_id: str, uri: str, source: str | None = None) -> str:
+    prefix = f"{data_store_id}/sources/{source}" if source else data_store_id
+    return f"{prefix}/{hashlib.sha256(uri.encode()).hexdigest()}.enc"
+
+
+def content_locations(data_store_id: str, uri: str) -> list[tuple[str, str]]:
+    """(bucket, path) to try for a document's text: the RTB Knowledge store's copy first, then its own store's."""
+    s = get_settings()
+    ds = s.data_store(data_store_id)
+    own = (s.bucket_for(data_store_id), content_path(data_store_id, uri))
+    if ds is None or not ds.source or not s.knowledge_data_store:
+        return [own]
+    shared = (s.bucket_for(s.knowledge_data_store), content_path(s.knowledge_data_store, uri, ds.source))
+    return [shared, own]
 
 
 def derive_key(key: str, salt: str) -> bytes:
@@ -64,10 +76,14 @@ class ContentReader:
         ds = s.data_store(ref.data_store)
         if ds is None or not ds.has_content or not ref.uri or is_people_directory(ref.data_store, ref.doc_id, ref.uri):
             return None
-        blob = storage_client().bucket(s.bucket_for(ds.id)).blob(content_path(ds.id, ref.uri))
-        try:
-            payload = json.loads(fernet().decrypt(blob.download_as_bytes()))
-        except (NotFound, InvalidToken, ValueError):
+        payload = None
+        for bucket, path in content_locations(ds.id, ref.uri):
+            try:
+                payload = json.loads(fernet().decrypt(storage_client().bucket(bucket).blob(path).download_as_bytes()))
+                break
+            except (NotFound, InvalidToken, ValueError):
+                continue
+        if payload is None:
             self.missing += 1
             return None
         return DocText(

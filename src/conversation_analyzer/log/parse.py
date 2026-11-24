@@ -139,10 +139,11 @@ def parse_turn(row: dict[str, Any]) -> Turn | None:
         m = _DOC_NAME.search(meta.get("document") or "")
         if not m:
             continue
+        data_store, doc_id = get_settings().attribute(m["ds"], m["doc"])
         references.append(
             Reference(
-                doc_id=m["doc"],
-                data_store=m["ds"],
+                doc_id=doc_id,
+                data_store=data_store,
                 uri=meta.get("uri"),
                 title=meta.get("title") or "",
                 snippet=ref.get("content") or "",

@@ -300,6 +300,19 @@ not on real BigQuery or after a run that dies half-way.
   the same turns (rows are keyed, so only the tokens are paid twice). A lock object next to the run gate would cover
   it; decide before step 4.
 
+### A9. RTB Knowledge store (AIENGLAB-1021)
+
+Done 2026-11-24. Bolek is moving to one shared data store, `rtb-knowledge`, for every content source (AIENGLAB-1004).
+During the dual write, and in full after cut-over, references name that store instead of `rtb-crj-*`.
+
+- [x] **Attribution.** `Settings.attribute` maps a `rtb-knowledge` reference to its source's data store, using
+  `data_stores[].source` and the document ID prefix `<source>__` the indexers write, and drops the prefix from the
+  document ID. Every `data_store` column, stratum and document history stays as it is, and no schema change is needed.
+  A reference without a known prefix keeps `rtb-knowledge` as its data store.
+- [x] **Content.** `ContentReader` reads `rtb-knowledge/sources/<source>/<hash>.enc` first, then the source's own
+  store path, so it works during the dual write and after the per-source stores are gone.
+- [ ] Run the emulator tests (`make test`) before merging; only the unit tests ran when this was written.
+
 ---
 
 ## 6. External gates
